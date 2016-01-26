@@ -34,8 +34,8 @@ extern "C" {
 
     void sparseLocalStepSingleDoc_ActiveOnly(
         double* ElogLik_d_IN,
+        double* wc_d_IN,
         double* alphaEbeta_IN,
-        //double* digamma_alphaEbeta_IN,
         int nnzPerRow,
         int N,
         int K,
@@ -50,7 +50,10 @@ extern "C" {
         int* numIterVec_OUT,
         double* maxDiffVec_OUT,
         int doTrackELBO,
-        double* elboVec_OUT
+        double* elboVec_OUT,
+        int numRestarts,
+        int *rAcceptVec_IN, int* rTrialVec_IN,
+        int verbose
         );
 
 
@@ -118,8 +121,8 @@ double calcELBOForSingleDoc_V2(
 }
 
 double calcELBOForSingleDoc_V1(
-    Arr1D_d alphaEbeta,
-    Arr1D_d topicCount_d,
+    ExtArr1D_d alphaEbeta,
+    ExtArr1D_d topicCount_d,
     Arr1D_d ElogProb_d,
     Arr1D_i activeTopics_d,
     double totalLogSumResp,
@@ -142,23 +145,24 @@ double calcELBOForSingleDoc_V1(
 }
 
 
-double stepForward_ActiveOnly(
-    Arr1D_d alphaEbeta,
-    Arr1D_d topicCount_d,
-    Arr1D_d ElogProb_d,
-    Arr2D_d ElogLik_d,
-    Arr1D_d logScores_n,
-    Arr1D_d tempScores_n,
+double updateAssignments_ActiveOnly(
+    ExtArr2D_d ElogLik_d,
+    ExtArr1D_d wc_d,
+    ExtArr1D_d alphaEbeta,
     Arr1D_i activeTopics_d,
-    Arr1D_d spResp_data,
-    Arr1D_i spResp_colids,
-    const int N,
-    const int K, 
-    const int Kactive,
-    const int nnzPerRow,
-    const int iter,
-    const int initProbsToEbeta,
-    const int doTrackELBO
+    ExtArr1D_d& topicCount_d, // & makes sure we can edit passed array in place
+    Arr1D_d& ElogProb_d,
+    Arr1D_d& logScores_n,
+    Arr1D_d& tempScores_n,
+    ExtArr1D_d& spResp_data,
+    ExtArr1D_i& spResp_colids,
+    int N,
+    int K, 
+    int Kactive,
+    int nnzPerRow,
+    int iter,
+    int initProbsToEbeta,
+    int doTrackELBO
     )
 {
     double totalLogSumResp = 0.0;
@@ -176,11 +180,9 @@ double stepForward_ActiveOnly(
                 topicCount_d(k) + alphaEbeta(k));
         }
     }
-
-    // Reset topicCounts to all zeros
+    // RESET topicCounts to all zeros
     topicCount_d.fill(0);
-
-    // UPDATE sparse assignments
+    // UPDATE assignments, obeying sparsity constraint
     for (int n = 0; n < N; n++) {
         int m = n * nnzPerRow;
         int argmax_n = 0;
@@ -195,13 +197,12 @@ double stepForward_ActiveOnly(
                 }
             }
         }
-
         if (nnzPerRow == 1) {
             spResp_data(m) = 1.0;
             spResp_colids(m) = argmax_n;
-            topicCount_d(argmax_n) += 1.0;
+            topicCount_d(argmax_n) += wc_d(n);
             if (doTrackELBO) {
-                totalLogSumResp += maxScore_n;
+                totalLogSumResp += wc_d(n) * maxScore_n;
             }
         } else {
             // Find the top L entries in logScores_n
@@ -229,20 +230,415 @@ double stepForward_ActiveOnly(
                     nzk += 1;                        
                 }
             }
-
             for (int nzk = m; nzk < m + nnzPerRow; nzk++) {
                 spResp_data(nzk) /= sumResp_n;
                 topicCount_d(spResp_colids(nzk)) += \
-                    spResp_data(nzk);
+                    wc_d(n) * spResp_data(nzk);
             }
-
             if (doTrackELBO) {
-                totalLogSumResp += maxScore_n + log(sumResp_n);
+                totalLogSumResp += wc_d(n) * (maxScore_n + log(sumResp_n));
             }
         }
     } // end for loop over tokens n
     return totalLogSumResp;
 }
+
+/*
+void sparseLocalStepManyDocs_ActiveOnly(
+        int* doc_range_IN,
+        double* ElogLik_IN,
+        double* wc_IN,
+        double* alphaEbeta_IN,
+        int nnzPerRow,
+        int Nall,
+        int K,
+        int D,
+        int nCoordAscentIterLP,
+        double convThrLP,
+        int initProbsToEbeta,
+        double* topicCount_OUT,
+        double* spResp_data_OUT,
+        int* spResp_colids_OUT,
+        int* numIterVec_OUT,
+        double* maxDiffVec_OUT,
+        int numRestarts,
+        int* rAcceptVec_IN,
+        int* rTrialVec_IN,
+        int verbose
+        )
+{
+    // Unpack inputs, treated as fixed constants
+    ExtArr1D_i doc_range (doc_range_IN, D+1);
+    ExtArr2D_d ElogLik (ElogLik_IN, Nall, K);
+    ExtArr1D_d wc (wc_IN, Nall);
+    ExtArr1D_d alphaEbeta (alphaEbeta_IN, K);
+
+    // Unpack outputs
+    ExtArr1D_d spResp_data (spResp_data_OUT, Nall * nnzPerRow);
+    ExtArr1D_i spResp_colids (spResp_colids_OUT, Nall * nnzPerRow);
+    ExtArr2D_d topicCount (topicCount_OUT, D, K);
+
+    ExtArr1D_i numIterVec (numIterVec_OUT, D);
+    ExtArr1D_d maxDiffVec (maxDiffVec_OUT, D);
+
+    ExtArr1D_i rAcceptVec (rAcceptVec_IN, 1);
+    ExtArr1D_i rTrialVec (rTrialVec_IN, 1);
+    
+    // Temporary storage
+    Arr1D_d ElogProb_d (K);
+    Arr1D_d prevTopicCount_d (K);
+    Arr1D_d logScores_n (K);
+    Arr1D_d tempScores_n (K);
+    Arr1D_i activeTopics_d (K);
+    Arr1D_i spareActiveTopics_d (nnzPerRow);
+
+    nCoordAscentIterLP = max(nCoordAscentIterLP, 1);
+
+    double sum_gammalnalphaEbeta = 0.0;
+    if (numRestarts > 0) {
+        for (int k = 0; k < K; k++) {
+            sum_gammalnalphaEbeta += boost::math::lgamma(alphaEbeta(k));
+        }
+    }
+
+    for (int d = 0; d < D; d++) {
+        int start_d = doc_range(d);
+        int N_d = doc_range(d+1) - doc_range(d);
+
+        prevTopicCount_d.fill(-1);
+        double maxDiff = N_d;
+        int iter = 0;
+        int Kactive = K;
+        double ACTIVE_THR = 1e-9;
+        double totalLogSumResp = 0.0;
+    
+        for (iter = 0; iter < nCoordAscentIterLP + initProbsToEbeta; iter++) {
+            if (iter > 0) {
+                int newKactive = 0;
+                int ia = 0; // spare inactive topics
+                for (int a = 0; a < Kactive; a++) {
+                    int k = activeTopics_d(a);
+                    if (topicCount(d, k) > ACTIVE_THR) {
+                        activeTopics_d(newKactive) = k;
+                        prevTopicCount_d(k) = topicCount(d, k);
+                        newKactive += 1;
+                    } else if (newKactive < nnzPerRow - ia) {
+                        spareActiveTopics_d(ia) = k;
+                        ia += 1;
+                    }
+                }
+                Kactive = newKactive;
+                while (Kactive < nnzPerRow) {
+                    int k = spareActiveTopics_d(Kactive - newKactive);
+                    activeTopics_d(Kactive) = k;
+                    Kactive++;
+                }
+            } else {
+                for (int k = 0; k < K; k++) {
+                    activeTopics_d(k) = k;
+                }
+            }
+            assert(Kactive >= nnzPerRow);
+            assert(Kactive <= K);
+
+            updateAssignments_ActiveOnly(
+                ElogLik.block(start_d, 0, start_d + N_d, K),
+                wc.segment(start_d, start_d + N_d),
+                alphaEbeta, activeTopics_d,
+                topicCount.row(d),
+                ElogProb_d,
+                logScores_n, tempScores_n,
+                spResp_data, spResp_colids,
+                N_d, K, Kactive, nnzPerRow, 
+                iter, initProbsToEbeta, 0);
+
+            // END ITERATION. Decide whether to quit early
+            if (iter > 0 && iter % 5 == 0) {
+                double absDiff_k = 0.0;
+                maxDiff = 0.0;
+                for (int ka = 0; ka < Kactive; ka++) {
+                    int k = activeTopics_d(ka);
+                    absDiff_k = abs(prevTopicCount_d(k) - topicCount(d, k));
+                    if (absDiff_k > maxDiff) {
+                        maxDiff = absDiff_k;
+                    }
+                }
+                if (maxDiff <= convThrLP) {
+                    break;
+                }
+            }
+        } // end loop over iterations at doc d
+        maxDiffVec(d) = maxDiff;
+        numIterVec(d) = iter + 1;
+    } // end loop over documents
+}
+*/
+
+
+void sparseLocalStepSingleDoc_ActiveOnly(
+        double* ElogLik_d_IN,
+        double* wc_d_IN,
+        double* alphaEbeta_IN,
+        int nnzPerRow,
+        int N,
+        int K,
+        int nCoordAscentIterLP,
+        double convThrLP,
+        int initProbsToEbeta,
+        double* topicCount_d_OUT,
+        double* spResp_data_OUT,
+        int* spResp_colids_OUT,
+        int d,
+        int D,
+        int* numIterVec_OUT,
+        double* maxDiffVec_OUT,
+        int doTrackELBO,
+        double* elboVec_OUT,
+        int numRestarts,
+        int* rAcceptVec_IN,
+        int* rTrialVec_IN,
+        int verbose
+        )
+{
+    // Unpack inputs, treated as fixed constants
+    ExtArr2D_d ElogLik_d (ElogLik_d_IN, N, K);
+    ExtArr1D_d wc_d (wc_d_IN, N);
+    ExtArr1D_d alphaEbeta (alphaEbeta_IN, K);
+
+    // Unpack outputs
+    ExtArr1D_d spResp_data (spResp_data_OUT, N * nnzPerRow);
+    ExtArr1D_i spResp_colids (spResp_colids_OUT, N * nnzPerRow);
+    ExtArr1D_d topicCount_d (topicCount_d_OUT, K);
+
+    ExtArr1D_i numIterVec (numIterVec_OUT, D);
+    ExtArr1D_d maxDiffVec (maxDiffVec_OUT, D);
+    ExtArr1D_d elboVec (elboVec_OUT, nCoordAscentIterLP + initProbsToEbeta);
+
+    ExtArr1D_i rAcceptVec (rAcceptVec_IN, 1);
+    ExtArr1D_i rTrialVec (rTrialVec_IN, 1);
+    
+    // Temporary storage
+    Arr1D_d ElogProb_d (K);
+    Arr1D_d prevTopicCount_d (K);
+    Arr1D_d logScores_n (K);
+    Arr1D_d tempScores_n (K);
+
+    Arr1D_i activeTopics_d (K);
+    Arr1D_i spareActiveTopics_d (nnzPerRow);
+
+    prevTopicCount_d.fill(-1);
+    double maxDiff = N;
+    int iter = 0;
+    int Kactive = K;
+    double ACTIVE_THR = 1e-9;
+    double totalLogSumResp = 0.0;
+    double sum_gammalnalphaEbeta = 0.0;
+    if (doTrackELBO || numRestarts > 0) {
+        for (int k = 0; k < K; k++) {
+            sum_gammalnalphaEbeta += boost::math::lgamma(alphaEbeta(k));
+        }
+    }
+    nCoordAscentIterLP = max(nCoordAscentIterLP, 1);
+
+    for (iter = 0; iter < nCoordAscentIterLP + initProbsToEbeta; iter++) {
+        if (iter > 0) {
+            int newKactive = 0;
+            int ia = 0; // spare inactive topics
+            for (int a = 0; a < Kactive; a++) {
+                int k = activeTopics_d(a);
+                if (topicCount_d(k) > ACTIVE_THR) {
+                    activeTopics_d(newKactive) = k;
+                    prevTopicCount_d(k) = topicCount_d(k);
+                    newKactive += 1;
+                } else if (newKactive < nnzPerRow - ia) {
+                    spareActiveTopics_d(ia) = k;
+                    ia += 1;
+                }
+            }
+            Kactive = newKactive;
+            while (Kactive < nnzPerRow) {
+                int k = spareActiveTopics_d(Kactive - newKactive);
+                activeTopics_d(Kactive) = k;
+                Kactive++;
+            }
+        } else {
+            for (int k = 0; k < K; k++) {
+                activeTopics_d(k) = k;
+            }
+        }
+        assert(Kactive >= nnzPerRow);
+        assert(Kactive <= K);
+
+        totalLogSumResp = updateAssignments_ActiveOnly(
+            ElogLik_d, wc_d, alphaEbeta, activeTopics_d,
+            topicCount_d, ElogProb_d,
+            logScores_n, tempScores_n,
+            spResp_data, spResp_colids,
+            N, K, Kactive, nnzPerRow, 
+            iter, initProbsToEbeta, doTrackELBO);
+
+        if (doTrackELBO) {
+            elboVec(iter) = calcELBOForSingleDoc_V1(
+                alphaEbeta, topicCount_d, ElogProb_d, activeTopics_d,
+                totalLogSumResp, sum_gammalnalphaEbeta, Kactive);
+            /*
+            double elboV2 = calcELBOForSingleDoc_V2(
+                alphaEbeta, topicCount_d, spResp_data, spResp_colids,
+                ElogLik_d, K, N, nnzPerRow);
+            
+            double elboV1 = calcELBOForSingleDoc_V1(
+                alphaEbeta, topicCount_d, ElogProb_d, activeTopics_d,
+                totalLogSumResp, sum_gammalnalphaEbeta, Kactive);
+            printf(" V1: %.6f\n V2: %.6f\n", elboV2, elboV1);
+            */
+            
+        }
+        // END ITERATION. Decide whether to quit early
+        if (iter > 0 && iter % 5 == 0) {
+            double absDiff_k = 0.0;
+            maxDiff = 0.0;
+            for (int ka = 0; ka < Kactive; ka++) {
+                int k = activeTopics_d(ka);
+                absDiff_k = abs(prevTopicCount_d(k) - topicCount_d(k));
+                if (absDiff_k > maxDiff) {
+                    maxDiff = absDiff_k;
+                }
+            }
+            if (maxDiff <= convThrLP) {
+                break;
+            }
+        }
+    }
+
+    // Figure out which topics are eligible for sparse restarts
+    double smallThr = 1e-6;
+    double curELBO = 0.0;
+    for (int riter = 0; riter < numRestarts; riter++) {
+        if (riter == 0) {
+            totalLogSumResp = updateAssignments_ActiveOnly(
+                ElogLik_d, wc_d, alphaEbeta, activeTopics_d,
+                topicCount_d, ElogProb_d,
+                logScores_n, tempScores_n,
+                spResp_data, spResp_colids,
+                N, K, Kactive, nnzPerRow, 
+                0, 0, 1);
+            curELBO = calcELBOForSingleDoc_V1(
+                alphaEbeta, topicCount_d, ElogProb_d, activeTopics_d,
+                totalLogSumResp, sum_gammalnalphaEbeta, Kactive);
+            // Remember the best-known topic-count vector!
+            for (int k = 0; k < K; k++) {
+                prevTopicCount_d(k) = topicCount_d(k);
+            }
+        }
+        // SEARCH FOR SMALLEST TOPIC HAVE NOT YET TRIED YET
+        int numAboveThr = 0;
+        double minVal = N + 1.0; // topicCount_d must never have this value
+        int minLoc = 0;
+        for (int ka = 0; ka < Kactive; ka++) {
+            int k = activeTopics_d(ka);
+            if (topicCount_d(k) > smallThr) {
+                numAboveThr += 1;
+                if (topicCount_d(k) < minVal) {
+                    minVal = topicCount_d(k);
+                    minLoc = k;
+                }
+            }
+        }
+        if (numAboveThr == 1) {
+            break;
+        }
+
+        if (verbose) {
+            printf("START: best known counts. ELBO=%.5e \n", curELBO);
+            for (int ka = 0; ka < Kactive; ka++) {
+                int k = activeTopics_d(ka);
+                printf("%02d:%06.2f ", k, topicCount_d(k));
+            }
+            printf("\n");
+        }
+        smallThr = minVal;
+        topicCount_d(minLoc) = 0.0;
+        if (verbose) {        
+            printf(
+                "RESTART: Set index %d to zero (%d left)\n", 
+                minLoc, numAboveThr - 1);
+            for (int ka = 0; ka < Kactive; ka++) {
+                int k = activeTopics_d(ka);
+                printf("%02d:%06.2f ", k, topicCount_d(k));
+            }
+            printf("\n");
+        }
+        int NSTEP = 2;
+        for (int step = 0; step < NSTEP; step++) {        
+            totalLogSumResp = updateAssignments_ActiveOnly(
+                ElogLik_d, wc_d, alphaEbeta, activeTopics_d,
+                topicCount_d, ElogProb_d,
+                logScores_n, tempScores_n,
+                spResp_data, spResp_colids,
+                N, K, Kactive, nnzPerRow, 
+                step, 0, step == NSTEP-1);
+        }
+        // If the change is small, abandon this
+        double propELBO;
+        if (abs(prevTopicCount_d(minLoc) -topicCount_d(minLoc)) < 1e-6) {
+            propELBO = curELBO;
+        } else {
+            propELBO = calcELBOForSingleDoc_V1(
+                alphaEbeta, topicCount_d, ElogProb_d, activeTopics_d,
+                totalLogSumResp, sum_gammalnalphaEbeta, Kactive);
+        }
+
+        if (verbose) {
+            for (int ka = 0; ka < Kactive; ka++) {
+                int k = activeTopics_d(ka);
+                printf("%02d:%06.2f ", k, topicCount_d(k));
+            }
+            printf("\n");
+            printf("propELBO % .6e\n", propELBO);
+            printf(" curELBO % .6e\n", curELBO);
+            if (propELBO > curELBO) {
+                printf("beforeCount: %.6f\n", prevTopicCount_d(minLoc));
+                printf(" afterCount: %.6f\n", topicCount_d(minLoc));
+                printf("gainELBO % .6e  *** ACCEPTED \n", propELBO - curELBO);
+            } else {
+                printf("gainELBO % .6e      rejected \n", propELBO - curELBO);
+            }
+        }
+        // If accepted, set current best doc-topic counts to latest proposal
+        // Otherwise, reset the starting point for the next proposal.
+        if (propELBO > curELBO) {
+            curELBO = propELBO;
+            for (int ka = 0; ka < Kactive; ka++) {
+                int k = activeTopics_d(ka);
+                prevTopicCount_d(k) = topicCount_d(k);
+            }
+            rAcceptVec(0) += 1;
+        } else {
+            for (int ka = 0; ka < Kactive; ka++) {
+                int k = activeTopics_d(ka);
+                topicCount_d(k) = prevTopicCount_d(k);
+            }
+        }
+        rTrialVec(0) += 1;
+    }
+    if (numRestarts > 0) {
+        for (int ka = 0; ka < Kactive; ka++) {
+            int k = activeTopics_d(ka);
+            topicCount_d(k) = prevTopicCount_d(k);
+        }
+        // Final update! Make sure spResp reflects best topicCounts found
+        updateAssignments_ActiveOnly(
+            ElogLik_d, wc_d, alphaEbeta, activeTopics_d,
+            topicCount_d, ElogProb_d,
+            logScores_n, tempScores_n,
+            spResp_data, spResp_colids,
+            N, K, Kactive, nnzPerRow, 
+            0, 0, 0);
+    }
+    maxDiffVec(d) = maxDiff;
+    numIterVec(d) = iter + 1;
+}
+
 
 void sparseLocalStepSingleDoc(
         double* ElogLik_d_IN,
@@ -369,286 +765,6 @@ void sparseLocalStepSingleDoc(
 }
 
 
-
-void sparseLocalStepSingleDoc_ActiveOnly(
-        double* ElogLik_d_IN,
-        double* alphaEbeta_IN,
-        //double* digamma_alphaEbeta_IN,
-        int nnzPerRow,
-        int N,
-        int K,
-        int nCoordAscentIterLP,
-        double convThrLP,
-        int initProbsToEbeta,
-        double* topicCount_d_OUT,
-        double* spResp_data_OUT,
-        int* spResp_colids_OUT,
-        int d,
-        int D,
-        int* numIterVec_OUT,
-        double* maxDiffVec_OUT,
-        int doTrackELBO,
-        double* elboVec_OUT
-        )
-{
-    // Unpack inputs, treated as fixed constants
-    ExtArr2D_d ElogLik_d (ElogLik_d_IN, N, K);
-    ExtArr1D_d alphaEbeta (alphaEbeta_IN, K);
-    //ExtArr1D_d digamma_alphaEbeta (digamma_alphaEbeta_IN, K);
-
-    // Unpack outputs
-    ExtArr1D_d spResp_data (spResp_data_OUT, N * nnzPerRow);
-    ExtArr1D_i spResp_colids (spResp_colids_OUT, N * nnzPerRow);
-    ExtArr1D_d topicCount_d (topicCount_d_OUT, K);
-
-    ExtArr1D_i numIterVec (numIterVec_OUT, D);
-    ExtArr1D_d maxDiffVec (maxDiffVec_OUT, D);
-    ExtArr1D_d elboVec (elboVec_OUT, nCoordAscentIterLP + initProbsToEbeta);
-
-    // Temporary storage
-    Arr1D_d ElogProb_d (K);
-    Arr1D_d prevTopicCount_d (K);
-    Arr1D_d logScores_n (K);
-    Arr1D_d tempScores_n (K);
-
-    Arr1D_i activeTopics_d (K);
-    Arr1D_i spareActiveTopics_d (nnzPerRow);
-
-    prevTopicCount_d.fill(N);
-    double maxDiff = N;
-    int iter = 0;
-    int Kactive = K;
-    double ACTIVE_THR = 1e-9;
-
-    double totalLogSumResp = 0.0;
-    double sum_gammalnalphaEbeta = 0.0;
-    if (doTrackELBO) {
-        for (int k = 0; k < K; k++) {
-            sum_gammalnalphaEbeta += boost::math::lgamma(alphaEbeta(k));
-        }
-    }
-
-    for (iter = 0; iter < nCoordAscentIterLP + initProbsToEbeta; iter++) {
-        totalLogSumResp = 0.0;
-        if (iter > 0) {
-            int newKactive = 0;
-            int ia = 0; // spare inactive topics
-            for (int a = 0; a < Kactive; a++) {
-                int k = activeTopics_d(a);
-                if (topicCount_d(k) > ACTIVE_THR) {
-                    activeTopics_d(newKactive) = k;
-                    prevTopicCount_d(k) = topicCount_d(k);
-                    newKactive += 1;
-                } else if (newKactive < nnzPerRow - ia) {
-                    spareActiveTopics_d(ia) = k;
-                    ia += 1;
-                }
-            }
-            Kactive = newKactive;
-            while (Kactive < nnzPerRow) {
-                int k = spareActiveTopics_d(Kactive - newKactive);
-                activeTopics_d(Kactive) = k;
-                prevTopicCount_d(k) = ACTIVE_THR;
-                Kactive++;
-            }
-            //std::copy(
-            //    topicCount_d.data(),
-            //    topicCount_d.data() + K,
-            //    prevTopicCount_d.data());
-        } else {
-            for (int k = 0; k < K; k++) {
-                activeTopics_d(k) = k;
-            }
-        }
-        //printf("iter %3d: %3d active topics\n ", iter, Kactive);
-        //for (int ka = 0; ka < Kactive; ka++) {
-        //    int k = activeTopics_d(ka);
-        //    printf("%3d:%5.1f ", k, topicCount_d(k));
-        //}
-        //printf("\n");
-        assert(Kactive >= nnzPerRow);
-        assert(Kactive <= K);
-
-        if (iter == 0 and initProbsToEbeta == 1) {
-            assert(Kactive == K);
-            for (int k = 0; k < Kactive; k++) {
-                ElogProb_d(k) = log(alphaEbeta(k));
-            }
-        } else {
-            for (int ka = 0; ka < Kactive; ka++) {
-                int k = activeTopics_d(ka);
-                ElogProb_d(k) = boost::math::digamma(
-                    topicCount_d(k) + alphaEbeta(k));
-            }
-            /*
-            Kactive = 0;
-            for (int k = 0; k < K; k++) {
-                if (prevTopicCount_d(k) > ACTIVE_THR) {
-                    Kactive += 1;
-                    ElogProb_d(k) = boost::math::digamma(
-                        topicCount_d(k) + alphaEbeta(k));
-                } else {
-                    ElogProb_d(k) = digamma_alphaEbeta(k);
-                }
-            }
-            // Need to pick at least nnzPerRow active topics for this doc.
-            int k = 0;
-            while (Kactive < nnzPerRow) {    
-                if (prevTopicCount_d(k) < ACTIVE_THR) {
-                    prevTopicCount_d(k) = ACTIVE_THR + 1e-9;
-                    Kactive++;
-                }
-                k++;
-            }
-            */
-        }
-        //printf("iter=%d Kactive=%d\n", iter, Kactive);
-
-        topicCount_d.fill(0);
-        // Step over each data atom
-        for (int n = 0; n < N; n++) {
-            int m = n * nnzPerRow;
-            int argmax_n = 0;
-            double maxScore_n;
-            for (int ka = 0; ka < Kactive; ka++) {
-                int k = activeTopics_d(ka);
-                logScores_n(ka) = ElogProb_d(k) + ElogLik_d(n,k);
-                if (ka == 0 || logScores_n(ka) > maxScore_n) {
-                    maxScore_n = logScores_n(ka);
-                    if (nnzPerRow == 1) {
-                        argmax_n = k;
-                    }
-                }
-            }
-            /*
-            int a = 0;
-            for (int k = 0; k < K; k++) {
-                if (prevTopicCount_d(k) > ACTIVE_THR) {
-                    logScores_n(a) = ElogProb_d(k) + ElogLik_d(n,k);
-                    if (a == 0 || logScores_n(a) > maxScore_n) {
-                        maxScore_n = logScores_n(a);
-                        if (nnzPerRow == 1) {
-                            argmax_n = k;
-                        }
-                    }
-                    a++;
-                }
-            }
-            */
-            if (nnzPerRow == 1) {
-                spResp_data(m) = 1.0;
-                spResp_colids(m) = argmax_n;
-                // Update topicCount_d
-                topicCount_d(argmax_n) += 1.0;
-
-                if (doTrackELBO) {
-                    totalLogSumResp += maxScore_n;
-                }
-
-            } else {
-                // Find the top L entries in logScores_n
-                // Copy current row over into a temp buffer
-                std::copy(
-                    logScores_n.data(),
-                    logScores_n.data() + Kactive,
-                    tempScores_n.data());
-                // Sort the data in the temp buffer (in place)
-                std:nth_element(
-                    tempScores_n.data(),
-                    tempScores_n.data() + Kactive - nnzPerRow,
-                    tempScores_n.data() + Kactive);
-                // Walk thru this row and find the top "nnzPerRow" positions
-                double pivotScore = tempScores_n(Kactive - nnzPerRow);
-
-                int nzk = m;
-                double sumResp_n = 0.0;
-                for (int ka = 0; ka < Kactive; ka++) {
-                    if (logScores_n(ka) >= pivotScore) {
-                        spResp_data(nzk) = \
-                            exp(logScores_n(ka) - maxScore_n);
-                        spResp_colids(nzk) = activeTopics_d(ka);
-                        sumResp_n += spResp_data(nzk);
-                        nzk += 1;                        
-                    }
-                }
-                /*
-                int a = 0;
-                for (int k = 0; k < K; k++) {
-                    if (prevTopicCount_d(k) > ACTIVE_THR) {
-                        if (logScores_n(a) >= pivotScore) {
-                            spResp_data(m + nzk) = \
-                                exp(logScores_n(a) - maxScore_n);
-                            spResp_colids(m + nzk) = k;
-                            sumResp_n += spResp_data(m + nzk);
-                            nzk += 1;
-                        }
-                        a += 1;
-                    }
-                }
-                */
-                for (int nzk = m; nzk < m + nnzPerRow; nzk++) {
-                    spResp_data(nzk) /= sumResp_n;
-                    topicCount_d(spResp_colids(nzk)) += \
-                        spResp_data(nzk);
-                }
-
-                if (doTrackELBO) {
-                    totalLogSumResp += maxScore_n + log(sumResp_n);
-                }
-            }
-
-        }
-
-
-        if (doTrackELBO) {
-            elboVec(iter) = calcELBOForSingleDoc_V1(
-                alphaEbeta, topicCount_d, ElogProb_d, activeTopics_d,
-                totalLogSumResp, sum_gammalnalphaEbeta, Kactive);
-            /*
-            double elboV2 = calcELBOForSingleDoc_V2(
-                alphaEbeta, topicCount_d, spResp_data, spResp_colids,
-                ElogLik_d, K, N, nnzPerRow);
-            
-            double elboV1 = calcELBOForSingleDoc_V1(
-                alphaEbeta, topicCount_d, ElogProb_d, activeTopics_d,
-                totalLogSumResp, sum_gammalnalphaEbeta, Kactive);
-            printf(" V1: %.6f\n V2: %.6f\n", elboV2, elboV1);
-            */
-            
-        }
-        //printf("END OF iter=%d  topicCount_d\n", iter);
-        //for (int k = 0; k < K; k++) {
-        //    printf("%7.2f ", topicCount_d(k));
-        //}
-        //printf("\n");
-        // END ITERATION. Decide whether to quit early
-        if (iter > 0 && iter % 5 == 0) {
-            double absDiff_k = 0.0;
-            maxDiff = 0.0;
-            for (int ka = 0; ka < Kactive; ka++) {
-                int k = activeTopics_d(ka);
-                absDiff_k = abs(prevTopicCount_d(k) - topicCount_d(k));
-                if (absDiff_k > maxDiff) {
-                    maxDiff = absDiff_k;
-                }
-            }
-            /*
-            for (int k = 0; k < K; k++) {
-                absDiff_k = abs(prevTopicCount_d(k) - topicCount_d(k));
-                if (absDiff_k > maxDiff) {
-                    maxDiff = absDiff_k;
-                }
-            }
-            */
-            if (maxDiff <= convThrLP) {
-                break;
-            }
-        }
-    }
-    maxDiffVec(d) = maxDiff;
-    numIterVec(d) = iter + 1;
-}
-
 void sparseLocalStepSingleDocWithWordCounts(
         double* wordcounts_d_IN,
         double* ElogLik_d_IN,
@@ -678,8 +794,9 @@ void sparseLocalStepSingleDocWithWordCounts(
     VectorXd logScores_n (K);
     VectorXd tempScores_n (K);
     prevTopicCount_d.fill(-1);
-
-    for (int iter = 0; iter < nCoordAscentIterLP + initProbsToEbeta; iter++) {
+    int iter = 0;
+    double maxDiff = 0.0;
+    for (iter = 0; iter < nCoordAscentIterLP + initProbsToEbeta; iter++) {
 
         if (iter == 0 and initProbsToEbeta == 1) {
             for (int k = 0; k < K; k++) {
@@ -745,9 +862,9 @@ void sparseLocalStepSingleDocWithWordCounts(
             }
         }
         // END ITERATION. Decide whether to quit early
-        if (iter > 3 && iter % 5 == 0) {
+        if (iter > 0 && iter % 5 == 0) {
             double absDiff_k = 0.0;
-            double maxDiff = 0.0;
+            maxDiff = 0.0;
             for (int k = 0; k < K; k++) {
                 absDiff_k = abs(prevTopicCount_d(k) - topicCount_d(k));
                 if (absDiff_k > maxDiff) {

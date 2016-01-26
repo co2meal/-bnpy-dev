@@ -82,6 +82,12 @@ def calcLocalParams(
     AggInfo = dict()
     AggInfo['maxDiff'] = np.zeros(Data.nDoc)
     AggInfo['iter'] = np.zeros(Data.nDoc, dtype=np.int32)
+    if 'restartLP' in kwargs and kwargs['restartLP']:
+        AggInfo['nRestartsAccepted'] = np.zeros(1, dtype=np.int32)
+        AggInfo['nRestartsTried'] = np.zeros(1, dtype=np.int32)
+    else:
+        AggInfo['nRestartsAccepted'] = None
+        AggInfo['nRestartsTried'] = None
 
     for d in xrange(nDoc):
         start = Data.doc_range[cslice[0] + d]
@@ -121,6 +127,8 @@ def calcLocalParams(
                 d=d,
                 maxDiffVec=AggInfo['maxDiff'],
                 numIterVec=AggInfo['iter'],
+                nRAcceptVec=AggInfo['nRestartsAccepted'],
+                nRTrialVec=AggInfo['nRestartsTried'],
                 **kwargs)
         else:
             Lik_d = Lik[lstart:lstop].copy()  # Local copy
@@ -300,7 +308,7 @@ def writeLogMessageForManyDocs(Data, AI,
     msg += ' iter prctiles %s\n' % (siter)
     msg += ' diff prctiles %s\n' % (sdiff)
 
-    if 'nRestartsAccepted' in AI:
+    if 'nRestartsAccepted' in AI and AI['nRestartsAccepted'] is not None:
         msg += " nRestarts %4d/%4d\n" % (
             AI['nRestartsAccepted'], AI['nRestartsTried'])
     LocalStepLogger.log(msg)

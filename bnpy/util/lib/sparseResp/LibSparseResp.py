@@ -28,7 +28,6 @@ def sparsifyResp_cpp(Resp, nnzPerRow, order='C'):
         # Allocate output arrays, initialized to all zeros
         spR_data = np.zeros(N * nnzPerRow, dtype=np.float64, order=order)
         spR_colids = np.zeros(N * nnzPerRow, dtype=np.int32, order=order)
-        #from IPython import embed; embed()
         # Execute C++ code (fills in outputs in-place)
         lib.sparsifyResp(Resp, nnzPerRow, N, K, spR_data, spR_colids)
 
@@ -272,17 +271,22 @@ def calcSparseLocalParams_SingleDoc(
         nCoordAscentItersLP=10, convThrLP=0.001,
         nnzPerRowLP=2,
         restartLP=0,
+        restartNumTrialsLP=3,
         activeonlyLP=0,
         initDocTopicCountLP='setDocProbsToEGlobalProbs',
         maxDiffVec=None,
         numIterVec=None,
+        nRAcceptVec=None,
+        nRTrialVec=None,
         d=0,
         **kwargs):
-
     # Parse params for tracking convergence progress
     if maxDiffVec is None:
         maxDiffVec = np.zeros(1, dtype=np.float64)
         numIterVec = np.zeros(1, dtype=np.int32)
+    if nRTrialVec is None:
+        nRTrialVec = np.zeros(1, dtype=np.int32)
+        nRAcceptVec = np.zeros(1, dtype=np.int32)
     assert maxDiffVec.dtype == np.float64
     assert numIterVec.dtype == np.int32
     D = maxDiffVec.size
@@ -298,7 +302,30 @@ def calcSparseLocalParams_SingleDoc(
         initProbsToEbeta = 1
     else:
         initProbsToEbeta = 0
-    if isinstance(wc_d, np.ndarray) and wc_d.size == N:
+    if activeonlyLP:
+        doTrack = 0
+        verbose = 0
+        elboVec = np.zeros(doTrack * nCoordAscentItersLP + 1)
+        if isinstance(wc_d, np.ndarray) and wc_d.size == N:
+            wc_or_allones = wc_d
+        else:
+            wc_or_allones = np.ones(N)
+        libTopics.sparseLocalStepSingleDoc_ActiveOnly(
+            Lik_d, wc_or_allones, alphaEbeta, #digamma(alphaEbeta),
+            nnzPerRowLP, N, K, nCoordAscentItersLP, convThrLP,
+            initProbsToEbeta,
+            topicCount_d_OUT,
+            spResp_data_OUT,
+            spResp_colids_OUT,
+            d, D, numIterVec, maxDiffVec,
+            doTrack, elboVec,
+            restartNumTrialsLP * restartLP,
+            nRAcceptVec, nRTrialVec,
+            verbose,
+            )
+        if doTrack and np.max(np.diff(elboVec)) < 0:
+            raise ValueError("NOT MONOTONIC!!!")
+    elif isinstance(wc_d, np.ndarray) and wc_d.size == N:
         libTopics.sparseLocalStepSingleDocWithWordCounts(
             wc_d, Lik_d, alphaEbeta,
             nnzPerRowLP, N, K, nCoordAscentItersLP, convThrLP,
@@ -307,22 +334,6 @@ def calcSparseLocalParams_SingleDoc(
             spResp_data_OUT,
             spResp_colids_OUT,
             )
-    elif activeonlyLP:
-        doTrack = 0
-        elboVec = np.zeros(nCoordAscentItersLP + 1)
-        libTopics.sparseLocalStepSingleDoc_ActiveOnly(
-            Lik_d, alphaEbeta, #digamma(alphaEbeta),
-            nnzPerRowLP, N, K, nCoordAscentItersLP, convThrLP,
-            initProbsToEbeta,
-            topicCount_d_OUT,
-            spResp_data_OUT,
-            spResp_colids_OUT,
-            d, D, numIterVec, maxDiffVec,
-            doTrack, elboVec,
-            )
-        if np.max(np.diff(elboVec)) < 0:
-            print "NOT MONOTONIC!!!"
-            from IPython import embed; embed()
     else:
         libTopics.sparseLocalStepSingleDoc(
             Lik_d, alphaEbeta,
@@ -479,7 +490,7 @@ try:
     libTopics.sparseLocalStepSingleDoc_ActiveOnly.argtypes = \
         [ndpointer(ctypes.c_double),
          ndpointer(ctypes.c_double),
-         #ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_double),
          ctypes.c_int,
          ctypes.c_int,
          ctypes.c_int,
@@ -495,6 +506,10 @@ try:
          ndpointer(ctypes.c_double),
          ctypes.c_int,
          ndpointer(ctypes.c_double),
+         ctypes.c_int,
+         ndpointer(ctypes.c_int),
+         ndpointer(ctypes.c_int),
+         ctypes.c_int,
          ]
 
     libTopics.sparseLocalStepSingleDocWithWordCounts.restype = None
