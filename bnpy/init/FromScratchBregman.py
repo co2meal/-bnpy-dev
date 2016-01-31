@@ -129,12 +129,18 @@ def initSS_BregmanDiv(
             else:
                 xtargetLP = convertLPFromDocsToTokens(xtargetLP, targetData)
     if curLPslice is not None:
-        xtargetLP['resp'] *= \
-            curLPslice['resp'][chosenRespIDs, ktarget][:,np.newaxis]    
-        # Verify that initial xLP resp is a subset of curLP's resp,
-        # leaving out only the docs that didnt have enough tokens.
-        assert np.all(xtargetLP['resp'].sum(axis=1) <= \
-                      curLPslice['resp'][chosenRespIDs, ktarget] + 1e-5)
+        if 'resp' in curLPslice:
+            xtargetLP['resp'] *= \
+                curLPslice['resp'][chosenRespIDs, ktarget][:,np.newaxis]
+            # Verify that initial xLP resp is a subset of curLP's resp,
+            # leaving out only the docs that didnt have enough tokens.
+            assert np.all(xtargetLP['resp'].sum(axis=1) <= \
+                curLPslice['resp'][chosenRespIDs, ktarget] + 1e-5)
+
+        elif 'spR' in curLPslice:
+            inds = chosenRespIDs * curLPslice['nnzPerRow']
+            xtargetLP['resp'] *= curLPslice['spR'].data[inds][:,np.newaxis]
+
     # Summarize the local parameters
     if includeAllocSummary and Niter > 0:
         if hasattr(curModel.allocModel, 'initLPFromResp'):
@@ -151,6 +157,10 @@ def initSS_BregmanDiv(
             xSS.reorderComps(neworder)
         else:
             assert np.allclose(np.unique(targetZ), np.arange(xSS.K))
+        if not len(Mu) == xSS.K:
+            print len(Mu)
+            print xSS.K
+            from IPython import embed; embed()
         assert np.allclose(len(Mu), xSS.K)
     # Reorder the components from big to small
     oldids_bigtosmall = np.argsort(-1 * xSS.getCountVec())
@@ -257,6 +267,13 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
         if np.max(np.abs(N - prevN)) == 0:
             break
         prevN[:] = N
+
+    uniqueZ = np.unique(Z)
+    if Niter > 0:
+        # In case a cluster was pushed to zero
+        if uniqueZ.size < len(Mu):
+            Mu = [Mu[k] for k in uniqueZ]
+    assert len(Mu) == uniqueZ.size
     return Z, Mu, np.asarray(Lscores)
 
 def initKMeans_BregmanDiv(
@@ -374,10 +391,19 @@ def makeDataSubsetByThresholdResp(
             "  Using all %d/%d atoms for initialization." % (
                 Natoms_target, Natoms_total)
     else:
-        chosenRespIDs = np.flatnonzero(
-            curLP['resp'][:,ktarget] > 
-            minRespForEachTargetAtom)
-        Natoms_target = curLP['resp'][:,ktarget].sum()
+        if 'resp' in curLP:
+            chosenRespIDs = np.flatnonzero(
+                curLP['resp'][:,ktarget] > minRespForEachTargetAtom)
+            Natoms_target = curLP['resp'][:,ktarget].sum()
+        else:
+            assert 'spR' in curLP
+            indsThatUseTarget = np.flatnonzero(
+                curLP['spR'].indices == ktarget)
+            subsetAboveThr = curLP['spR'].data[indsThatUseTarget] > minRespForEachTargetAtom
+            indsThatUseTarget = indsThatUseTarget[subsetAboveThr]
+            chosenRespIDs = indsThatUseTarget // curLP['nnzPerRow']
+            Natoms_target = curLP['spR'].data[indsThatUseTarget].sum()
+
         Natoms_targetAboveThr = chosenRespIDs.size
         targetAssemblyMsg = \
             "  Targeted comp has %.2f %s assigned out of %d." % (
@@ -404,8 +430,12 @@ def makeDataSubsetByThresholdResp(
         targetX = targetData.X
         if curLP is None:
             targetW = None    
-        else:
+        elif 'resp' in curLP:
             targetW = curLP['resp'][chosenRespIDs,ktarget]
+        elif 'spR' in curLP:
+            targetW = curLP['spR'].data[indsThatUseTarget]
+        else:
+            raise ValueError("if curLP specified, must have resp or spR")
     chosenDataIDs = chosenRespIDs
     DebugInfo = dict(
         targetW=targetW,

@@ -53,7 +53,7 @@ def loadDataFromSavedTask(taskoutpath, dataSplitName='train', **kwargs):
             Data = datamod.get_data(**dataKwargs)
             if 'nBatch' in dataKwargs and dataKwargs['nBatch'] > 1:
                 DI = DataIterator(Data, alwaysTrackTruth=1, **dataKwargs)
-                if kwargs['batchID'] is not None:
+                if 'batchID' in kwargs and kwargs['batchID'] is not None:
                     batchID = kwargs['batchID']
                 else:
                     batchID = 0
@@ -69,7 +69,7 @@ def loadDataFromSavedTask(taskoutpath, dataSplitName='train', **kwargs):
         if dataSplitName == 'train':
             # Load from file
             DI = bnpy.data.DataIteratorFromDisk(**dataKwargs)
-            if kwargs['batchID'] is not None:
+            if 'batchID' in kwargs and kwargs['batchID'] is not None:
                 Data = DI.getBatch(kwargs['batchID'])
             else:
                 Data = DI.getBatch(0)

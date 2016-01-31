@@ -2,6 +2,7 @@ import numpy as np
 import os
 
 from bnpy.util import NumericUtil
+from bnpy.util.SparseRespStatsUtil import calcSparseRlogR
 
 def summarizeRestrictedLocalStep_DPMixtureModel(
         Dslice=None, 
@@ -68,7 +69,13 @@ def summarizeRestrictedLocalStep_DPMixtureModel(
     xSSslice.setUIDs(xUIDs)
 
     # Handle bookkeeping for original entropy term
-    HrespOrigComp = -1 * NumericUtil.calcRlogR(curLPslice['resp'][:, ktarget])
+    if 'resp' in curLPslice:
+        HrespOrigComp = -1 * NumericUtil.calcRlogR(
+            curLPslice['resp'][:, ktarget])
+    else:
+        target_resp = curLPslice['spR'][:, ktarget].toarray()
+        np.maximum(target_resp, 1e-100, out=target_resp)
+        HrespOrigComp = -1 * NumericUtil.calcRlogR(target_resp)[0]
     xSSslice.setELBOTerm('HrespEmptyComp', -1 * HrespOrigComp, dims=None)
 
     # If desired, add merge terms into the expanded summaries,
@@ -125,8 +132,12 @@ def restrictedLocalStep_DPMixtureModel(
     # Calculate exp in numerically stable manner (first subtract the max)
     #  perform this in-place so no new allocations occur
     NumericUtil.inplaceExpAndNormalizeRows(xresp)
-    # Make each row sum to ktarget value
-    xresp *= curLPslice['resp'][:, ktarget][:,np.newaxis]
+    if 'resp' in curLPslice:
+        # Make each row sum to ktarget value
+        xresp *= curLPslice['resp'][:, ktarget][:,np.newaxis]
+    else:
+        xresp *= curLPslice['spR'][:, ktarget].toarray()
+    np.maximum(xresp, 1e-100, out=xresp)
     xLPslice['resp'] = xresp
     del xLPslice['E_log_soft_ev'] # delete since we did inplace ops on it
     return xLPslice
@@ -147,6 +158,16 @@ def makeExpansionSSFromZ_DPMixtureModel(
     xSSslice = curModel.get_global_suff_stats(
         Dslice, xLPslice,
         doPrecompEntropy=1, trackDocUsage=1, doTrackTruncationGrowth=1)
+
+    if 'resp' in curLPslice:
+        HrespOrigComp = -1 * NumericUtil.calcRlogR(
+            curLPslice['resp'][:, kwargs['ktarget']])
+    else:
+        target_resp = curLPslice['spR'][:, kwargs['ktarget']].toarray()
+        np.maximum(target_resp, 1e-100, out=target_resp)
+        HrespOrigComp = -1 * NumericUtil.calcRlogR(target_resp)[0]
+    xSSslice.setELBOTerm('HrespEmptyComp', -1 * HrespOrigComp, dims=None)
+
     xSSslice.setUIDs(kwargs['xInitSS'].uids.copy())
     Info = dict()
     Info['xLPslice'] = xLPslice
@@ -170,7 +191,6 @@ def makeExpansionLPFromZ_DPMixtureModel(
         resp : N x Kfresh
     '''
     Kfresh = targetZ.max() + 1
-    N = curLPslice['resp'].shape[0]
 
     # Compute prior probability of each proposed comp
     xPiVec, emptyPi = make_xPiVec_and_emptyPi(
@@ -180,16 +200,15 @@ def makeExpansionLPFromZ_DPMixtureModel(
     # Compute likelihood under each proposed comp
     xObsModel = curModel.obsModel.copy()
     xObsModel.update_global_params(xInitSS)
-    xLPslice = xObsModel.calc_local_params(Dslice)
 
-    # Initialize xresp so each atom is normalized
-    # This is the "default", for non-target atoms.
+    xLPslice = xObsModel.calc_local_params(Dslice)
     xresp = xLPslice['E_log_soft_ev']
     xresp += np.log(xPiVec) # log prior probability
     xresp -= xresp.max(axis=1)[:,np.newaxis]
     np.exp(xresp, out=xresp)
+    # Initialize xresp so each atom is normalized
+    # This is the "default", for non-target atoms.
     xresp /= xresp.sum(axis=1)[:,np.newaxis]
-
     # Now, replace all targeted atoms with an all-or-nothing assignment
     if atomType == 'doc' and curModel.getAllocModelName().count('HDP'):
         for pos, d in enumerate(chosenDataIDs):
@@ -203,8 +222,12 @@ def makeExpansionLPFromZ_DPMixtureModel(
             xresp[n, targetZ[pos]] = 1.0
     assert np.allclose(1.0, xresp.sum(axis=1))
 
-    # Make resp consistent with ktarget comp
-    xresp *= curLPslice['resp'][:, ktarget][:,np.newaxis]
+
+    if 'spR' in curLPslice:
+        xresp *= curLPslice['spR'][:,ktarget].toarray()
+    else:
+        # Make resp consistent with ktarget comp
+        xresp *= curLPslice['resp'][:, ktarget][:,np.newaxis]
     np.maximum(xresp, 1e-100, out=xresp)
 
     # Package up into xLPslice

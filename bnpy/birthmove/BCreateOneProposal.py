@@ -402,7 +402,10 @@ def makeSummaryForBirthProposal(
             curModel.getObsModelName().count('Mult'):
         origMass = np.inner(Dslice.word_count, curLPslice['resp'][:,ktarget])
     else:
-        origMass = curLPslice['resp'][:,ktarget].sum()
+        if 'resp' in curLPslice:
+            origMass = curLPslice['resp'][:,ktarget].sum()
+        else:
+            origMass = curLPslice['spR'][:, ktarget].sum()
     newMass = xSSslice.getCountVec().sum()
     assert np.allclose(newMass, origMass, atol=1e-6, rtol=0)
     BLogger.pprint('Proposal build phase DONE.' + \
@@ -509,7 +512,8 @@ def makeSummaryForExistingBirthProposal(
     # Run several refinement steps. 
     # Each step does a restricted local step to improve
     # the proposed cluster assignments.
-    for rstep in range(b_nRefineSteps):
+    nRefineSteps = np.maximum(1, b_nRefineSteps)
+    for rstep in range(nRefineSteps):
         # Restricted local step!
         # * xInitSS : specifies obs-model stats used for initialization
         xSSslice, refineInfo = summarizeRestrictedLocalStep(
@@ -581,7 +585,10 @@ def makeSummaryForExistingBirthProposal(
             curModel.getObsModelName().count('Mult'):
         origMass = np.inner(Dslice.word_count, curLPslice['resp'][:,ktarget])
     else:
-        origMass = curLPslice['resp'][:,ktarget].sum()
+        if 'resp' in curLPslice:
+            origMass = curLPslice['resp'][:,ktarget].sum()
+        else:
+            origMass = curLPslice['spR'][:,ktarget].sum()
     newMass = xSSslice.getCountVec().sum()
     assert np.allclose(newMass, origMass, atol=1e-6, rtol=0)
     BLogger.pprint('Proposal extension DONE. %d candidate clusters.' % (
