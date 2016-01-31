@@ -18,7 +18,7 @@ libfwdbwd: hasEigenpath
 	cd bnpy/allocmodel/hmm/lib/; \
 	g++ FwdBwdRowMajor.cpp -o libfwdbwd.so \
 		-I$(EIGENPATH) \
-		-DNDEBUG -O3 \
+		-O3 \
 		--shared -fPIC -w $(PYARCH);
 
 libsparseresp: hasEigenpath
@@ -33,7 +33,7 @@ libsparsetopics: hasEigenpath
 	cd bnpy/util/lib/sparseResp/; \
 	g++ TopicModelLocalStepCPPX.cpp -o libsparsetopics.so \
 		-I$(BOOSTMATHPATH) -I$(EIGENPATH) \
-		-DNDEBUG -O3 \
+		-O3 \
 		--shared -fPIC -w $(PYARCH);
 
 # Rule: verify that EIGENPATH exists, or instruct user to download it.
