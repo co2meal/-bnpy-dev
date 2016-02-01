@@ -273,6 +273,11 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
         # In case a cluster was pushed to zero
         if uniqueZ.size < len(Mu):
             Mu = [Mu[k] for k in uniqueZ]
+    else:
+        # Without full pass through dataset, many items not assigned
+        # which we indicated with Z value of -1
+        # Should ignore this when counting states
+        uniqueZ = uniqueZ[uniqueZ >= 0]
     assert len(Mu) == uniqueZ.size
     return Z, Mu, np.asarray(Lscores)
 
