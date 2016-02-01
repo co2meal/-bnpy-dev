@@ -348,8 +348,9 @@ class MultObsModel(AbstractObsModel):
         L : 2D array, size N x K
         '''
         ElogphiT = self.GetCached('E_logphiT', 'all')  # V x K
-        return calcLogSoftEvMatrix_FromPost_Static(
+        E_log_soft_ev = calcLogSoftEvMatrix_FromPost_Static(
             Data, DataAtomType=self.DataAtomType, ElogphiT=ElogphiT, **kwargs)
+        return dict(E_log_soft_ev=E_log_soft_ev, ElogphiT=ElogphiT)
 
     def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False):
         """ Calculate obsModel's objective using suff stats SS and Post.
@@ -731,8 +732,9 @@ def calcLocalParams(Dslice, **kwargs):
     LP : dict with fields
         * E_log_soft_ev : 2D array, size N x K
     """
+    assert 'ElogphiT' in kwargs
     E_log_soft_ev = calcLogSoftEvMatrix_FromPost_Static(Dslice, **kwargs)
-    return dict(E_log_soft_ev=E_log_soft_ev)
+    return dict(E_log_soft_ev=E_log_soft_ev, ElogphiT=kwargs['ElogphiT'])
 
 
 def calcLogSoftEvMatrix_FromPost_Static(Dslice,

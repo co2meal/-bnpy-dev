@@ -274,6 +274,8 @@ def calcSparseLocalParams_SingleDoc(
         restartNumTrialsLP=3,
         activeonlyLP=0,
         initDocTopicCountLP='setDocProbsToEGlobalProbs',
+        reviseActiveFirstLP=-1,
+        reviseActiveEveryLP=1,
         maxDiffVec=None,
         numIterVec=None,
         nRAcceptVec=None,
@@ -298,20 +300,24 @@ def calcSparseLocalParams_SingleDoc(
     assert spResp_data_OUT.size == N * nnzPerRowLP
     assert spResp_colids_OUT.size == N * nnzPerRowLP
     nnzPerRowLP = np.minimum(nnzPerRowLP, K)
-    if initDocTopicCountLP.count("setDocProbsToEGlobalProbs"):
+    if initDocTopicCountLP.startswith("fastfirstiter"):
+        initProbsToEbeta = -1
+    elif initDocTopicCountLP.startswith("setDocProbsToEGlobalProbs"):
         initProbsToEbeta = 1
     else:
         initProbsToEbeta = 0
     if activeonlyLP:
         doTrack = 0
         verbose = 0
+        if reviseActiveFirstLP < 0:
+            reviseActiveFirstLP = 2 * nCoordAscentItersLP
         elboVec = np.zeros(doTrack * nCoordAscentItersLP + 1)
         if isinstance(wc_d, np.ndarray) and wc_d.size == N:
             wc_or_allones = wc_d
         else:
             wc_or_allones = np.ones(N)
         libTopics.sparseLocalStepSingleDoc_ActiveOnly(
-            Lik_d, wc_or_allones, alphaEbeta, #digamma(alphaEbeta),
+            Lik_d, wc_or_allones, alphaEbeta,
             nnzPerRowLP, N, K, nCoordAscentItersLP, convThrLP,
             initProbsToEbeta,
             topicCount_d_OUT,
@@ -320,11 +326,16 @@ def calcSparseLocalParams_SingleDoc(
             d, D, numIterVec, maxDiffVec,
             doTrack, elboVec,
             restartNumTrialsLP * restartLP,
+            reviseActiveFirstLP,
+            reviseActiveEveryLP,
             nRAcceptVec, nRTrialVec,
             verbose,
             )
-        if doTrack and np.max(np.diff(elboVec)) < 0:
-            raise ValueError("NOT MONOTONIC!!!")
+        if doTrack:
+            # Chop off any trailing zeros
+            elboVec = elboVec[elboVec != 0.0]
+            if elboVec.size > 1 and np.max(np.diff(elboVec)) < -1e-8:
+                raise ValueError("NOT MONOTONIC!!!")
     elif isinstance(wc_d, np.ndarray) and wc_d.size == N:
         libTopics.sparseLocalStepSingleDocWithWordCounts(
             wc_d, Lik_d, alphaEbeta,
@@ -506,6 +517,8 @@ try:
          ndpointer(ctypes.c_double),
          ctypes.c_int,
          ndpointer(ctypes.c_double),
+         ctypes.c_int,
+         ctypes.c_int,
          ctypes.c_int,
          ndpointer(ctypes.c_int),
          ndpointer(ctypes.c_int),

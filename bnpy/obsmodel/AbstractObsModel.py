@@ -28,8 +28,13 @@ class AbstractObsModel(object):
             LP['E_log_soft_ev'] = self.calcLogSoftEvMatrix_FromEstParams(
                 Data, **kwargs)
         else:
-            LP['E_log_soft_ev'] = self.calcLogSoftEvMatrix_FromPost(
+            L = self.calcLogSoftEvMatrix_FromPost(
                 Data, **kwargs)
+            if isinstance(L, dict):
+                LP.update(L)
+                del L
+            else:
+                LP['E_log_soft_ev'] = L
         return LP
 
     def get_global_suff_stats(self, Data, SS, LP, **kwargs):

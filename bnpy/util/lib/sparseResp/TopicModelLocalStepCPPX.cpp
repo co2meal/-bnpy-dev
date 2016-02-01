@@ -52,6 +52,8 @@ extern "C" {
         int doTrackELBO,
         double* elboVec_OUT,
         int numRestarts,
+        int REVISE_FIRST,
+        int REVISE_EVERY,
         int *rAcceptVec_IN, int* rTrialVec_IN,
         int verbose
         );
@@ -144,6 +146,64 @@ double calcELBOForSingleDoc_V1(
     return ELBO;
 }
 
+double updateAssignments_FixPerTokenActiveSet(
+    ExtArr2D_d ElogLik_d,
+    ExtArr1D_d wc_d,
+    ExtArr1D_d alphaEbeta,
+    Arr1D_i activeTopics_d,
+    ExtArr1D_d& topicCount_d, // & makes sure we can edit passed array in place
+    Arr1D_d& ElogProb_d,
+    Arr1D_d& logScores_n,
+    ExtArr1D_d& spResp_data,
+    ExtArr1D_i& spResp_colids,
+    int N,
+    int K, 
+    int Kactive,
+    int nnzPerRow,
+    int doTrackELBO
+    )
+{
+    assert(nnzPerRow > 1);
+    double totalLogSumResp = 0.0;
+    // UPDATE ElogProb_d using input doc-topic counts
+    for (int ka = 0; ka < Kactive; ka++) {
+        int k = activeTopics_d(ka);
+        ElogProb_d(k) = boost::math::digamma(
+            topicCount_d(k) + alphaEbeta(k));
+    }
+    // RESET topicCounts to all zeros
+    topicCount_d.fill(0);
+    // UPDATE assignments, obeying sparsity constraint
+    for (int n = 0; n < N; n++) {
+        double sumResp_n = 0.0;
+        int m = n * nnzPerRow;
+        double maxScore_n;
+        for (int ka = 0; ka < nnzPerRow; ka++) {
+            int k = spResp_colids(m + ka);
+            logScores_n(ka) = ElogProb_d(k) + ElogLik_d(n,k);
+            if (ka == 0 || logScores_n(ka) > maxScore_n) {
+                maxScore_n = logScores_n(ka);
+            }
+        }
+        for (int nzk = 0; nzk < nnzPerRow; nzk++) {
+            spResp_data(m + nzk) = \
+                exp(logScores_n(nzk) - maxScore_n);
+            sumResp_n += spResp_data(m + nzk);
+        }
+
+        for (int nzk = m; nzk < m + nnzPerRow; nzk++) {
+            spResp_data(nzk) /= sumResp_n;
+            topicCount_d(spResp_colids(nzk)) += \
+                wc_d(n) * spResp_data(nzk);
+            }
+        if (doTrackELBO) {
+            totalLogSumResp += wc_d(n) * (maxScore_n + log(sumResp_n));
+        }
+    } // end for loop over tokens n
+
+    assert(abs(wc_d.sum() - topicCount_d.sum()) < .000001);
+    return totalLogSumResp;
+}
 
 double updateAssignments_ActiveOnly(
     ExtArr2D_d ElogLik_d,
@@ -169,8 +229,8 @@ double updateAssignments_ActiveOnly(
 
     // UPDATE ElogProb_d using input doc-topic counts
     if (iter == 0 and initProbsToEbeta == 1) {
-        assert(Kactive == K);
-        for (int k = 0; k < Kactive; k++) {
+        for (int ka = 0; ka < Kactive; ka++) {
+            int k = activeTopics_d(ka);
             ElogProb_d(k) = log(alphaEbeta(k));
         }
     } else {
@@ -212,7 +272,7 @@ double updateAssignments_ActiveOnly(
                 logScores_n.data() + Kactive,
                 tempScores_n.data());
             // Sort the data in the temp buffer (in place)
-            std:nth_element(
+            std::nth_element(
                 tempScores_n.data(),
                 tempScores_n.data() + Kactive - nnzPerRow,
                 tempScores_n.data() + Kactive);
@@ -230,7 +290,9 @@ double updateAssignments_ActiveOnly(
                     nzk += 1;                        
                 }
             }
-            for (int nzk = m; nzk < m + nnzPerRow; nzk++) {
+            //assert(nzk - m == nnzPerRow);
+
+            for (nzk = m; nzk < m + nnzPerRow; nzk++) {
                 spResp_data(nzk) /= sumResp_n;
                 topicCount_d(spResp_colids(nzk)) += \
                     wc_d(n) * spResp_data(nzk);
@@ -238,7 +300,7 @@ double updateAssignments_ActiveOnly(
             if (doTrackELBO) {
                 totalLogSumResp += wc_d(n) * (maxScore_n + log(sumResp_n));
             }
-        }
+        } // end if statement branch for nnz > 1
     } // end for loop over tokens n
     return totalLogSumResp;
 }
@@ -395,11 +457,15 @@ void sparseLocalStepSingleDoc_ActiveOnly(
         int doTrackELBO,
         double* elboVec_OUT,
         int numRestarts,
+        int REVISE_FIRST,
+        int REVISE_EVERY,
         int* rAcceptVec_IN,
         int* rTrialVec_IN,
         int verbose
         )
 {
+    nCoordAscentIterLP = max(nCoordAscentIterLP + max(0, initProbsToEbeta), 1);
+
     // Unpack inputs, treated as fixed constants
     ExtArr2D_d ElogLik_d (ElogLik_d_IN, N, K);
     ExtArr1D_d wc_d (wc_d_IN, N);
@@ -412,7 +478,7 @@ void sparseLocalStepSingleDoc_ActiveOnly(
 
     ExtArr1D_i numIterVec (numIterVec_OUT, D);
     ExtArr1D_d maxDiffVec (maxDiffVec_OUT, D);
-    ExtArr1D_d elboVec (elboVec_OUT, nCoordAscentIterLP + initProbsToEbeta);
+    ExtArr1D_d elboVec (elboVec_OUT, nCoordAscentIterLP);
 
     ExtArr1D_i rAcceptVec (rAcceptVec_IN, 1);
     ExtArr1D_i rTrialVec (rTrialVec_IN, 1);
@@ -438,44 +504,81 @@ void sparseLocalStepSingleDoc_ActiveOnly(
             sum_gammalnalphaEbeta += boost::math::lgamma(alphaEbeta(k));
         }
     }
-    nCoordAscentIterLP = max(nCoordAscentIterLP, 1);
+    // Before any updates... All topics are active!
+    for (int k = 0; k < K; k++) {
+        activeTopics_d(k) = k;
+    }
+    if (verbose > 1) {
+        printf("Initial topic counts \n");
+        for (int k = 0; k < K; k++) {
+            printf("%d:%6.1f ", k, topicCount_d(k));
+        }
+        printf("\n");
+    }
 
-    for (iter = 0; iter < nCoordAscentIterLP + initProbsToEbeta; iter++) {
-        if (iter > 0) {
-            int newKactive = 0;
-            int ia = 0; // spare inactive topics
-            for (int a = 0; a < Kactive; a++) {
-                int k = activeTopics_d(a);
-                if (topicCount_d(k) > ACTIVE_THR) {
-                    activeTopics_d(newKactive) = k;
-                    prevTopicCount_d(k) = topicCount_d(k);
-                    newKactive += 1;
-                } else if (newKactive < nnzPerRow - ia) {
-                    spareActiveTopics_d(ia) = k;
-                    ia += 1;
-                }
-            }
-            Kactive = newKactive;
-            while (Kactive < nnzPerRow) {
-                int k = spareActiveTopics_d(Kactive - newKactive);
-                activeTopics_d(Kactive) = k;
-                Kactive++;
-            }
+    for (iter = 0; iter < nCoordAscentIterLP; iter++) {
+        int doReviseActiveSet;
+        if (iter >= REVISE_FIRST && Kactive <= 1.25 * nnzPerRow) {
+            // Set of active docs is already very small,
+            // so nothing big to gain from revising
+            doReviseActiveSet = 0;
+        } else if (iter < REVISE_FIRST || (iter - 1) % REVISE_EVERY == 0) {
+            doReviseActiveSet = 1;
         } else {
-            for (int k = 0; k < K; k++) {
-                activeTopics_d(k) = k;
+            doReviseActiveSet = 0;
+        }
+
+        if (iter > 0 || initProbsToEbeta < 0) {
+            if (doReviseActiveSet) {
+                int newKactive = 0;
+                int ia = 0; // index for spare inactive topics
+                for (int a = 0; a < Kactive; a++) {
+                    int k = activeTopics_d(a);
+                    if (topicCount_d(k) > ACTIVE_THR) {
+                        activeTopics_d(newKactive) = k;
+                        prevTopicCount_d(k) = topicCount_d(k);
+                        newKactive += 1;
+                    } else if (newKactive < nnzPerRow - ia) {
+                        spareActiveTopics_d(ia) = k;
+                        ia += 1;
+                    }
+                }
+                // If num topics above threshold is less than nnzPerRow,
+                // We need to fill in with some spare empty topics.
+                Kactive = newKactive;
+                while (Kactive < nnzPerRow) {
+                    int k = spareActiveTopics_d(Kactive - newKactive);
+                    activeTopics_d(Kactive) = k;
+                    Kactive++;
+                }
+            } else {
+                for (int a = 0; a < Kactive; a++) {
+                    int k = activeTopics_d(a);
+                    prevTopicCount_d(k) = topicCount_d(k);
+                }
             }
         }
         assert(Kactive >= nnzPerRow);
         assert(Kactive <= K);
-
-        totalLogSumResp = updateAssignments_ActiveOnly(
-            ElogLik_d, wc_d, alphaEbeta, activeTopics_d,
-            topicCount_d, ElogProb_d,
-            logScores_n, tempScores_n,
-            spResp_data, spResp_colids,
-            N, K, Kactive, nnzPerRow, 
-            iter, initProbsToEbeta, doTrackELBO);
+        if (doReviseActiveSet) {
+            totalLogSumResp = updateAssignments_ActiveOnly(
+                ElogLik_d, wc_d, alphaEbeta, activeTopics_d,
+                topicCount_d, ElogProb_d,
+                logScores_n, tempScores_n,
+                spResp_data, spResp_colids,
+                N, K, Kactive, nnzPerRow, 
+                iter, initProbsToEbeta, doTrackELBO
+                );
+        } else {
+            totalLogSumResp = updateAssignments_FixPerTokenActiveSet(
+                ElogLik_d, wc_d, alphaEbeta, activeTopics_d,
+                topicCount_d, ElogProb_d,
+                logScores_n,
+                spResp_data, spResp_colids,
+                N, K, Kactive, nnzPerRow, 
+                doTrackELBO
+                );
+        }
 
         if (doTrackELBO) {
             elboVec(iter) = calcELBOForSingleDoc_V1(
@@ -491,8 +594,18 @@ void sparseLocalStepSingleDoc_ActiveOnly(
                 totalLogSumResp, sum_gammalnalphaEbeta, Kactive);
             printf(" V1: %.6f\n V2: %.6f\n", elboV2, elboV1);
             */
-            
         }
+
+        if (verbose > 1) {
+            printf("end of iter %3d Kactive %3d maxDiff %10.6f\n", 
+                iter, Kactive, maxDiff);
+            for (int ka = 0; ka < Kactive; ka++) {
+                int k = activeTopics_d(ka);
+                printf("%d:%6.1f ", k, topicCount_d(k));
+            }
+            printf("\n");
+        }
+
         // END ITERATION. Decide whether to quit early
         if (iter > 0 && iter % 5 == 0) {
             double absDiff_k = 0.0;
@@ -636,7 +749,7 @@ void sparseLocalStepSingleDoc_ActiveOnly(
             0, 0, 0);
     }
     maxDiffVec(d) = maxDiff;
-    numIterVec(d) = iter + 1;
+    numIterVec(d) = iter; // will already have +1 from last iter of for loop
 }
 
 
@@ -719,7 +832,7 @@ void sparseLocalStepSingleDoc(
                     logScores_n.data() + K,
                     tempScores_n.data());
                 // Sort the data in the temp buffer (in place)
-                std:nth_element(
+                std::nth_element(
                     tempScores_n.data(),
                     tempScores_n.data() + K - nnzPerRow,
                     tempScores_n.data() + K);
@@ -836,7 +949,7 @@ void sparseLocalStepSingleDocWithWordCounts(
                     logScores_n.data() + K,
                     tempScores_n.data());
                 // Sort the data in the temp buffer (in place)
-                std:nth_element(
+                std::nth_element(
                     tempScores_n.data(),
                     tempScores_n.data() + K - nnzPerRow,
                     tempScores_n.data() + K);

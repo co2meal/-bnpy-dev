@@ -1,5 +1,7 @@
 import numpy as np
 import copy
+import time
+
 from scipy.special import digamma, gammaln
 import scipy.sparse
 
@@ -9,7 +11,7 @@ from LocalStepSingleDoc import calcLocalParams_SingleDoc
 from LocalStepSingleDoc import calcLocalParams_SingleDoc_WithELBOTrace
 
 from bnpy.util.SparseRespUtil \
-    import fillInDocTopicCountFromSparseResp, sparsifyResp
+    import fillInDocTopicCountFromSparseResp, sparsifyResp, sparsifyLogResp
 from bnpy.util.lib.sparseResp.LibSparseResp \
     import calcSparseLocalParams_SingleDoc
 
@@ -46,7 +48,6 @@ def calcLocalParams(
         obsModelName = 'Mult'
     else:
         obsModelName = 'Gauss'
-
     # Unpack the problem size
     N, K = LP['E_log_soft_ev'].shape
     # Prepare the initial DocTopicCount matrix,
@@ -79,6 +80,14 @@ def calcLocalParams(
         spR_colids = np.zeros(N * nnzPerRowLP, dtype=np.int32)
     slice_start = Data.doc_range[cslice[0]]
 
+    if not DO_DENSE and obsModelName.count('Mult'):
+        if initDocTopicCountLP.count('fastfirstiter'):
+            #tstart = time.time()
+            init_spR = calcInitSparseResp(
+                LP, alphaEbeta, nnzPerRowLP=nnzPerRowLP, **kwargs)
+            #tstop = time.time()
+            #telapsed = tstop - tstart
+
     AggInfo = dict()
     AggInfo['maxDiff'] = np.zeros(Data.nDoc)
     AggInfo['iter'] = np.zeros(Data.nDoc, dtype=np.int32)
@@ -110,7 +119,13 @@ def calcLocalParams(
                 else:
                     DocTopicCount[d] = initDocTopicCount[d]
             else:
-                initDocTopicCountLP = 'setDocProbsToEGlobalProbs'            
+                initDocTopicCountLP = 'setDocProbsToEGlobalProbs'
+        if not DO_DENSE and initDocTopicCountLP.count('fastfirstiter'):
+            if obsModelName.count('Mult'):
+                #tstart = time.time()
+                DocTopicCount[d, :] = wc_d * init_spR[Data.word_id[start:stop]]
+                #telapsed += time.time() - tstart
+
         if not DO_DENSE:
             m_start = nnzPerRowLP * start
             m_stop = nnzPerRowLP * stop
@@ -140,6 +155,8 @@ def calcLocalParams(
                     initDocTopicCountLP=initDocTopicCountLP,
                     **kwargs)
             AggInfo = updateConvergenceInfoForDoc_d(d, Info_d, AggInfo, Data)
+    #if initDocTopicCountLP.startswith('fast'):
+    #    AggInfo['time_extra'] = telapsed
     LP['DocTopicCount'] = DocTopicCount
     if hasattr(Data, 'word_count'):
         if cslice is None or (cslice[0] == 0 and cslice[1] is None):
@@ -163,6 +180,16 @@ def calcLocalParams(
     writeLogMessageForManyDocs(Data, AggInfo, **kwargs)
     return LP
 
+
+def calcInitSparseResp(LP, alphaEbeta, nnzPerRowLP=0, **kwargs):
+    ''' Compute initial sparse responsibilities
+    '''
+    assert 'ElogphiT' in LP
+    # Determine the top-L for each 
+    logS = LP['ElogphiT'].copy()
+    logS += np.log(alphaEbeta)[np.newaxis,:]
+    init_spR = sparsifyLogResp(logS, nnzPerRowLP)
+    return init_spR
 
 def updateLPGivenDocTopicCount(LP, DocTopicCount,
                                alphaEbeta, alphaEbetaRem=None):
