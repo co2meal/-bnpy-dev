@@ -138,12 +138,16 @@ def loadLPKwargsFromDisk(taskoutpath):
     dataKwargs : dict with options for loading dataset 
     '''
     from bnpy.ioutil.BNPYArgParser import algChoices
+    chosentxtfile = None
     for algName in algChoices:
         txtfile = 'args-%s.txt' % (algName)
         txtfilepath = os.path.join(taskoutpath, txtfile)
         if os.path.exists(txtfilepath):
+            chosentxtfile = txtfile
             break
-    LPkwargs = loadKwargsFromDisk(taskoutpath, txtfile, suffix='LP')
+    if chosentxtfile is None:
+        raise ValueError("No args options file found.")
+    LPkwargs = loadKwargsFromDisk(taskoutpath, chosentxtfile, suffix='LP')
     return LPkwargs
 
 def str2numorstr(s):
