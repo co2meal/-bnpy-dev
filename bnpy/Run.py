@@ -68,6 +68,8 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None,
         obsModelName = ReqArgs['obsModelName']
         algName = ReqArgs['algName']
     KwArgs, UnkArgs = BNPYArgParser.parseKeywordArgs(ReqArgs, **kwargs)
+    KwArgs['OutputPrefs']['doSaveToDisk'] = doSaveToDisk
+    KwArgs['OutputPrefs']['doWriteStdOut'] = doWriteStdOut
 
     jobname = KwArgs['OutputPrefs']['jobname']
     # Update stored numerical options via keyword args
@@ -164,6 +166,7 @@ def _run_task_internal(jobname, taskid, nTask,
         writeArgsToFile(ReqArgs, KwArgs, taskoutpath, UnkArgs)
     else:
         taskoutpath = None
+    KwArgs['OutputPrefs']['taskoutpath'] = taskoutpath
     jobID = configLoggingToConsoleAndFile(
         taskoutpath, taskid, doSaveToDisk, doWriteStdOut)
 
@@ -420,7 +423,8 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     outputP = KwArgs['OutputPrefs']
     learnAlg = LearnAlgConstr(
         savedir=savepath, seed=algseed,
-        algParams=algP, outputParams=outputP)
+        algParams=algP, outputParams=outputP,
+        BNPYRunKwArgs=KwArgs)
     return learnAlg
 
 
@@ -430,11 +434,12 @@ def writeArgsToFile(ReqArgs, KwArgs, taskoutpath, UnkArgs):
     ArgDict = ReqArgs
     ArgDict.update(KwArgs)
     for key in ArgDict:
-        if key.count('Name') > 0:
+        if key.count('Name') > 0 or not isinstance(ArgDict[key], dict):
             continue
         argfile = os.path.join(taskoutpath, 'args-' + key + '.txt')
         with open(argfile, 'w') as fout:
-            for k, val in ArgDict[key].items():
+            for k in sorted(ArgDict[key].keys()):
+                val = ArgDict[key][k]
                 if isinstance(val, dict):
                     continue
                 fout.write('%s %s\n' % (k, val))

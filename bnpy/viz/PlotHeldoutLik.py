@@ -25,8 +25,11 @@ Colors = [(0, 0, 0),  # black
 XLabelMap = dict(laps='num pass thru data',
                  K='num topics K'
                  )
-YLabelMap = dict(evidence='heldout log lik',
-                 )
+YLabelMap = dict(
+    avgLikScore='heldout log lik',
+    avgAUCScore='heldout AUC',
+    avgRPrecScore='heldout R precision',
+    )
 
 
 def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
@@ -43,9 +46,8 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
 
 
 def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
-             xvar='laps', yvar='evidence', loc='upper right',
+             xvar='laps', yvar='avgLikScore', loc='upper right',
              minLap=0, showFinalPt=0,
-             scorename='avgScore',
              prefix='predlik',
              taskids=None, savefilename=None, tickfontsize=None,
              xjitter=None, bbox_to_anchor=None, **kwargs):
@@ -68,7 +70,6 @@ def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
         plot_all_tasks_for_job(jpaths[lineID], legNames[lineID], minLap=minLap,
                                xvar=xvar, yvar=yvar, fileSuffix=fileSuffix,
                                showFinalPt=showFinalPt,
-                               scorename=scorename,
                                prefix=prefix,
                                taskids=taskids, xjitter=xjitter, **curStyle)
 
@@ -94,15 +95,14 @@ def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
 def plot_all_tasks_for_job(jobpath, label, taskids=None,
                            lineType='.-',
                            color=None,
-                           yvar='evidence',
+                           yvar='avgLikScore',
                            xvar='laps',
                            markersize=10,
                            linewidth=2,
                            minLap=0,
                            showFinalPt=0,
-                           fileSuffix='HeldoutLik.mat',
+                           fileSuffix='PredLik.mat',
                            xjitter=None,
-                           scorename='avgScore',
                            prefix='predlik',
                            colorID=0,
                            **kwargs):
@@ -111,6 +111,10 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
     if not os.path.exists(jobpath):
         print 'PATH NOT FOUND', jobpath
         return None
+    if not yvar.startswith('avg'):
+        yvar = 'avg' + yvar
+    if not yvar.endswith('Score'):
+        yvar = yvar + 'Score'
 
     if color is None:
         color = Colors[colorID % len(Colors)]
@@ -134,7 +138,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
             else:
                 xs = Ks
             ys = np.loadtxt(
-                os.path.join(taskoutpath, prefix + '-' + scorename + suffix))
+                os.path.join(taskoutpath, prefix + '-' + yvar + suffix))
 
             if minLap > 0 and taskoutpath.count('fix'):
                 mask = laps > minLap

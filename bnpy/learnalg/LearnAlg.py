@@ -43,7 +43,8 @@ class LearnAlg(object):
     """
 
     def __init__(self, savedir=None, seed=0,
-                 algParams=dict(), outputParams=dict()):
+                 algParams=dict(), outputParams=dict(),
+                 BNPYRunKwArgs=dict()):
         ''' Constructs and returns a LearnAlg object
         '''
         if isinstance(savedir, str):
@@ -54,6 +55,7 @@ class LearnAlg(object):
         self.PRNG = np.random.RandomState(self.seed)
         self.algParams = algParams
         self.outputParams = outputParams
+        self.BNPYRunKwArgs = BNPYRunKwArgs
         self.TraceLaps = set()
         self.evTrace = list()
         self.SavedIters = set()
@@ -448,7 +450,6 @@ class LearnAlg(object):
             hasattr(cFuncModule, 'onAlgorithmComplete')
         if not hasCBFuncs:
             raise ValueError("Specified customFuncPath has no callbacks!")
-
         if hasattr(cFuncModule, 'onBatchComplete') and not isFinal:
             cFuncModule.onBatchComplete(args=cFuncArgs_string, **kwargs)
         if hasattr(cFuncModule, 'onLapComplete') \

@@ -36,16 +36,29 @@ def get_data_info():
     s = 'Toy Bars Data with %d true topics. Each doc uses 1-3 bars.' % (K)
     return s
 
-
 def get_data(seed=SEED, **kwargs):
-    '''
-        Args
-        -------
-        seed
-        nDocTotal
-        nWordsPerDoc
+    ''' Create toy dataset using bars topics.
+
+    Keyword Args
+    ------------
+    seed : int
+        Determines pseudo-random generator used to make the toy data.
+    nDocTotal : int
+        Number of total documents to create.
+    nWordsPerDoc : int
+        Number of total words to create in each document (all docs same length)
     '''
     Data = CreateToyDataFromLDAModel(seed=seed, **kwargs)
+    Data.name = 'BarsK10V900'
+    Data.summary = get_data_info()
+    return Data
+
+def get_test_data(seed=6789, nDocTotal=50, **kwargs):
+    ''' Create dataset of "heldout" docs, for testing purposes.
+
+    Uses different random seed than get_data, but otherwise similar.
+    '''
+    Data = CreateToyDataFromLDAModel(seed=seed, nDocTotal=nDocTotal, **kwargs)
     Data.name = 'BarsK10V900'
     Data.summary = get_data_info()
     return Data

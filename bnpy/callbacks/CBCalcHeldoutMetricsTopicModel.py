@@ -31,14 +31,14 @@ import numpy as np
 import scipy.io
 
 import InferHeldoutTopics
-
+import HeldoutMetricsLogger
 SavedLapSet = set()
 
 def onAlgorithmComplete(**kwargs):
     ''' Runs at completion of the learning algorithm.
 
     Keyword Args
-    --------
+    --------T
     All workspace variables passed along from learning alg.
     '''
     if kwargs['lapFrac'] not in SavedLapSet:
@@ -54,6 +54,8 @@ def onBatchComplete(**kwargs):
     global SavedLapSet
     if kwargs['isInitial']:
         SavedLapSet = set()
+        HeldoutMetricsLogger.configure(
+            **kwargs['learnAlg'].BNPYRunKwArgs['OutputPrefs'])
 
     if not kwargs['learnAlg'].isSaveParamsCheckpoint(kwargs['lapFrac'],
                                                      kwargs['iterid']):
@@ -87,5 +89,5 @@ def runHeldoutCallback(**kwargs):
     InferHeldoutTopics.evalTopicModelOnTestDataFromTaskpath(
         taskpath=taskpath,
         queryLap=kwargs['lapFrac'],
-        printFunc=print,
+        printFunc=HeldoutMetricsLogger.pprint,
         **kwargs)
