@@ -5,6 +5,7 @@ import numpy as np
 import scipy.io
 import sklearn.metrics
 import bnpy
+import glob
 
 from scipy.special import digamma
 from scipy.misc import logsumexp
@@ -27,30 +28,46 @@ def evalTopicModelOnTestDataFromTaskpath(
         **kwargs):
     ''' Evaluate trained topic model saved in specified task on test data
     '''
-    # Load test dataset
-    Data = loadDataFromSavedTask(taskpath, dataSplitName=dataSplitName)
-    DataKwargs = loadDataKwargsFromDisk(taskpath)
     # Load saved kwargs for local step
     LPkwargs = loadLPKwargsFromDisk(taskpath)
     for key in kwargs:
         if key in LPkwargs and kwargs[key] is not None:
             LPkwargs[key] = str2val(kwargs[key])
-    # Load saved model
-    if hasattr(Data, 'word_count') and taskpath.count('Mult'):
+    # Force to be 0, which gives better performance
+    # (due to mismatch in objectives)
+    if 'restartLP' in LPkwargs:
+        LPkwargs['restartLP'] = 0
+
+    # Load test dataset
+    Data = loadDataFromSavedTask(taskpath, dataSplitName=dataSplitName)
+    DataKwargs = loadDataKwargsFromDisk(taskpath)
+
+    # Check if info is stored in topic-model form
+    topicFileList = glob.glob(os.path.join(taskpath, 'Lap*TopicModel.mat'))
+    if len(topicFileList) > 0:
         topics, probs, alpha = loadTopicModel(
             taskpath, queryLap=queryLap,
             returnTPA=1, normalizeTopics=1, normalizeProbs=1)
         K = probs.size
     else:
         hmodel, foundLap = loadModelForLap(taskpath, queryLap)
+        if hasattr(Data, 'word_count'):
+            # Convert to topics 2D array (K x V)
+            topics = hmodel.obsModel.getTopics()
+            probs = hmodel.allocModel.get_active_comp_probs()
         assert np.allclose(foundLap, queryLap)
         if hasattr(hmodel.allocModel, 'alpha'):
             alpha = hmodel.allocModel.alpha
-        if 'alpha' in DataKwargs:
+        elif 'alpha' in DataKwargs:
             alpha = float(DataKwargs['alpha'])
+        else:
+            alpha = 0.5
         K = hmodel.allocModel.K
     # Prepare debugging statements
-    if printFunc:
+    if printFunc: 
+        startmsg = "Heldout Metrics at lap %.3f" % (queryLap) 
+        filler = '=' * (80 - len(startmsg))
+        printFunc(startmsg + ' ' + filler)
         if hasattr(Data, 'word_count'):
             nAtom = Data.word_count.sum()
         else:
@@ -61,10 +78,14 @@ def evalTopicModelOnTestDataFromTaskpath(
         printFunc("Using trained model from lap %7.3f with %d topics" % (
             queryLap, K))
         printFunc("Using alpha=%.3f for heldout inference." % (alpha))
+        printFunc("Local step params:")
+        for key in ['nCoordAscentItersLP', 'convThrLP', 'restartLP']:
+            printFunc("    %s: %s" % (key, str(LPkwargs[key])))
         msg = "Splitting each doc" + \
             " into %3.0f%% train and %3.0f%% test, with seed %d" % (
             100*(1-fracHeldout), 100*fracHeldout, seed)
         printFunc(msg)
+
     # Preallocate storage for metrics
     logpTokensPerDoc = np.zeros(Data.nDoc)
     nTokensPerDoc = np.zeros(Data.nDoc, dtype=np.int32)
@@ -86,14 +107,14 @@ def evalTopicModelOnTestDataFromTaskpath(
             RprecisionPerDoc[d] = Info_d['R_precision']
             avgAUCscore = np.mean(aucPerDoc[:d+1])
             avgRscore = np.mean(RprecisionPerDoc[:d+1])
-            scoreMsg = "avglogp %.4f avgauc %.4f avgRprec %.4f" % (
+            scoreMsg = "avgLik %.4f avgAUC %.4f avgRPrec %.4f" % (
                 np.sum(logpTokensPerDoc[:d+1]) / np.sum(nTokensPerDoc[:d+1]),
                 avgAUCscore, avgRscore)
             SVars = dict(
-                avgRscore=avgRscore,
-                avgAUCscore=avgAUCscore,
-                avgAUCscorePerDoc=aucPerDoc,
-                avgRscorePerDoc=RprecisionPerDoc)
+                avgRPrecScore=avgRscore,
+                avgAUCScore=avgAUCscore,
+                avgAUCScorePerDoc=aucPerDoc,
+                avgRPrecScorePerDoc=RprecisionPerDoc)
         else:
             Info_d = calcPredLikForDocFromHModel(
                 Data_d, hmodel,
@@ -103,7 +124,7 @@ def evalTopicModelOnTestDataFromTaskpath(
                 LPkwargs=LPkwargs)
             logpTokensPerDoc[d] = Info_d['sumlogProbTokens']
             nTokensPerDoc[d] = Info_d['nHeldoutToken']
-            scoreMsg = "avglogp %.4f" % (
+            scoreMsg = "avgLik %.4f" % (
                 np.sum(logpTokensPerDoc[:d+1]) / np.sum(nTokensPerDoc[:d+1]),
                 )
             SVars = dict()
@@ -113,7 +134,6 @@ def evalTopicModelOnTestDataFromTaskpath(
                 etime = time.time() - stime
                 msg = "%5d/%d after %8.1f sec " % (d+1, Data.nDoc, etime) 
                 printFunc(msg + scoreMsg)
-
     # Aggregate results
     meanlogpTokensPerDoc = np.sum(logpTokensPerDoc) / np.sum(nTokensPerDoc)
     # Compute heldout Lscore
@@ -164,18 +184,31 @@ def evalTopicModelOnTestDataFromTaskpath(
         **LPkwargs)
     SaveVars.update(SVars)
     scipy.io.savemat(outmatfile, SaveVars, oned_as='row')
-    if printFunc:
-        printFunc("DONE. Results written to MAT file:\n" + outmatfile)
-
     SVars['avgLikScore'] = SaveVars['avgPredLL']
     SVars['lapTrain'] = queryLap
     SVars['K'] = K
     for key in SVars:
-        if key.endswith('perDoc'):
+        if key.endswith('PerDoc'):
             continue
         outtxtfile = os.path.join(taskpath, 'predlik-%s.txt' % (key))
         with open(outtxtfile, 'a') as f:
             f.write("%.6e\n" % (SVars[key]))
+    if printFunc:
+        printFunc("DONE with heldout inference at lap %.3f" % queryLap)
+        printFunc("Wrote per-doc results in MAT file:" + 
+            outmatfile.split(os.path.sep)[-1])
+        printFunc("      Aggregate results in txt files: predlik-__.txt")
+
+
+    # Write the summary message
+    if printFunc:
+        etime = time.time() - stime
+        curLapStr = '%7.3f' % (queryLap)
+        nLapStr = '%d' % (kwargs['learnAlg'].algParams['nLap'])
+        logmsg = '  %s/%s heldout metrics   | K %4d | %s'
+        logmsg = logmsg % (curLapStr, nLapStr, K, scoreMsg) 
+        printFunc(logmsg, 'info')
+
     return SaveVars
 
 

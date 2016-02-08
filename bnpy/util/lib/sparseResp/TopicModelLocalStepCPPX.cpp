@@ -427,7 +427,7 @@ void sparseLocalStepSingleDoc_ActiveOnly(
         }
         assert(Kactive >= nnzPerRow);
         assert(Kactive <= K);
-        if (doReviseActiveSet) {
+        if (nnzPerRow == 1 || doReviseActiveSet) {
             totalLogSumResp = updateAssignments_ActiveOnly(
                 ElogLik_d, wc_d, alphaEbeta, activeTopics_d,
                 topicCount_d, ElogProb_d,
