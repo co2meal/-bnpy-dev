@@ -91,6 +91,7 @@ def calcLocalParams(
     AggInfo = dict()
     AggInfo['maxDiff'] = np.zeros(Data.nDoc)
     AggInfo['iter'] = np.zeros(Data.nDoc, dtype=np.int32)
+
     if 'restartLP' in kwargs and kwargs['restartLP']:
         AggInfo['nRestartsAccepted'] = np.zeros(1, dtype=np.int32)
         AggInfo['nRestartsTried'] = np.zeros(1, dtype=np.int32)
@@ -179,6 +180,22 @@ def calcLocalParams(
     LP['Info'] = AggInfo
     writeLogMessageForManyDocs(Data, AggInfo, **kwargs)
     return LP
+
+
+def calcLocalParams_SparseWordCounts(
+        ):
+    '''
+    '''
+    calcSparseLocalParams_ManyDocs(
+        LP['ElogphiT'],
+        alphaEbeta,
+        Data.word_id,
+        Data.word_count,
+        Data.doc_range,
+        spVocabResp.data,
+        spVocabResp.colids,
+        DocTopicCount,
+        **kwargs)
 
 
 def calcInitSparseResp(LP, alphaEbeta, nnzPerRowLP=0, **kwargs):

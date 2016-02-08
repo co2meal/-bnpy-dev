@@ -1271,6 +1271,8 @@ class MemoVBMovesAlg(LearnAlg):
                                             xSS=SS.propXSS[targetUID])
             for (uidA, uidB) in propSS.mUIDPairs:
                 propSS.mergeComps(uidA=uidA, uidB=uidB)
+            if targetUID == 9:
+                from IPython import embed; embed()
             # Construct proposed model and its ELBO score
             propModel = hmodel.copy()
             propModel.update_global_params(propSS)

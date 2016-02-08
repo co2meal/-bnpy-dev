@@ -69,7 +69,8 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         trackDocUsage=1, doPrecompEntropy=1, doTrackTruncationGrowth=1)
     xSSslice.setUIDs(xUIDs)
     assert xSSslice.hasELBOTerm("Hresp")
-    assert xSSslice.hasELBOTerm("HrespEmptyComp")
+    if emptyPi > 0:
+        assert xSSslice.hasELBOTerm("HrespEmptyComp")
 
     # If desired, add merge terms into the expanded summaries,
     if mUIDPairs is not None and len(mUIDPairs) > 0:
@@ -81,7 +82,8 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         xSSslice.setMergeUIDPairs(mUIDPairs)
         for key, arr in Mdict.items():
             xSSslice.setMergeTerm(key, arr, dims='M')
-
+    if targetUID == 9:
+        from IPython import embed; embed()
     # Prepare dict of info for debugging/inspection
     Info = dict()
     Info['Kfresh'] = Kfresh

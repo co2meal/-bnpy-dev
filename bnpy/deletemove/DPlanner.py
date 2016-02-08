@@ -79,7 +79,7 @@ def selectCandidateDeleteComps(
         if oldsize > 0 and nFailRecent_Delete > 0:
             nFailRecord += 1
             sizePercDiff = np.abs(size - oldsize)/(1e-100 + np.abs(oldsize))
-            if sizePercDiff <= DArgs['b_minPercChangeInNumAtomsToReactivate']:
+            if sizePercDiff <= DArgs['d_minPercChangeInNumAtomsToReactivate']:
                 hasFailRecordList.append(uid)
                 continue
             else:

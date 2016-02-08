@@ -234,6 +234,30 @@ def calcELBO_SingleDoc(DocTopicCount_d, DocTopicProb_d, sumResp_d,
     return L_alloc + L_rest
 
 
+
+
+def calcELBO_SingleDocFromSparseResp(
+        spResp_d, ElogLik_d, wc_d, alphaEbeta):
+    ''' Calculate single document contribution to the ELBO objective.
+
+    This isolates all ELBO terms that depend on local parameters of this doc.
+
+    Returns
+    -------
+    L : scalar float
+        value of ELBO objective, up to additive constant.
+        This constant is independent of any local parameter attached to doc d.
+    '''
+    DocTopicCount_d = wc_d * spResp_d # Sparse multiply
+    theta_d = DocTopicCount_d + alphaEbeta
+    R_d = spResp_d.toarray()
+    wR_d = wc_d[:, np.newaxis] * R_d
+    L_alloc = np.sum(gammaln(theta_d))
+    L_data = np.sum(wR_d * ElogLik_d)
+    RlogR = np.sum(wR_d * np.log(R_d + 1e-100))
+    return L_alloc + L_data - RlogR
+
+
 def calcLocalParams_SingleDoc_WithELBOTrace(
         wc_d, Lik_d, alphaEbeta, alphaEbetaRem=None,
         DocTopicCount_d=None, sumResp_d=None,

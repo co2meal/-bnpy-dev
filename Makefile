@@ -36,6 +36,13 @@ libsparsetopics: hasEigenpath
 		-O3 \
 		--shared -fPIC -w $(PYARCH);
 
+libsparseManyDocs: hasEigenpath
+	cd bnpy/util/lib/sparseResp/; \
+	g++ TopicModelLocalStepManyDocsCPPX.cpp -o libsparseManyDocs.so \
+		-I$(BOOSTMATHPATH) -I$(EIGENPATH) \
+		-O3 \
+		--shared -fPIC -w $(PYARCH);
+
 # Rule: verify that EIGENPATH exists, or instruct user to download it.
 hasEigenpath:
 ifndef EIGENPATH
