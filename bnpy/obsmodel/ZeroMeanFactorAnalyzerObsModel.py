@@ -610,8 +610,15 @@ if __name__ == '__main__':
     # import DeadLeavesD25
     # Data = DeadLeavesD25.get_data()
 
-    hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanGauss', 'moVB',
-                             nLap=50, K=20, G=4, sF=1e-3, moves='merge,birth,shuffle,delete')
+    hmodel, RInfo = bnpy.run('/Users/Geng/Documents/Brown/research/patch/gridpy/MATLAB/train',
+                             'DPMixtureModel', 'ZeroMeanGauss', 'moVB', nBatch=10,
+                             nLap=200, K=200, G=64, sF=1e1, ECovMat='diagcovdata',
+                             moves='merge,birth,shuffle,delete',
+                             birthPerLap=1000, targetMinSize=20, targetMaxSize=500,
+                             jobname='GaussGrid', datasetName='square', minLaps=20)
+
+    # hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanGauss', 'moVB',
+    #                          nLap=50, K=20, G=4, sF=1e-3, moves='merge,birth,shuffle,delete')
     # hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanFactorAnalyzer', 'moVB',
     #                          C=1, nLap=50, K=1, WCovType='diag',
     #                          calcXxT=1, nTask=5, jobname='K1', nPostUpdate=2,
