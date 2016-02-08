@@ -275,7 +275,7 @@ class WordsData(DataObj):
         self.word_count = as1D(toCArray(word_count, dtype=np.float64))
         self.doc_range = as1D(toCArray(doc_range, dtype=np.int32))
         self.vocab_size = int(vocab_size)
-        self.dim = self.vocab_size
+
         if summary is not None:
             self.summary = summary
 
@@ -306,6 +306,7 @@ class WordsData(DataObj):
             self.nDocTotal = self.nDoc
         else:
             self.nDocTotal = int(nDocTotal)
+        self.dim = self.vocab_size
 
     def _verify_attributes(self):
         ''' Basic runtime checks to make sure attribute dims are correct.

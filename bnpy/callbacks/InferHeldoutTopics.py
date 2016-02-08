@@ -33,6 +33,10 @@ def evalTopicModelOnTestDataFromTaskpath(
     for key in kwargs:
         if key in LPkwargs and kwargs[key] is not None:
             LPkwargs[key] = str2val(kwargs[key])
+    # Force to be 0, which gives better performance
+    # (due to mismatch in objectives)
+    if 'restartLP' in LPkwargs:
+        LPkwargs['restartLP'] = 0
 
     # Load test dataset
     Data = loadDataFromSavedTask(taskpath, dataSplitName=dataSplitName)
@@ -74,10 +78,14 @@ def evalTopicModelOnTestDataFromTaskpath(
         printFunc("Using trained model from lap %7.3f with %d topics" % (
             queryLap, K))
         printFunc("Using alpha=%.3f for heldout inference." % (alpha))
+        printFunc("Local step params:")
+        for key in ['nCoordAscentItersLP', 'convThrLP', 'restartLP']:
+            printFunc("    %s: %s" % (key, str(LPkwargs[key])))
         msg = "Splitting each doc" + \
             " into %3.0f%% train and %3.0f%% test, with seed %d" % (
             100*(1-fracHeldout), 100*fracHeldout, seed)
         printFunc(msg)
+
     # Preallocate storage for metrics
     logpTokensPerDoc = np.zeros(Data.nDoc)
     nTokensPerDoc = np.zeros(Data.nDoc, dtype=np.int32)

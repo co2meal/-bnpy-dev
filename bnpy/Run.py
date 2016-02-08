@@ -159,7 +159,6 @@ def _run_task_internal(jobname, taskid, nTask,
             Data = Data.to_iterator(**OnlineDataArgs)
     if hasattr(Data, 'name'):
         ReqArgs['dataName'] = Data.name
-
     if doSaveToDisk:
         taskoutpath = getOutputPath(ReqArgs, KwArgs, taskID=taskid)
         createEmptyOutputPathOnDisk(taskoutpath)
