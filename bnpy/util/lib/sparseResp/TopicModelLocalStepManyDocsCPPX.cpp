@@ -36,6 +36,8 @@ extern "C" {
         int numRestarts,
         int* rAcceptVec_IN,
         int* rTrialVec_IN,
+        int REVISE_FIRST,
+        int REVISE_EVERY,
         int verbose
     );
 }
@@ -115,7 +117,7 @@ double calcELBOForDoc(
 }
 
 
-double updateAssignmentsForDoc_ActiveOnly(  
+double updateAssignmentsForDoc_ReviseActiveSet(  
     int d,
     int start_d,
     int N_d,
@@ -221,6 +223,67 @@ double updateAssignmentsForDoc_ActiveOnly(
 }
 
 
+/* Update spResp_data values, keeping spResp_colids fixed.
+ *
+ */
+void updateAssignmentsForDoc_FixPerTokenActiveSet(  
+    int d,
+    int start_d,
+    int N_d,
+    int nnzPerRow,
+    int Kactive,
+    ExtArr1D_d alphaEbeta, 
+    ExtArr2D_d Eloglik,
+    ExtArr1D_d word_count,
+    ExtArr1D_i word_id,
+    ExtArr2D_d & topicCount,
+    ExtArr1D_d & spResp_data,
+    ExtArr1D_i & spResp_colids,
+    Arr1D_i & activeTopics_d,
+    Arr1D_d & ElogProb_d,
+    Arr1D_d & logScores_n
+    )
+{
+    assert(nnzPerRow > 1);
+    // Update ElogProb_d for active topics
+    for (int ka = 0; ka < Kactive; ka++) {
+        int k = activeTopics_d(ka);
+        ElogProb_d(k) = boost::math::digamma(
+            topicCount(d, k) + alphaEbeta(k));
+    }
+    // RESET topicCounts for doc d
+    topicCount.row(d).fill(0);
+    // Update Resp_d for active topics
+    for (int n = start_d; n < start_d + N_d; n++) {
+        int spRind_dn_start = n * nnzPerRow;
+        double w_ct = word_count(n);
+        int w_id = word_id(n);
+        double maxScore_n;
+        for (int ka = 0; ka < nnzPerRow; ka++) {
+            int k = spResp_colids(spRind_dn_start + ka);
+            logScores_n(ka) = ElogProb_d(k) + Eloglik(w_id, k);
+            if (ka == 0 || logScores_n(ka) > maxScore_n) {
+                maxScore_n = logScores_n(ka);
+            }
+        }
+
+        double sumResp_n = 0.0;
+        for (int ka = 0; ka < nnzPerRow; ka++) {
+            spResp_data(spRind_dn_start + ka) = \
+                exp(logScores_n(ka) - maxScore_n);
+            sumResp_n += spResp_data(spRind_dn_start + ka);
+        }
+
+        for (int ka = 0; ka < nnzPerRow; ka++) {
+            spResp_data(spRind_dn_start + ka) /= sumResp_n;
+            topicCount(d, spResp_colids(spRind_dn_start + ka)) += \
+                w_ct * spResp_data(spRind_dn_start + ka);
+        }
+
+    } // end for loop over tokens in this doc
+}
+
+
 double tryRestartsForDoc(
     int d,
     int start_d,
@@ -257,7 +320,7 @@ double tryRestartsForDoc(
     }
     for (int riter = 0; riter < numRestarts; riter++) {
         if (riter == 0) {
-            totalLogSumResp = updateAssignmentsForDoc_ActiveOnly(
+            totalLogSumResp = updateAssignmentsForDoc_ReviseActiveSet(
                 d, start_d, N_d, nnzPerRow, Kactive,
                 alphaEbeta, Eloglik, word_count, word_id, 
                 topicCount, spResp_data, spResp_colids,
@@ -314,7 +377,7 @@ double tryRestartsForDoc(
         // Run inference forward from forced new location
         int NSTEP = 2;
         for (int step = 0; step < NSTEP; step++) { 
-            totalLogSumResp = updateAssignmentsForDoc_ActiveOnly(
+            totalLogSumResp = updateAssignmentsForDoc_ReviseActiveSet(
                 d, start_d, N_d, nnzPerRow, Kactive,
                 alphaEbeta, Eloglik, word_count, word_id, 
                 topicCount, spResp_data, spResp_colids,
@@ -369,7 +432,7 @@ double tryRestartsForDoc(
             topicCount(d, k) = prevTopicCount_d(k);
         }
         // Final update! Make sure spResp reflects best topicCounts found
-        updateAssignmentsForDoc_ActiveOnly(
+        updateAssignmentsForDoc_ReviseActiveSet(
             d, start_d, N_d, nnzPerRow, Kactive,
             alphaEbeta, Eloglik, word_count, word_id, 
             topicCount, spResp_data, spResp_colids,
@@ -401,13 +464,29 @@ void sparseLocalStepManyDocs_ActiveOnly(
         int numRestarts,
         int* rAcceptVec_IN,
         int* rTrialVec_IN,
+        int REVISE_FIRST,
+        int REVISE_EVERY,
         int verbose
         )
 {
-    nCoordAscentIterLP = max(nCoordAscentIterLP, 1);
-    nCoordAscentIterLP = max(nCoordAscentIterLP + initProbsToEbeta, 1);
+    nCoordAscentIterLP = max(nCoordAscentIterLP + max(0, initProbsToEbeta), 1);
+    REVISE_EVERY = max(REVISE_EVERY, 1);
+    REVISE_FIRST = max(REVISE_FIRST, 0);
+    int CHECK_EVERY = 5; // Check convergence every X iterations.
 
-    // Unpack inputs, treated as fixed constants
+    // Allocate temporary storage
+    Arr1D_d ElogProb_d (K);
+    Arr1D_d prevTopicCount_d (K);
+    Arr1D_d logScores_n (K);
+    Arr1D_d tempScores_n (K);
+    Arr1D_i activeTopics_d (K);
+    Arr1D_i spareActiveTopics_d (nnzPerRow);
+    
+    // Disable all further memory allocation.
+    // We do this to verify that we have no memory leaks!
+    internal::set_is_malloc_allowed(false);
+
+    // Unpack input arrays
     ExtArr1D_d alphaEbeta (alphaEbeta_IN, K);
     ExtArr2D_d Eloglik (Eloglik_IN, V, K);
 
@@ -415,7 +494,7 @@ void sparseLocalStepManyDocs_ActiveOnly(
     ExtArr1D_i word_id (word_id_IN, Nall);
     ExtArr1D_i doc_range (doc_range_IN, D+1);
 
-    // Unpack outputs
+    // Unpack output arrays
     ExtArr1D_d spResp_data (spResp_data_OUT, Nall * nnzPerRow);
     ExtArr1D_i spResp_colids (spResp_colids_OUT, Nall * nnzPerRow);
     ExtArr2D_d topicCount (topicCount_OUT, D, K);
@@ -426,14 +505,7 @@ void sparseLocalStepManyDocs_ActiveOnly(
     ExtArr1D_i rAcceptVec (rAcceptVec_IN, 1);
     ExtArr1D_i rTrialVec (rTrialVec_IN, 1);
     
-    // Temporary storage
-    Arr1D_d ElogProb_d (K);
-    Arr1D_d prevTopicCount_d (K);
-    Arr1D_d logScores_n (K);
-    Arr1D_d tempScores_n (K);
-    Arr1D_i activeTopics_d (K);
-    Arr1D_i spareActiveTopics_d (nnzPerRow);
-
+    // Compute quantity used in sparse restart ELBO computation
     double sum_gammalnalphaEbeta = 0.0;
     if (numRestarts > 0) {
         for (int k = 0; k < K; k++) {
@@ -441,56 +513,96 @@ void sparseLocalStepManyDocs_ActiveOnly(
         }
     }
 
+    // Visit each document and update its spResp (and corresponding topicCount)
     for (int d = 0; d < D; d++) {
         int start_d = doc_range(d);
         int N_d = doc_range(d+1) - doc_range(d);
 
-        prevTopicCount_d.fill(-1);
+        prevTopicCount_d.fill(0);
         double maxDiff = N_d;
         int iter = 0;
-        int Kactive = K;
         double ACTIVE_THR = 1e-9;
         double totalLogSumResp = 0.0;
-    
+
+        // Initialize active set to ALL topics    
+        int Kactive = K;
+        for (int k = 0; k < K; k++) {
+            activeTopics_d(k) = k;
+        }
+        int doReviseActiveSet = 1;
+
         for (iter = 0; iter < nCoordAscentIterLP; iter++) {
+
             // DETERMINE CURRENT ACTIVE SET
-            if (iter > 0) {
+            if (Kactive <= nnzPerRow) {
+                // Set of active docs is already as small as can be,
+                // so nothing to gain from revising
+                doReviseActiveSet = 0;
+            } else if (iter < REVISE_FIRST || (iter - 1) % REVISE_EVERY == 0) {
+                doReviseActiveSet = 1;
+            } else {
+                doReviseActiveSet = 0;
+            }
+            if (iter > 0 && doReviseActiveSet) {
                 Kactive = updateActiveSetForDoc(
                     d,
                     topicCount,
                     activeTopics_d,
                     spareActiveTopics_d,
                     ACTIVE_THR,
-                    Kactive, nnzPerRow
-                );
-            } else {
-                Kactive = K;
-                for (int k = 0; k < K; k++) {
-                    activeTopics_d(k) = k;
-                }
+                    Kactive, nnzPerRow);
             }
             assert(Kactive >= nnzPerRow);
             assert(Kactive <= K);
 
-            totalLogSumResp = updateAssignmentsForDoc_ActiveOnly(
-                d, start_d, N_d, nnzPerRow, Kactive,
-                alphaEbeta,
-                Eloglik,
-                word_count,
-                word_id,
-                topicCount,
-                spResp_data,
-                spResp_colids,
-                activeTopics_d,
-                ElogProb_d,
-                logScores_n,
-                tempScores_n,
-                initProbsToEbeta && (iter == 0),
-                0);
+            if (doReviseActiveSet) {
+                totalLogSumResp = updateAssignmentsForDoc_ReviseActiveSet(
+                    d, start_d, N_d, nnzPerRow, Kactive,
+                    alphaEbeta,
+                    Eloglik,
+                    word_count,
+                    word_id,
+                    topicCount,
+                    spResp_data,
+                    spResp_colids,
+                    activeTopics_d,
+                    ElogProb_d,
+                    logScores_n,
+                    tempScores_n,
+                    initProbsToEbeta && (iter == 0),
+                    0);
+            } else {
+                updateAssignmentsForDoc_FixPerTokenActiveSet(
+                    d, start_d, N_d, nnzPerRow, Kactive,
+                    alphaEbeta,
+                    Eloglik,
+                    word_count,
+                    word_id,
+                    topicCount,
+                    spResp_data,
+                    spResp_colids,
+                    activeTopics_d,
+                    ElogProb_d,
+                    logScores_n
+                    );
+            }
 
+            // END ITERATION. Decide whether to quit early
+            // Find maximum difference from previous doc-topic count
+            if (iter % CHECK_EVERY == 0 && iter > 0) {
+                double absDiff_k = 0.0;
+                maxDiff = 0.0;
+                for (int ka = 0; ka < Kactive; ka++) {
+                    int k = activeTopics_d(ka);
+                    absDiff_k = abs(prevTopicCount_d(k) - topicCount(d, k));
+                    if (absDiff_k > maxDiff) {
+                        maxDiff = absDiff_k;
+                    }
+                }
+            }
             if (verbose) {
-                printf("iter %3d Kactive %4d maxDiff %11.6f\n",
-                    iter, Kactive, maxDiff);
+                printf("iter %3d doRevise %d Kactive %4d maxDiff %11.6f\n",
+                    iter, doReviseActiveSet, Kactive, maxDiff);
                 printf("  ");
                 for (int ka = 0; ka < Kactive; ka++) {
                     int k = activeTopics_d(ka);
@@ -498,31 +610,24 @@ void sparseLocalStepManyDocs_ActiveOnly(
                 }
                 printf("\n");
             }
-
-            // END ITERATION. Decide whether to quit early
-            // Find maximum difference from previous doc-topic count
-            double absDiff_k = 0.0;
-            maxDiff = 0.0;
-            for (int ka = 0; ka < Kactive; ka++) {
-                int k = activeTopics_d(ka);
-                absDiff_k = abs(prevTopicCount_d(k) - topicCount(d, k));
-                if (absDiff_k > maxDiff) {
-                    maxDiff = absDiff_k;
-                }
-            }
             if (maxDiff <= convThrLP) {
+                if (verbose) {
+                    printf("EARLY EXIT! maxDiff < %11.6f\n", convThrLP);
+                }
                 break;
             }
-            // Make sure prevTopicCount vector is updated
-            prevTopicCount_d.fill(0);
-            for (int ka = 0; ka < Kactive; ka++) {
-                int k = activeTopics_d(ka);
-                prevTopicCount_d(k) = topicCount(d, k);
+
+            if (iter % CHECK_EVERY == CHECK_EVERY - 1) {
+                // Make sure prevTopicCount vector is updated
+                for (int ka = 0; ka < Kactive; ka++) {
+                    int k = activeTopics_d(ka);
+                    prevTopicCount_d(k) = topicCount(d, k);
+                }
             }
 
         } // end loop over iterations at doc d
         maxDiffVec(d) = maxDiff;
-        numIterVec(d) = iter + 1;
+        numIterVec(d) = iter; // iter will already be +1'd by last iter of loop
 
         if (numRestarts > 0) {
             tryRestartsForDoc(
@@ -547,5 +652,7 @@ void sparseLocalStepManyDocs_ActiveOnly(
                 );
         }
     } // end loop over documents
+    internal::set_is_malloc_allowed(true);
+
 }
 

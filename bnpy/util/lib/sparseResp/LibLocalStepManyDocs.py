@@ -1,6 +1,8 @@
 import os
 import numpy as np
 import scipy.sparse
+import time
+
 from scipy.special import digamma
 
 from CPPLoader import LoadFuncFromCPPLib
@@ -22,7 +24,7 @@ def sparseLocalStepManyDocs(
         convThrLP=0.001,
         nnzPerRowLP=2,
         restartLP=0,
-        restartNumTrialsLP=0,
+        restartNumTrialsLP=50,
         initDocTopicCountLP='setDocProbsToEGlobalProbs',
         reviseActiveFirstLP=-1,
         reviseActiveEveryLP=1,
@@ -30,6 +32,7 @@ def sparseLocalStepManyDocs(
         numIterVec=None,
         nRAcceptVec=None,
         nRTrialVec=None,
+        verboseLP=0,
         **kwargs):
     ''' Perform local inference for topic model. Wrapper around C++ code.
     '''
@@ -84,7 +87,9 @@ def sparseLocalStepManyDocs(
         restartNumTrialsLP * restartLP,
         nRAcceptVec,
         nRTrialVec,
-        1)
+        reviseActiveFirstLP,
+        reviseActiveEveryLP,
+        verboseLP)
 
     # Package results up into dict
     LP = dict()
@@ -109,33 +114,137 @@ def sparseLocalStepManyDocs(
     writeLogMessageForManyDocs(Data, LP['Info'], **kwargs)
     return LP
 
-if __name__ == '__main__':
-    import bnpy
-    model, Info = bnpy.run('BarsK10V900', 'HDPTopicModel', 'Mult', 'VB',
-        nBatch=1, nDocTotal=1, nLap=2, initname='truelabels', 
-        nCoordAscentItersLP=100, convThrLP=.01)
-    LP0 = sparseLocalStepManyDocs(
-        Data=Info['Data'],
+def doLocalStep_PythonLoopOverDocs(
+        Data, model, **LPkwargs):
+    return model.calc_local_params(
+        Data, **LPkwargs)
+
+def doLocalStep_CPPLoopOverDocs(
+        Data, model, **LPkwargs):
+    return sparseLocalStepManyDocs(
+        Data,
         alphaEbeta=model.allocModel.alpha_E_beta(),
         alphaEbetaRem=model.allocModel.alpha_E_beta_rem(),
         ElogphiT=model.obsModel._E_logphiT('all'),
+        **LPkwargs
+        )
+
+def compareSingleDocLocalStep(Data, model, **LPkwargs):
+    stime = time.time()
+    LPold = doLocalStep_PythonLoopOverDocs(
+        Data, model, **LPkwargs)
+    pytime = time.time() - stime
+
+    stime = time.time()
+    LPnew = doLocalStep_CPPLoopOverDocs(
+        Data, model, **LPkwargs)
+    cpptime = time.time() - stime
+
+    print "%8.3f sec | python" % (pytime)
+    print "%8.3f sec | cpp" % (cpptime)
+    print "Comparing Python vs C++ LocalStepManyDocs implementations..."
+    print '    nDoc: %s' % (Data.nDoc)
+    print '       K: %s' % (model.allocModel.K)
+    for KwArgName in ['nCoordAscentItersLP', 'convThrLP', 'restartLP']:
+        print '    %s: %s' % (KwArgName, LPkwargs[KwArgName])
+    for key in ['DocTopicCount', 'spR', 'iter']:
+        compareLPValsAtKey(LPold, LPnew, key)
+    
+def compareLPValsAtKey(LPold, LPnew, key):
+    if key not in LPold:
+        LPoldORIG = LPold
+        LPnewORIG = LPnew
+        LPold = LPold['Info']
+        LPnew = LPnew['Info']
+    assert key in LPold
+    try:
+        if key == 'spR':
+            assert np.allclose(LPold[key].toarray(),
+                               LPnew[key].toarray(), rtol=0, atol=.0001)
+        else:
+            assert np.allclose(LPold[key], LPnew[key], rtol=0, atol=.0001)
+        print '  Good. Same value for LP[%s]' % (key)
+    except AssertionError as e:
+        print '  BAD!! Mismatch for LP[%s]' % (key)
+        from IPython import embed; embed()
+        raise(e)
+
+
+if __name__ == '__main__':
+    import bnpy
+
+    model, Info = bnpy.run('BarsK10V900', 'HDPTopicModel', 'Mult', 'VB',
+        nBatch=1, nDocTotal=50, nLap=2, initname='randexamples', K=200, 
+        nCoordAscentItersLP=100, convThrLP=.01)
+    '''
+    model, Info = bnpy.run('BarsK10V900', 'HDPTopicModel', 'Mult', 'VB',
+        nBatch=1, nDocTotal=50, nLap=2, initname='truelabels', 
+        nCoordAscentItersLP=100, convThrLP=.01)
+    '''
+    # Find doc with significant usage by at least 2 topics
+    Data = Info['Data']
+    '''
+    TrueDocTopicCount = np.zeros((Data.nDoc, Data.TrueParams['K']))
+    for d in range(Data.nDoc):
+        start_d = Data.doc_range[d]
+        stop_d = Data.doc_range[d+1]
+        wc_d = Data.word_count[start_d:stop_d]
+        resp_d = Data.TrueParams['resp'][start_d:stop_d]
+        TrueDocTopicCount[d] = np.dot(wc_d, resp_d)
+    TrueDocTopicProb = TrueDocTopicCount / \
+        TrueDocTopicCount.sum(axis=1)[:, np.newaxis]
+    docsWithManyTopics = np.flatnonzero(TrueDocTopicProb.max(axis=1) < 0.6)
+    assert len(docsWithManyTopics) > 0
+    SingleDoc = Data.select_subset_by_mask(docsWithManyTopics[:1])
+    '''
+
+    LPkwargs = dict(
         nnzPerRowLP=4,
         initDocTopicCountLP='setDocProbsToEGlobalProbs',
         nCoordAscentItersLP=10,
         convThrLP=-1,
+        activeonlyLP=1,
         restartLP=0,
-        )
-    
-    LP1 = sparseLocalStepManyDocs(
-        Data=Info['Data'],
-        alphaEbeta=model.allocModel.alpha_E_beta(),
-        alphaEbetaRem=model.allocModel.alpha_E_beta_rem(),
-        ElogphiT=model.obsModel._E_logphiT('all'),
-        nnzPerRowLP=2,
+        reviseActiveFirstLP=10,
+        reviseActiveEveryLP=1)
+    compareSingleDocLocalStep(
+        Data, model, **LPkwargs)
+
+    LPkwargs = dict(
+        nnzPerRowLP=4,
         initDocTopicCountLP='setDocProbsToEGlobalProbs',
         nCoordAscentItersLP=100,
         convThrLP=-1,
+        activeonlyLP=1,
+        restartLP=0,
+        reviseActiveFirstLP=2,
+        reviseActiveEveryLP=5)
+    compareSingleDocLocalStep(
+        Data, model, **LPkwargs)
+
+    LPkwargs = dict(
+        nnzPerRowLP=4,
+        initDocTopicCountLP='setDocProbsToEGlobalProbs',
+        nCoordAscentItersLP=100,
+        convThrLP=.1,
+        activeonlyLP=1,
+        restartLP=0,
+        reviseActiveFirstLP=2,
+        reviseActiveEveryLP=5)
+    compareSingleDocLocalStep(
+        Data, model, **LPkwargs)
+
+
+    LPkwargs = dict(
+        nnzPerRowLP=4,
+        initDocTopicCountLP='setDocProbsToEGlobalProbs',
+        nCoordAscentItersLP=500,
+        convThrLP=.001,
+        activeonlyLP=1,
         restartLP=1,
-        )
-    from IPython import embed; embed()
-    
+        restartNumTrialsLP=50,
+        reviseActiveFirstLP=2,
+        reviseActiveEveryLP=5,
+        verboseLP=0)
+    compareSingleDocLocalStep(
+        Data, model, **LPkwargs)

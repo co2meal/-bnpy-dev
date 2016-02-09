@@ -194,12 +194,11 @@ double updateAssignments_FixPerTokenActiveSet(
             spResp_data(nzk) /= sumResp_n;
             topicCount_d(spResp_colids(nzk)) += \
                 wc_d(n) * spResp_data(nzk);
-            }
+        }
         if (doTrackELBO) {
             totalLogSumResp += wc_d(n) * (maxScore_n + log(sumResp_n));
         }
     } // end for loop over tokens n
-
     assert(abs(wc_d.sum() - topicCount_d.sum()) < .000001);
     return totalLogSumResp;
 }
@@ -385,7 +384,7 @@ void sparseLocalStepSingleDoc_ActiveOnly(
 
     for (iter = 0; iter < nCoordAscentIterLP; iter++) {
         int doReviseActiveSet;
-        if (iter >= REVISE_FIRST && Kactive <= 1.25 * nnzPerRow) {
+        if (iter >= REVISE_FIRST && Kactive <= nnzPerRow) {
             // Set of active docs is already very small,
             // so nothing big to gain from revising
             doReviseActiveSet = 0;
