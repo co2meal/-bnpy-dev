@@ -32,7 +32,6 @@ class AbstractObsModel(object):
                 Data, **kwargs)
             if isinstance(L, dict):
                 LP.update(L)
-                del L
             else:
                 LP['E_log_soft_ev'] = L
         return LP

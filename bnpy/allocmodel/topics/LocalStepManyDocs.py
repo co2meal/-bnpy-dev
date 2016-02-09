@@ -14,6 +14,8 @@ from bnpy.util.SparseRespUtil \
     import fillInDocTopicCountFromSparseResp, sparsifyResp, sparsifyLogResp
 from bnpy.util.lib.sparseResp.LibSparseResp \
     import calcSparseLocalParams_SingleDoc
+from bnpy.util.lib.sparseResp.LibLocalStepManyDocs \
+    import sparseLocalStep_WordCountData
 
 def calcLocalParams(
         Data, LP,
@@ -180,23 +182,6 @@ def calcLocalParams(
     LP['Info'] = AggInfo
     writeLogMessageForManyDocs(Data, AggInfo, **kwargs)
     return LP
-
-
-def calcLocalParams_SparseWordCounts(
-        ):
-    '''
-    '''
-    calcSparseLocalParams_ManyDocs(
-        LP['ElogphiT'],
-        alphaEbeta,
-        Data.word_id,
-        Data.word_count,
-        Data.doc_range,
-        spVocabResp.data,
-        spVocabResp.colids,
-        DocTopicCount,
-        **kwargs)
-
 
 def calcInitSparseResp(LP, alphaEbeta, nnzPerRowLP=0, **kwargs):
     ''' Compute initial sparse responsibilities

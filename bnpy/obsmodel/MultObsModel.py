@@ -348,9 +348,16 @@ class MultObsModel(AbstractObsModel):
         L : 2D array, size N x K
         '''
         ElogphiT = self.GetCached('E_logphiT', 'all')  # V x K
-        E_log_soft_ev = calcLogSoftEvMatrix_FromPost_Static(
-            Data, DataAtomType=self.DataAtomType, ElogphiT=ElogphiT, **kwargs)
-        return dict(E_log_soft_ev=E_log_soft_ev, ElogphiT=ElogphiT)
+        doSparse1 = 'activeonlyLP' in kwargs and kwargs['activeonlyLP'] == 2
+        doSparse2 = 'nnzPerRow' in kwargs and kwargs['nnzPerRow'] < self.K
+        if doSparse2 and doSparse1:
+            return dict(ElogphiT=ElogphiT)
+        else:
+            E_log_soft_ev = calcLogSoftEvMatrix_FromPost_Static(
+                Data,
+                DataAtomType=self.DataAtomType,
+                ElogphiT=ElogphiT, **kwargs)
+            return dict(E_log_soft_ev=E_log_soft_ev, ElogphiT=ElogphiT)
 
     def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False):
         """ Calculate obsModel's objective using suff stats SS and Post.

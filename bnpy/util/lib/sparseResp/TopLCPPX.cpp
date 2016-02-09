@@ -1,23 +1,58 @@
+#include <math.h>
+#include "Eigen/Dense"
 
-void main(int argc, char* argv) {
-    K = 10;
-    topL = 4;
-    Arr1D_d scoreVec = Arr1D_d::Rand(topK);
-    findTopL_WITHCOPY(scoreVec, topLdata, topLinds, K, topL);
-}
+using namespace std;
+using namespace Eigen;
 
-struct LessThanByIndex {
-    const double* xptr;
+// ======================================================== Custom Type Defs
+// ========================================================
+// Simple names for array types
+typedef Matrix<double, Dynamic, Dynamic, RowMajor> Mat2D_d;
+typedef Matrix<double, 1, Dynamic, RowMajor> Mat1D_d;
+typedef Array<double, Dynamic, Dynamic, RowMajor> Arr2D_d;
+typedef Array<double, 1, Dynamic, RowMajor> Arr1D_d;
+typedef Array<int, 1, Dynamic, RowMajor> Arr1D_i;
 
-    LessThanByIndex(const double &xvec) {
-        xptr = &xvec;
+// Simple names for array types with externally allocated memory
+typedef Map<Mat2D_d> ExtMat2D_d;
+typedef Map<Mat1D_d> ExtMat1D_d;
+typedef Map<Arr2D_d> ExtArr2D_d;
+typedef Map<Arr1D_d> ExtArr1D_d;
+typedef Map<Arr1D_i> ExtArr1D_i;
+
+
+
+struct Argsortable1DArray {
+    double* xptr;
+    int* iptr;
+    int size;
+    
+    Argsortable1DArray(double* xptrIN, int sizeIN) {
+        xptr = xptrIN;
+        size = sizeIN;
+        iptr = new int[size];
+        resetIndices();
     }
 
-    bool operator()(int i1, int i2) {
-        return xptr(i1) < xptr(i2);
+    void resetIndices() {
+        for (int i = 0; i < size; i++) {
+            iptr[i] = i;
+        }
+    }
+
+    bool operator()(int i, int j) {
+        return xptr[i] < xptr[j];
+    }
+
+    void pprint() {
+        for (int i = 0; i < size; i++) {
+            printf("%4d:%7.1f ", iptr[i], xptr[i]);
+        }
+        printf("\n");
     }
 };
 
+/*
 void findTopL_WITHSTRUCT(
     ExtArr1D_d scoreVec,
     ExtArr1D_d topLdata,
@@ -74,4 +109,22 @@ void findTopL_WITHCOPY(
             i += 1;
         }
     }
+}
+*/
+int main(int argc, char* argv) {
+    int K = 10;
+    int topL = 4;
+    Arr1D_d scoreVec = Arr1D_d::Random(K);
+
+    for (int k = 0; k < K; k++) {
+        printf("% 7.3f ", scoreVec(k));
+    }
+    printf("\n");
+
+    Argsortable1DArray AV = Argsortable1DArray(scoreVec.data(), K);
+    AV.pprint();
+
+    //findTopL_WITHCOPY(scoreVec, topLdata, topLinds, K, topL);
+
+    return 0;
 }

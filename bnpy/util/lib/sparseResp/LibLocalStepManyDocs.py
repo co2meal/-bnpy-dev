@@ -13,8 +13,8 @@ sparseLocalStepManyDocs_cpp = LoadFuncFromCPPLib(
     os.path.join(curdir, 'TopicModelLocalStepManyDocsCPPX.cpp'),
     'sparseLocalStepManyDocs_ActiveOnly')
 
-def sparseLocalStepManyDocs(
-        Data=None,
+def sparseLocalStep_WordCountData(
+        Data=None, LP=None,
         alphaEbeta=None, alphaEbetaRem=None,
         ElogphiT=None,
         DocTopicCount=None,
@@ -23,6 +23,7 @@ def sparseLocalStepManyDocs(
         nCoordAscentItersLP=10,
         convThrLP=0.001,
         nnzPerRowLP=2,
+        activeonlyLP=1,
         restartLP=0,
         restartNumTrialsLP=50,
         initDocTopicCountLP='setDocProbsToEGlobalProbs',
@@ -36,6 +37,8 @@ def sparseLocalStepManyDocs(
         **kwargs):
     ''' Perform local inference for topic model. Wrapper around C++ code.
     '''
+    if LP is not None:
+        ElogphiT = LP['ElogphiT']
     N = Data.nUniqueToken
     V, K = ElogphiT.shape
     assert K == alphaEbeta.size
@@ -67,7 +70,10 @@ def sparseLocalStepManyDocs(
     assert spResp_colids_OUT.size == N * nnzPerRowLP
 
     if initDocTopicCountLP.startswith("setDocProbsToEGlobalProbs"):
-        initProbsToEbeta = 1
+        if activeonlyLP > 1:
+            initProbsToEbeta = 2
+        else:
+            initProbsToEbeta = 1
     else:
         initProbsToEbeta = 0
     if reviseActiveFirstLP < 0:
@@ -90,9 +96,9 @@ def sparseLocalStepManyDocs(
         reviseActiveFirstLP,
         reviseActiveEveryLP,
         verboseLP)
-
     # Package results up into dict
     LP = dict()
+    LP['nnzPerRow'] = nnzPerRowLP
     LP['DocTopicCount'] = TopicCount_OUT
     indptr = np.arange(
         0, (N+1) * nnzPerRowLP, nnzPerRowLP, dtype=np.int32)
@@ -111,7 +117,8 @@ def sparseLocalStepManyDocs(
     if restartLP > 0:
         LP['Info']['nRestartsAccepted'] = nRAcceptVec[0]
         LP['Info']['nRestartsTried'] = nRTrialVec[0]
-    writeLogMessageForManyDocs(Data, LP['Info'], **kwargs)
+    writeLogMessageForManyDocs(Data, LP['Info'], 
+        convThrLP=convThrLP, **kwargs)
     return LP
 
 def doLocalStep_PythonLoopOverDocs(
@@ -121,7 +128,7 @@ def doLocalStep_PythonLoopOverDocs(
 
 def doLocalStep_CPPLoopOverDocs(
         Data, model, **LPkwargs):
-    return sparseLocalStepManyDocs(
+    return sparseLocalStep_WordCountData(
         Data,
         alphaEbeta=model.allocModel.alpha_E_beta(),
         alphaEbetaRem=model.allocModel.alpha_E_beta_rem(),
@@ -198,6 +205,7 @@ if __name__ == '__main__':
     SingleDoc = Data.select_subset_by_mask(docsWithManyTopics[:1])
     '''
 
+    '''
     LPkwargs = dict(
         nnzPerRowLP=4,
         initDocTopicCountLP='setDocProbsToEGlobalProbs',
@@ -233,18 +241,18 @@ if __name__ == '__main__':
         reviseActiveEveryLP=5)
     compareSingleDocLocalStep(
         Data, model, **LPkwargs)
-
+    '''
 
     LPkwargs = dict(
-        nnzPerRowLP=4,
+        nnzPerRowLP=6,
         initDocTopicCountLP='setDocProbsToEGlobalProbs',
         nCoordAscentItersLP=500,
         convThrLP=.001,
-        activeonlyLP=1,
+        activeonlyLP=2,
         restartLP=1,
         restartNumTrialsLP=50,
         reviseActiveFirstLP=2,
         reviseActiveEveryLP=5,
         verboseLP=0)
     compareSingleDocLocalStep(
-        Data, model, **LPkwargs)
+        Data.select_subset_by_mask([11,12]), model, **LPkwargs)
