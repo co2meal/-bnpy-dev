@@ -53,7 +53,7 @@ def get_data(seed=SEED, **kwargs):
     Data.summary = get_data_info()
     return Data
 
-def get_test_data(seed=6789, nDocTotal=50, **kwargs):
+def get_test_data(seed=6789, nDocTotal=100, **kwargs):
     ''' Create dataset of "heldout" docs, for testing purposes.
 
     Uses different random seed than get_data, but otherwise similar.
