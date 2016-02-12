@@ -180,7 +180,7 @@ def calcLocalParams(
         LP['nnzPerRow'] = nnzPerRowLP
 
     LP['Info'] = AggInfo
-    writeLogMessageForManyDocs(Data, AggInfo, **kwargs)
+    writeLogMessageForManyDocs(Data, AggInfo, LP, **kwargs)
     return LP
 
 def calcInitSparseResp(LP, alphaEbeta, nnzPerRowLP=0, **kwargs):
@@ -297,7 +297,7 @@ def calcNumDocFromSlice(Data, cslice):
     return int(nDoc)
 
 
-def writeLogMessageForManyDocs(Data, AI,
+def writeLogMessageForManyDocs(Data, AI, LP,
                                sliceID=None,
                                **kwargs):
     """ Write log message summarizing convergence behavior across docs.
@@ -336,6 +336,11 @@ def writeLogMessageForManyDocs(Data, AI,
 
     msg += ' iter prctiles %s\n' % (siter)
     msg += ' diff prctiles %s\n' % (sdiff)
+
+    KactivePerDoc = np.sum(LP['DocTopicCount'] > .01, axis=1)
+    sKactive = ' '.join(
+        ['%d:%d' % (p, np.percentile(KactivePerDoc, p)) for p in perc])
+    msg += ' Kact prctiles %s\n' % (sKactive)
 
     if 'nRestartsAccepted' in AI and AI['nRestartsAccepted'] is not None:
         msg += " nRestarts %4d/%4d\n" % (

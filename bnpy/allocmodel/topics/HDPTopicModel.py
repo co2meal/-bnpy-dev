@@ -232,16 +232,19 @@ class HDPTopicModel(AllocModel):
             assert np.allclose(alphaEbeta[1], 
                 self.alpha * self.rho[1] * (1-self.rho[0]))
         doSparse1 = 'activeonlyLP' in kwargs and kwargs['activeonlyLP'] == 2
-        doSparse2 = 'nnzPerRow' in kwargs and kwargs['nnzPerRow'] < self.K
+        doSparse2 = 'nnzPerRowLP' in kwargs and kwargs['nnzPerRowLP'] < self.K
         #from IPython import embed; embed()
         if hasattr(Data, 'word_count') and \
                 LP['obsModelName'].count('Mult') and \
                 doSparse1 and doSparse2:
             LP = LocalStepManyDocs.sparseLocalStep_WordCountData(
                 Data, LP, alphaEbeta, alphaEbetaRem=alphaEbetaRem, **kwargs)
+            LP['localStepMethod'] = \
+                'LocalStepManyDocs.sparseLocalStep_WordCountData'
         else:
             LP = LocalStepManyDocs.calcLocalParams(
                 Data, LP, alphaEbeta, alphaEbetaRem=alphaEbetaRem, **kwargs)
+            LP['localStepMethod'] = 'LocalStepManyDocs.calcLocalParams'
         assert 'resp' in LP or 'spR' in LP
         assert 'DocTopicCount' in LP
         return LP
