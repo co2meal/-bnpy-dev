@@ -3,6 +3,7 @@
 #define EIGEN_RUNTIME_NO_MALLOC 
 
 #include <math.h>
+#include <time.h>
 #include "Eigen/Dense"
 #include <boost/math/special_functions/digamma.hpp>
 #include <boost/math/special_functions/gamma.hpp>
@@ -58,6 +59,12 @@ typedef Map<Arr2D_d> ExtArr2D_d;
 typedef Map<Arr1D_d> ExtArr1D_d;
 typedef Map<Arr1D_i> ExtArr1D_i;
 
+
+double calcElapsedTime(timespec start_time, timespec end_time) {
+    double diffSec = (double) end_time.tv_sec - start_time.tv_sec;
+    double diffNano = (double) end_time.tv_nsec - start_time.tv_nsec;
+    return diffSec + diffNano / 1.0e9;
+}
 
 void precomputeTopLRespForEachVocabTerm(
         int nnzPerRow,
@@ -347,14 +354,21 @@ void updateAssignmentsForDoc_FixPerTokenActiveSet(
     )
 {
     assert(nnzPerRow > 1);
+    //timespec start_time, end_time;
+    //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
     // Update ElogProb_d for active topics
     for (int ka = 0; ka < Kactive; ka++) {
         int k = activeTopics_d(ka);
         ElogProb_d(k) = boost::math::digamma(
             topicCount(d, k) + alphaEbeta(k));
     }
+    //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
+    //double timeSpent_Digamma = calcElapsedTime(start_time, end_time);
+
     // RESET topicCounts for doc d
     topicCount.row(d).fill(0);
+
+    //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
     // Update Resp_d for active topics
     for (int n = start_d; n < start_d + N_d; n++) {
         int spRind_dn_start = n * nnzPerRow;
@@ -383,6 +397,11 @@ void updateAssignmentsForDoc_FixPerTokenActiveSet(
         }
 
     } // end for loop over tokens in this doc
+    /*clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
+    double timeSpent_Resp = calcElapsedTime(start_time, end_time);
+    logScores_n(0) = timeSpent_Digamma;
+    logScores_n(1) = timeSpent_Resp;
+    */
 }
 
 
@@ -577,6 +596,14 @@ void sparseLocalStepManyDocs_ActiveOnly(
         int verbose
         )
 {
+    /*timespec start_time, end_time;
+    double timeSpent_FindActive = 0.0;
+    double timeSpent_Assign = 0.0;
+    double timeSpent_AssignFixed = 0.0;
+    double timeSpent_Restart = 0.0;
+    double timeSpent_AssignFixed_Digamma = 0.0;
+    double timeSpent_AssignFixed_Resp = 0.0;
+    */
     nCoordAscentIterLP = max(nCoordAscentIterLP, 0);
     if (initProbsToEbeta == 1) {
         nCoordAscentIterLP += 1;
@@ -707,7 +734,7 @@ void sparseLocalStepManyDocs_ActiveOnly(
         }
 
         for (iter = 0; iter < nCoordAscentIterLP; iter++) {
-
+            //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
             // DETERMINE CURRENT ACTIVE SET
             if (nnzPerRow > 1 && Kactive <= nnzPerRow) {
                 // Set of active docs is already as small as can be,
@@ -729,8 +756,12 @@ void sparseLocalStepManyDocs_ActiveOnly(
             }
             assert(Kactive >= nnzPerRow);
             assert(Kactive <= K);
+            //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
+            //timeSpent_FindActive += calcElapsedTime(start_time, end_time);
 
+            // COMPUTE ASSIGNMENTS FOR CURRENT ACTIVE SET
             if (doReviseActiveSet) {
+                //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
                 updateAssignmentsForDoc_ReviseActiveSet(
                     d, start_d, N_d, nnzPerRow, Kactive,
                     alphaEbeta,
@@ -744,9 +775,12 @@ void sparseLocalStepManyDocs_ActiveOnly(
                     ElogProb_d,
                     logScores_n,
                     tempScores_n,
-                    initProbsToEbeta && (iter == 0),
+                    (initProbsToEbeta == 1) && (iter == 0),
                     0);
+                //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
+                //timeSpent_Assign += calcElapsedTime(start_time, end_time);
             } else {
+                //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
                 updateAssignmentsForDoc_FixPerTokenActiveSet(
                     d, start_d, N_d, nnzPerRow, Kactive,
                     alphaEbeta,
@@ -760,6 +794,11 @@ void sparseLocalStepManyDocs_ActiveOnly(
                     ElogProb_d,
                     logScores_n
                     );
+                /*clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
+                timeSpent_AssignFixed += calcElapsedTime(start_time, end_time);
+                timeSpent_AssignFixed_Digamma += logScores_n(0);
+                timeSpent_AssignFixed_Resp += logScores_n(1);
+                */
             }
 
             // END ITERATION. Decide whether to quit early
@@ -805,6 +844,7 @@ void sparseLocalStepManyDocs_ActiveOnly(
         numIterVec(d) = iter; // iter will already be +1'd by last iter of loop
 
         if (numRestarts > 0) {
+            //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
             tryRestartsForDoc(
                 d, start_d, N_d, nnzPerRow, Kactive,
                 alphaEbeta,
@@ -825,6 +865,9 @@ void sparseLocalStepManyDocs_ActiveOnly(
                 sum_gammalnalphaEbeta,
                 verbose
                 );
+           //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
+           //timeSpent_Restart += calcElapsedTime(start_time, end_time);
+
         }
     } // end loop over documents
     internal::set_is_malloc_allowed(true);
@@ -834,5 +877,22 @@ void sparseLocalStepManyDocs_ActiveOnly(
             "Sparse Restarts: %d/%d accepted\n", rAcceptVec(0), rTrialVec(0));
     }
 
+    /*
+    double timeSpent_total = \
+        timeSpent_FindActive + timeSpent_Assign + \
+        timeSpent_AssignFixed + timeSpent_Restart;
+
+    printf("FindActive   %8.3f sec  %.3f %%\n", timeSpent_FindActive,
+        timeSpent_FindActive / timeSpent_total);
+    printf("Assign:      %8.3f sec  %.3f %%\n", timeSpent_Assign,
+        timeSpent_Assign / timeSpent_total);
+    printf("AssignFixed: %8.3f sec  %.3f %%\n", timeSpent_AssignFixed,
+        timeSpent_AssignFixed / timeSpent_total);
+    printf("  -Digamma:  %8.3f sec\n", timeSpent_AssignFixed_Digamma);
+    printf("  -Resp:     %8.3f sec\n", timeSpent_AssignFixed_Resp);
+    printf("Restarts:    %8.3f sec  %.3f %%\n", timeSpent_Restart,
+        timeSpent_Restart / timeSpent_total);
+    printf("TOTAL:       %8.3f sec\n", timeSpent_total);
+    */
 }
 

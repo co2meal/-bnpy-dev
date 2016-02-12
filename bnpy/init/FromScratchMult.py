@@ -6,6 +6,7 @@ Initialize params of an HModel with multinomial observations from scratch.
 import numpy as np
 import time
 import os
+import warnings
 
 from scipy.special import digamma
 from FromTruth import convertLPFromHardToSoft, convertLPFromDocsToTokens
@@ -61,7 +62,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         lam = PRNG.gamma(1.0, 1.0, (K, Data.vocab_size))
         lam *= Data.nDocTotal * 100.0 / (K * Data.vocab_size)
     else:
-        topics = _initTopicWordEstParams(obsModel, Data, PRNG,
+        topics, lam = _initTopicWordEstParams(obsModel, Data, PRNG,
                                          K=K,
                                          initname=initname,
                                          initarg=initarg,
@@ -70,13 +71,216 @@ def init_global_params(obsModel, Data, K=0, seed=0,
 
     InitArgs = dict(lam=lam, topics=topics, Data=Data)
     obsModel.set_global_params(**InitArgs)
-
+    from IPython import embed; embed()
     if 'savepath' in kwargs:
         import scipy.io
         topics = obsModel.getTopics()
         scipy.io.savemat(os.path.join(kwargs['savepath'], 'InitTopics.mat'),
                          dict(topics=topics), oned_as='row')
 
+def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
+                            initname='',
+                            initarg='',
+                            initObsModelAddRandomNoise=0,
+                            initObsModelScale=0.0,
+                            seed=0,
+                            **kwargs):
+    ''' Create initial guess for the topic-word parameter matrix
+
+        Returns
+        --------
+        topics : 2D array, size K x Data.vocab_size
+                 non-negative entries, rows sum to one
+    '''
+    lam = None
+    
+    if initObsModelScale > 0.0:
+        smoothParam = initObsModelScale
+    else:
+        smoothParam = obsModel.Prior.lam[np.newaxis,:]
+
+    if initname == 'randexamples':
+        # Choose K documents at random, then
+        # use each doc's empirical distribution (+random noise) to seed a topic
+        K = np.minimum(K, Data.nDoc)
+        chosenDocIDs = PRNG.choice(Data.nDoc, K, replace=False)
+        DocWord = Data.getDocTypeCountMatrix()
+        lam = DocWord[chosenDocIDs] + smoothParam
+
+    elif initname == 'plusplus':
+        # Sample K documents at random using 'plusplus' distance criteria
+        # then set each of K topics to empirical distribution of chosen docs
+        if not hasRexAvailable:
+            raise NotImplementedError("KMeansRex must be on python path")
+        K = np.minimum(K, Data.nDoc)
+        X = Data.getDocTypeCountMatrix()
+        lam = KMeansRex.SampleRowsPlusPlus(X, K, seed=seed)
+        lam += smoothParam
+
+    elif initname == 'kmeansplusplus':
+        # Cluster all documents into K hard clusters via K-means
+        # then set each of K topics to the means of the resulting clusters
+        if not hasRexAvailable:
+            raise NotImplementedError("KMeansRex must be on python path")
+        K = np.minimum(K, Data.nDoc)
+        X = Data.getDocTypeCountMatrix()
+        lam, Z = KMeansRex.RunKMeans(X, K, seed=seed,
+                                        Niter=25,
+                                        initname='plusplus')
+        lam += smoothParam
+
+    elif initname == 'randomfromarg':
+        # Draw K topic-word probability vectors i.i.d. from a Dirichlet
+        # using user-provided symmetric parameter initarg
+        topics = PRNG.gamma(initarg, 1., (K, Data.vocab_size))
+
+    elif initname == 'randomfromprior':
+        # Draw K topic-word probability vectors i.i.d. from their prior
+        lam = obsModel.Prior.lam
+        topics = PRNG.gamma(lam, 1., (K, Data.vocab_size))
+
+    elif initname.count('anchor'):
+        K = np.minimum(K, Data.vocab_size)
+
+        # Set topic-word prob vectors to output of anchor-words spectral method
+        if not hasAnchorTopicEstimator:
+            raise NotImplementedError(
+                "AnchorTopicEstimator must be on python path")
+
+        stime = time.time()
+        topics = AnchorTopicEstimator.findAnchorTopics(
+            Data, K, seed=seed,
+            minDocPerWord=kwargs['initMinDocPerWord'],
+            lowerDim=kwargs['initDim'])
+        elapsedtime = time.time() - stime
+        assert np.allclose(topics.sum(axis=1), 1.0)
+    else:
+        raise NotImplementedError('Unrecognized initname ' + initname)
+    # .... end initname switch
+
+    if lam is not None:
+        if np.any(np.isnan(lam.sum(axis=1))):
+            raise ValueError("NaN")
+        if initObsModelAddRandomNoise:
+            lam += 0.1 * smoothVal * PRNG.rand(lam.shape[0], lam.shape[1])
+    
+    if topics is None and obsModel.inferType.count('EM'):
+        topics = lam / lam.sum(axis=1)[:, np.newaxis]
+
+    if topics is not None:
+        # Double-check for suspicious NaN values
+        # These can arise if kmeans delivers any empty clusters
+        rowSum = topics.sum(axis=1)
+        mask = np.isnan(rowSum)
+        if np.any(mask):
+            warnings.warn("%d topics had NaN values. Filled with random noize."
+                % (np.sum(mask)))
+            # Fill in any bad rows with uniform noise
+            topics[mask] = PRNG.rand(np.sum(mask), Data.vocab_size)
+        np.maximum(topics, 1e-100, out=topics)
+        topics /= topics.sum(axis=1)[:, np.newaxis]
+
+        # Raise error if any NaN detected
+        if np.any(np.isnan(topics)):
+            raise ValueError('topics should never be NaN')
+        assert np.allclose(np.sum(topics, axis=1), 1.0)
+    return topics, lam
+
+def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):
+    ''' Get subsample of set of documents satisfying provided criteria.
+
+    minimum size of each document, relationship to targeted component, etc.
+
+    Keyword Args
+    --------
+    targetCompID : int, range: [0, 1, ... K-1]. **optional**
+                 if present, we target documents that use a specific topic
+
+    targetMinWordsPerDoc : int,
+                         each document in returned targetData
+                         must have at least this many words
+    Returns
+    --------
+    targetData : WordsData dataset,
+                with at most targetMaxSize documents
+    DebugInfo : (optional), dictionary with debugging info
+    '''
+    DocWordMat = Data.getSparseDocTypeCountMatrix()
+    DebugInfo = dict()
+
+    candidates = np.arange(Data.nDoc)
+    if kwargs['targetMinWordsPerDoc'] > 0:
+        nWordPerDoc = np.asarray(DocWordMat.sum(axis=1))
+        candidates = nWordPerDoc >= kwargs['targetMinWordsPerDoc']
+        candidates = np.flatnonzero(candidates)
+    if len(candidates) < 1:
+        return None, dict()
+
+    # ............................................... target a specific Comp
+    if hasValidKey('targetCompID', kwargs):
+        if hasValidKey('DocTopicCount', LP):
+            Ndk = LP['DocTopicCount'][candidates].copy()
+            Ndk /= np.sum(Ndk, axis=1)[:, np.newaxis] + 1e-9
+            mask = Ndk[:, kwargs['targetCompID']] > kwargs['targetCompFrac']
+        elif hasValidKey('resp', LP):
+            mask = LP['resp'][
+                :,
+                kwargs['targetCompID']] > kwargs['targetCompFrac']
+            if candidates is not None:
+                mask = mask[candidates]
+        else:
+            raise ValueError('LP must have either DocTopicCount or resp')
+        candidates = candidates[mask]
+
+    # ............................................... target a specific Word
+    elif hasValidKey('targetWordIDs', kwargs):
+        wordIDs = kwargs['targetWordIDs']
+        TinyMatrix = DocWordMat[candidates, :].toarray()[:, wordIDs]
+        targetCountPerDoc = np.sum(TinyMatrix > 0, axis=1)
+        mask = targetCountPerDoc >= kwargs['targetWordMinCount']
+        candidates = candidates[mask]
+
+    # ............................................... target based on WordFreq
+    elif hasValidKey('targetWordFreq', kwargs):
+        wordFreq = kwargs['targetWordFreq']
+        from TargetPlannerWordFreq import calcDocWordUnderpredictionScores
+
+        ScoreMat = calcDocWordUnderpredictionScores(Data, model, LP)
+        ScoreMat = ScoreMat[candidates]
+        DebugInfo['ScoreMat'] = ScoreMat
+        if kwargs['targetSelectName'].count('score'):
+            ScoreMat = np.maximum(0, ScoreMat)
+            ScoreMat /= ScoreMat.sum(axis=1)[:, np.newaxis]
+            distPerDoc = calcDistBetweenHist(ScoreMat, wordFreq)
+
+            DebugInfo['distPerDoc'] = distPerDoc
+        else:
+            EmpWordFreq = DocWordMat[candidates, :].toarray()
+            EmpWordFreq /= EmpWordFreq.sum(axis=1)[:, np.newaxis]
+            distPerDoc = calcDistBetweenHist(EmpWordFreq, wordFreq)
+            DebugInfo['distPerDoc'] = distPerDoc
+
+        keepIDs = distPerDoc.argsort()[:kwargs['targetMaxSize']]
+        candidates = candidates[keepIDs]
+        DebugInfo['candidates'] = candidates
+        DebugInfo['dist'] = distPerDoc[keepIDs]
+
+    if len(candidates) < 1:
+        return None, dict()
+    elif len(candidates) <= kwargs['targetMaxSize']:
+        targetData = Data.select_subset_by_mask(candidates)
+    else:
+        targetData = Data.get_random_sample(kwargs['targetMaxSize'],
+                                            randstate=kwargs['randstate'],
+                                            candidates=candidates)
+
+    return targetData, DebugInfo
+
+def hasValidKey(key, kwargs):
+    return key in kwargs and kwargs[key] is not None
+
+
+"""
 
 def initSSByBregDiv_Mult(
         Dslice=None, 
@@ -226,194 +430,5 @@ def calcBregDiv_Mult(WordCountData, WordCountMeans):
             WordCountData / WordCountMeans[k,:][np.newaxis,:]), axis=1)
         Div[:, k] += Nx * np.log(Nmean[k]/Nx)
     return Div
+"""
 
-
-
-def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
-                            initname='',
-                            initarg='',
-                            seed=0,
-                            **kwargs):
-    ''' Create initial guess for the topic-word parameter matrix
-
-        Returns
-        --------
-        topics : 2D array, size K x Data.vocab_size
-                 non-negative entries, rows sum to one
-    '''
-    if initname == 'randexamples':
-        # Choose K documents at random, then
-        # use each doc's empirical distribution (+random noise) to seed a topic
-        K = np.minimum(K, Data.nDoc)
-        chosenDocIDs = PRNG.choice(Data.nDoc, K, replace=False)
-        DocWord = Data.getDocTypeCountMatrix()
-        topics = DocWord[chosenDocIDs].copy()
-        topics += 0.01 * PRNG.rand(K, Data.vocab_size)
-
-    elif initname == 'plusplus':
-        # Sample K documents at random using 'plusplus' distance criteria
-        # then set each of K topics to empirical distribution of chosen docs
-        if not hasRexAvailable:
-            raise NotImplementedError("KMeansRex must be on python path")
-        K = np.minimum(K, Data.nDoc)
-        X = Data.getDocTypeCountMatrix()
-        topics = KMeansRex.SampleRowsPlusPlus(X, K, seed=seed)
-
-        # Add in some "smoothing" random noise
-        # so that every word has positive probability under every topic.
-        topics += PRNG.rand(K, Data.vocab_size)
-
-    elif initname == 'kmeansplusplus':
-        # Cluster all documents into K hard clusters via K-means
-        # then set each of K topics to the means of the resulting clusters
-        if not hasRexAvailable:
-            raise NotImplementedError("KMeansRex must be on python path")
-        K = np.minimum(K, Data.nDoc)
-        X = Data.getDocTypeCountMatrix()
-        topics, Z = KMeansRex.RunKMeans(X, K, seed=seed,
-                                        Niter=25,
-                                        initname='plusplus')
-        # Add in some "smoothing" random noise
-        # so that every word has positive probability under every topic.
-        topics += 0.1 * PRNG.rand(K, Data.vocab_size)
-
-    elif initname == 'randomfromarg':
-        # Draw K topic-word probability vectors i.i.d. from a Dirichlet
-        # using user-provided symmetric parameter initarg
-        topics = PRNG.gamma(initarg, 1., (K, Data.vocab_size))
-
-    elif initname == 'randomfromprior':
-        # Draw K topic-word probability vectors i.i.d. from their prior
-        lam = obsModel.Prior.lam
-        topics = PRNG.gamma(lam, 1., (K, Data.vocab_size))
-
-    elif initname.count('anchor'):
-        K = np.minimum(K, Data.vocab_size)
-
-        # Set topic-word prob vectors to output of anchor-words spectral method
-        if not hasAnchorTopicEstimator:
-            raise NotImplementedError(
-                "AnchorTopicEstimator must be on python path")
-
-        stime = time.time()
-        topics = AnchorTopicEstimator.findAnchorTopics(
-            Data, K, seed=seed,
-            minDocPerWord=kwargs['initMinDocPerWord'],
-            lowerDim=kwargs['initDim'])
-        elapsedtime = time.time() - stime
-
-    else:
-        raise NotImplementedError('Unrecognized initname ' + initname)
-
-    # .... end initname switch
-
-    # Double-check for suspicious NaN values
-    # These can arise if kmeans delivers any empty clusters
-    rowSum = topics.sum(axis=1)
-    mask = np.isnan(rowSum)
-    if np.any(mask):
-        # Fill in any bad rows with uniform noise
-        topics[mask] = PRNG.rand(np.sum(mask), Data.vocab_size)
-
-    np.maximum(topics, 1e-100, out=topics)
-    topics /= topics.sum(axis=1)[:, np.newaxis]
-
-    # Raise error if any NaN detected
-    if np.any(np.isnan(topics)):
-        raise ValueError('topics should never be NaN')
-    assert np.allclose(np.sum(topics, axis=1), 1.0)
-    return topics
-
-
-def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):
-    ''' Get subsample of set of documents satisfying provided criteria.
-
-    minimum size of each document, relationship to targeted component, etc.
-
-    Keyword Args
-    --------
-    targetCompID : int, range: [0, 1, ... K-1]. **optional**
-                 if present, we target documents that use a specific topic
-
-    targetMinWordsPerDoc : int,
-                         each document in returned targetData
-                         must have at least this many words
-    Returns
-    --------
-    targetData : WordsData dataset,
-                with at most targetMaxSize documents
-    DebugInfo : (optional), dictionary with debugging info
-    '''
-    DocWordMat = Data.getSparseDocTypeCountMatrix()
-    DebugInfo = dict()
-
-    candidates = np.arange(Data.nDoc)
-    if kwargs['targetMinWordsPerDoc'] > 0:
-        nWordPerDoc = np.asarray(DocWordMat.sum(axis=1))
-        candidates = nWordPerDoc >= kwargs['targetMinWordsPerDoc']
-        candidates = np.flatnonzero(candidates)
-    if len(candidates) < 1:
-        return None, dict()
-
-    # ............................................... target a specific Comp
-    if hasValidKey('targetCompID', kwargs):
-        if hasValidKey('DocTopicCount', LP):
-            Ndk = LP['DocTopicCount'][candidates].copy()
-            Ndk /= np.sum(Ndk, axis=1)[:, np.newaxis] + 1e-9
-            mask = Ndk[:, kwargs['targetCompID']] > kwargs['targetCompFrac']
-        elif hasValidKey('resp', LP):
-            mask = LP['resp'][
-                :,
-                kwargs['targetCompID']] > kwargs['targetCompFrac']
-            if candidates is not None:
-                mask = mask[candidates]
-        else:
-            raise ValueError('LP must have either DocTopicCount or resp')
-        candidates = candidates[mask]
-
-    # ............................................... target a specific Word
-    elif hasValidKey('targetWordIDs', kwargs):
-        wordIDs = kwargs['targetWordIDs']
-        TinyMatrix = DocWordMat[candidates, :].toarray()[:, wordIDs]
-        targetCountPerDoc = np.sum(TinyMatrix > 0, axis=1)
-        mask = targetCountPerDoc >= kwargs['targetWordMinCount']
-        candidates = candidates[mask]
-
-    # ............................................... target based on WordFreq
-    elif hasValidKey('targetWordFreq', kwargs):
-        wordFreq = kwargs['targetWordFreq']
-        from TargetPlannerWordFreq import calcDocWordUnderpredictionScores
-
-        ScoreMat = calcDocWordUnderpredictionScores(Data, model, LP)
-        ScoreMat = ScoreMat[candidates]
-        DebugInfo['ScoreMat'] = ScoreMat
-        if kwargs['targetSelectName'].count('score'):
-            ScoreMat = np.maximum(0, ScoreMat)
-            ScoreMat /= ScoreMat.sum(axis=1)[:, np.newaxis]
-            distPerDoc = calcDistBetweenHist(ScoreMat, wordFreq)
-
-            DebugInfo['distPerDoc'] = distPerDoc
-        else:
-            EmpWordFreq = DocWordMat[candidates, :].toarray()
-            EmpWordFreq /= EmpWordFreq.sum(axis=1)[:, np.newaxis]
-            distPerDoc = calcDistBetweenHist(EmpWordFreq, wordFreq)
-            DebugInfo['distPerDoc'] = distPerDoc
-
-        keepIDs = distPerDoc.argsort()[:kwargs['targetMaxSize']]
-        candidates = candidates[keepIDs]
-        DebugInfo['candidates'] = candidates
-        DebugInfo['dist'] = distPerDoc[keepIDs]
-
-    if len(candidates) < 1:
-        return None, dict()
-    elif len(candidates) <= kwargs['targetMaxSize']:
-        targetData = Data.select_subset_by_mask(candidates)
-    else:
-        targetData = Data.get_random_sample(kwargs['targetMaxSize'],
-                                            randstate=kwargs['randstate'],
-                                            candidates=candidates)
-
-    return targetData, DebugInfo
-
-def hasValidKey(key, kwargs):
-    return key in kwargs and kwargs[key] is not None

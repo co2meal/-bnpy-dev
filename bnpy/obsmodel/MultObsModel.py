@@ -179,15 +179,19 @@ class MultObsModel(AbstractObsModel):
         if Data is not None:
             nTotalTokens = Data.word_count.sum()
         if isinstance(nTotalTokens, int) or nTotalTokens.ndim == 0:
-            nTotalTokens = nTotalTokens / K * np.ones(K)
+            nTotalTokens = float(nTotalTokens) / float(K) * np.ones(K)
         if np.any(nTotalTokens == 0):
             priorScale = self.Prior.lam.sum()
             warnings.warn(
                 "Enforcing minimum scale of %.3f for lam" % (priorScale))
             nTotalTokens = np.maximum(nTotalTokens, priorScale)
 
-        WordCounts = EstParams.phi * nTotalTokens[:, np.newaxis]
-        lam = WordCounts + self.Prior.lam
+        if 'lam' in kwargs and kwargs['lam'] is not None:
+            lam = kwargs['lam']
+        else:
+            WordCounts = EstParams.phi * nTotalTokens[:, np.newaxis]
+            assert WordCounts.max() > 0
+            lam = WordCounts + self.Prior.lam
 
         self.Post = ParamBag(K=K, D=D)
         self.Post.setField('lam', lam, dims=('K', 'D'))

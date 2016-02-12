@@ -280,6 +280,7 @@ def calcSparseLocalParams_SingleDoc(
         numIterVec=None,
         nRAcceptVec=None,
         nRTrialVec=None,
+        verboseLP=0,
         d=0,
         **kwargs):
     # Parse params for tracking convergence progress
@@ -308,7 +309,6 @@ def calcSparseLocalParams_SingleDoc(
         initProbsToEbeta = 0
     if activeonlyLP:
         doTrack = 0
-        verbose = 0
         if reviseActiveFirstLP < 0:
             reviseActiveFirstLP = 2 * nCoordAscentItersLP
         elboVec = np.zeros(doTrack * nCoordAscentItersLP + 1)
@@ -329,7 +329,7 @@ def calcSparseLocalParams_SingleDoc(
             reviseActiveFirstLP,
             reviseActiveEveryLP,
             nRAcceptVec, nRTrialVec,
-            verbose,
+            verboseLP,
             )
         if doTrack:
             # Chop off any trailing zeros

@@ -70,10 +70,9 @@ def sparseLocalStep_WordCountData(
     assert spResp_colids_OUT.size == N * nnzPerRowLP
 
     if initDocTopicCountLP.startswith("setDocProbsToEGlobalProbs"):
-        if activeonlyLP > 1:
-            initProbsToEbeta = 2
-        else:
-            initProbsToEbeta = 1
+        initProbsToEbeta = 1
+    elif initDocTopicCountLP.startswith("fast"):
+        initProbsToEbeta = 2
     else:
         initProbsToEbeta = 0
     if reviseActiveFirstLP < 0:
@@ -123,11 +122,16 @@ def sparseLocalStep_WordCountData(
 
 def doLocalStep_PythonLoopOverDocs(
         Data, model, **LPkwargs):
+    LPkwargs['activeonlyLP'] = 1
     return model.calc_local_params(
         Data, **LPkwargs)
 
 def doLocalStep_CPPLoopOverDocs(
         Data, model, **LPkwargs):
+    LPkwargs['activeonlyLP'] = 2
+    return model.calc_local_params(
+        Data, **LPkwargs)
+    '''
     return sparseLocalStep_WordCountData(
         Data,
         alphaEbeta=model.allocModel.alpha_E_beta(),
@@ -135,8 +139,8 @@ def doLocalStep_CPPLoopOverDocs(
         ElogphiT=model.obsModel._E_logphiT('all'),
         **LPkwargs
         )
-
-def compareSingleDocLocalStep(Data, model, **LPkwargs):
+    '''
+def compareLocalStep(Data, model, **LPkwargs):
     stime = time.time()
     LPold = doLocalStep_PythonLoopOverDocs(
         Data, model, **LPkwargs)
@@ -156,7 +160,8 @@ def compareSingleDocLocalStep(Data, model, **LPkwargs):
         print '    %s: %s' % (KwArgName, LPkwargs[KwArgName])
     for key in ['DocTopicCount', 'spR', 'iter']:
         compareLPValsAtKey(LPold, LPnew, key)
-    
+    return LPold, LPnew
+
 def compareLPValsAtKey(LPold, LPnew, key):
     if key not in LPold:
         LPoldORIG = LPold
@@ -178,11 +183,23 @@ def compareLPValsAtKey(LPold, LPnew, key):
 
 
 if __name__ == '__main__':
+    import os
+    os.environ['BNPYDATADIR'] = '/home/mhughes/git/x-topics/datasets/nips/'
     import bnpy
 
+    import nips
+    Data = nips.get_data()
+    Data200 = Data.select_subset_by_mask(range(400))
+    Data200.name = 'nips400'
+    model, Info = bnpy.run(Data200, 'HDPTopicModel', 'Mult', 'VB',
+        nBatch=1, nLap=2, initname='randexamples', K=200, 
+        nCoordAscentItersLP=100, convThrLP=.01)
+
+    '''
     model, Info = bnpy.run('BarsK10V900', 'HDPTopicModel', 'Mult', 'VB',
         nBatch=1, nDocTotal=50, nLap=2, initname='randexamples', K=200, 
         nCoordAscentItersLP=100, convThrLP=.01)
+    '''
     '''
     model, Info = bnpy.run('BarsK10V900', 'HDPTopicModel', 'Mult', 'VB',
         nBatch=1, nDocTotal=50, nLap=2, initname='truelabels', 
@@ -211,11 +228,10 @@ if __name__ == '__main__':
         initDocTopicCountLP='setDocProbsToEGlobalProbs',
         nCoordAscentItersLP=10,
         convThrLP=-1,
-        activeonlyLP=1,
         restartLP=0,
         reviseActiveFirstLP=10,
         reviseActiveEveryLP=1)
-    compareSingleDocLocalStep(
+    compareLocalStep(
         Data, model, **LPkwargs)
 
     LPkwargs = dict(
@@ -223,11 +239,10 @@ if __name__ == '__main__':
         initDocTopicCountLP='setDocProbsToEGlobalProbs',
         nCoordAscentItersLP=100,
         convThrLP=-1,
-        activeonlyLP=1,
         restartLP=0,
         reviseActiveFirstLP=2,
         reviseActiveEveryLP=5)
-    compareSingleDocLocalStep(
+    compareLocalStep(
         Data, model, **LPkwargs)
 
     LPkwargs = dict(
@@ -235,24 +250,54 @@ if __name__ == '__main__':
         initDocTopicCountLP='setDocProbsToEGlobalProbs',
         nCoordAscentItersLP=100,
         convThrLP=.1,
-        activeonlyLP=1,
         restartLP=0,
         reviseActiveFirstLP=2,
         reviseActiveEveryLP=5)
-    compareSingleDocLocalStep(
+    compareLocalStep(
         Data, model, **LPkwargs)
-    '''
+
 
     LPkwargs = dict(
         nnzPerRowLP=6,
-        initDocTopicCountLP='setDocProbsToEGlobalProbs',
-        nCoordAscentItersLP=500,
-        convThrLP=.001,
-        activeonlyLP=2,
-        restartLP=1,
+        initDocTopicCountLP='fastfirstiter_setDocProbsToEGlobalProbs',
+        nCoordAscentItersLP=1,
+        convThrLP=-1,
+        restartLP=0,
         restartNumTrialsLP=50,
         reviseActiveFirstLP=2,
         reviseActiveEveryLP=5,
         verboseLP=0)
-    compareSingleDocLocalStep(
-        Data.select_subset_by_mask([11,12]), model, **LPkwargs)
+    _, LPcppfast = compareLocalStep(
+        Data, model, **LPkwargs)
+
+    LPkwargs = dict(
+        nnzPerRowLP=6,
+        initDocTopicCountLP='setDocProbsToEGlobalProbs',
+        nCoordAscentItersLP=1, # will do TWO steps
+        convThrLP=-1,
+        restartLP=0,
+        restartNumTrialsLP=50,
+        reviseActiveFirstLP=2,
+        reviseActiveEveryLP=5,
+        verboseLP=0)
+    _, LPcpp = compareLocalStep(
+        Data, model, **LPkwargs)
+    '''
+
+    for reviseActiveEveryLP in [1, 10]:
+      for nnzPerRow in [2, 4, 8, 16]:
+        LPkwargs = dict(
+            nnzPerRowLP=nnzPerRow,
+            initDocTopicCountLP='fastfirstiter',
+            nCoordAscentItersLP=100,
+            convThrLP=0.01,
+            restartLP=1,
+            restartNumTrialsLP=50,
+            reviseActiveFirstLP=5,
+            reviseActiveEveryLP=1,
+            activeonlyLP=2,
+            verboseLP=0)
+        print '>>> reviseActiveEveryLP=%d  nnzPerRow=%d' % (
+            reviseActiveEveryLP, nnzPerRow)
+        model.calc_local_params(Data, **LPkwargs)
+
