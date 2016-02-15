@@ -6,6 +6,8 @@ import scipy.io
 import sklearn.metrics
 import bnpy
 import glob
+import warnings
+import logging
 
 from scipy.special import digamma
 from scipy.misc import logsumexp
@@ -21,6 +23,7 @@ VERSION = 0.1
 def evalTopicModelOnTestDataFromTaskpath(
         taskpath='', 
         queryLap=0,
+        nLap=0,
         seed=42,
         dataSplitName='test',
         fracHeldout=0.2,
@@ -43,7 +46,7 @@ def evalTopicModelOnTestDataFromTaskpath(
     DataKwargs = loadDataKwargsFromDisk(taskpath)
 
     # Check if info is stored in topic-model form
-    topicFileList = glob.glob(os.path.join(taskpath, 'Lap*TopicModel.mat'))
+    topicFileList = glob.glob(os.path.join(taskpath, 'Lap*Topic*'))
     if len(topicFileList) > 0:
         topics, probs, alpha = loadTopicModel(
             taskpath, queryLap=queryLap,
@@ -204,7 +207,7 @@ def evalTopicModelOnTestDataFromTaskpath(
     if printFunc:
         etime = time.time() - stime
         curLapStr = '%7.3f' % (queryLap)
-        nLapStr = '%d' % (kwargs['learnAlg'].algParams['nLap'])
+        nLapStr = '%d' % (nLap)
         logmsg = '  %s/%s heldout metrics   | K %4d | %s'
         logmsg = logmsg % (curLapStr, nLapStr, K, scoreMsg) 
         printFunc(logmsg, 'info')
@@ -214,7 +217,9 @@ def evalTopicModelOnTestDataFromTaskpath(
 
 def calcPredLikForDoc(docData, topics, probs, alpha,
                       fracHeldout=0.2,
-                      seed=42, MINSIZE=10, LPkwargs=dict(), **kwargs):
+                      fracHeldoutSeen=0.1,
+                      seed=42,
+                      MINSIZE=10, LPkwargs=dict(), **kwargs):
     ''' Calculate predictive likelihood for single doc under given model.
 
     Returns
@@ -225,17 +230,45 @@ def calcPredLikForDoc(docData, topics, probs, alpha,
 
     # Split document into training and heldout
     # assigning each unique vocab type to one or the other
-    nUnique = docData.word_id.size
-    nHeldout = int(np.ceil(fracHeldout * nUnique))
+    nSeen_d = docData.word_id.size
+    nUnseen_d = docData.vocab_size - nSeen_d
+
+    # Randomly assign seen words to TRAIN or HELDOUT
+    nHeldout = int(np.ceil(fracHeldout * nSeen_d))
     nHeldout = np.maximum(MINSIZE, nHeldout)
     PRNG = np.random.RandomState(int(seed))
-    shuffleIDs = PRNG.permutation(nUnique)
+    shuffleIDs = PRNG.permutation(nSeen_d)
     heldoutIDs = shuffleIDs[:nHeldout]
     trainIDs = shuffleIDs[nHeldout:]
     if len(heldoutIDs) < MINSIZE:
         raise ValueError('Not enough unique IDs to make good test split')
     if len(trainIDs) < MINSIZE:
         raise ValueError('Not enough unique IDs to make good train split')
+
+    # Randomly assign unseen words to TRAIN or HELDOUT
+    unseen_mask_d = np.ones(docData.vocab_size, dtype=np.bool8)
+    unseen_mask_d[docData.word_id] = 0
+    unseenWordTypes = np.flatnonzero(unseen_mask_d)
+    PRNG.shuffle(unseenWordTypes)
+    # Pick heldout set size,
+    # so that among all heldout types (seen & unseen)
+    # the ratio of seen / total equals the desired fracHeldoutSeen
+    nUHeldout = int(np.floor(nHeldout / fracHeldoutSeen))
+    if nUHeldout > unseenWordTypes.size:
+        nUHeldout = unseenWordTypes.size - nHeldout
+
+    fracHeldoutPresent = nHeldout / float(unseenWordTypes.size)
+    if fracHeldoutPresent < 0.5 * fracHeldoutSeen:
+        warnings.warn(
+            "Frac of heldout types thare are PRESENT is %.3f" % (
+                fracHeldoutPresent))
+    elif fracHeldoutPresent > 1.5 * fracHeldoutSeen:
+        warnings.warn(
+            "Frac of heldout types thare are PRESENT is %.3f" % (
+                fracHeldoutPresent))
+    heldoutUWords = unseenWordTypes[:nUHeldout]
+    trainUWords = unseenWordTypes[nUHeldout:]
+
     ho_word_id = docData.word_id[heldoutIDs]
     ho_word_ct = docData.word_count[heldoutIDs]
     tr_word_id = docData.word_id[trainIDs]
@@ -243,16 +276,33 @@ def calcPredLikForDoc(docData, topics, probs, alpha,
     # Run local step to get DocTopicCounts
     DocTopicCount_d, Info = inferDocTopicCountForDoc(
         tr_word_id, tr_word_ct, topics, probs, alpha, **LPkwargs)
-    # Compute expected topic probs in this doc
+    # # Compute expected topic probs in this doc
     theta_d = DocTopicCount_d + alpha * probs
     Epi_d = theta_d / np.sum(theta_d)
-    # Evaluate log prob per token metric
+    # # Evaluate log prob per token metric
     probPerToken_d = np.dot(topics[:, ho_word_id].T, Epi_d)
     logProbPerToken_d = np.log(probPerToken_d)
     sumlogProbTokens_d = np.sum(logProbPerToken_d * ho_word_ct)
     nHeldoutToken_d = np.sum(ho_word_ct)
-    # # Evaluate retrieval metrics
 
+    # # Evaluate retrieval metrics
+    heldoutSWords = ho_word_id
+    heldoutWords = np.hstack([heldoutSWords, heldoutUWords])
+    scoresOfHeldoutTypes_d = np.dot(topics[:, heldoutWords].T, Epi_d)
+    trueLabelsOfHeldoutTypes_d = np.zeros(heldoutWords.size, dtype=np.int32)
+    trueLabelsOfHeldoutTypes_d[:heldoutSWords.size] = 1
+    assert np.sum(trueLabelsOfHeldoutTypes_d) == ho_word_id.size
+    # AUC metric
+    fpr, tpr, thr = sklearn.metrics.roc_curve(
+        trueLabelsOfHeldoutTypes_d, scoresOfHeldoutTypes_d)
+    auc = sklearn.metrics.auc(fpr, tpr)
+    # Top R precision, where R = total num positive instances
+    topR = ho_word_id.size
+    topRHeldoutWordTypes = np.argsort(-1 * scoresOfHeldoutTypes_d)[:topR]
+    R_precision = sklearn.metrics.precision_score(
+        trueLabelsOfHeldoutTypes_d[topRHeldoutWordTypes],
+        np.ones(topR))
+    '''
     # unseen_mask_d : 1D array, size vocab_size
     #   entry is 0 if word is seen in training half
     #   entry is 1 if word is unseen 
@@ -280,6 +330,7 @@ def calcPredLikForDoc(docData, topics, probs, alpha,
     # >>> predictIm = np.zeros(900);
     # >>> predictIm[unseenTypeIDs[topRUnseenTypeIDs]] = 1;
     # >>> bnpy.viz.BarsViz.showTopicsAsSquareImages( np.vstack([trainIm, testIm, predictIm]) )
+    '''
     Info['auc'] = auc
     Info['R_precision'] = R_precision
     Info['ho_word_ct'] = ho_word_ct
@@ -390,8 +441,19 @@ if __name__ == '__main__':
     parser.add_argument('taskpath', type=str)
     parser.add_argument('--queryLap', type=float, default=None)
     parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--restartLP', type=int, default=None)
-    parser.add_argument('--fracHeldout', type=float, default=0.2)
+    parser.add_argument('--printStdOut', type=int, default=1)
+    parser.add_argument('--printLevel', type=int, default=logging.INFO)
+    #parser.add_argument('--restartLP', type=int, default=None)
+    #parser.add_argument('--fracHeldout', type=float, default=0.2)
     args = parser.parse_args()
 
+    if args.printStdOut:
+        def printFunc(x, level='debug', **kwargs):
+            if level == 'debug':
+                level = logging.DEBUG
+            elif level == 'info':
+                level = logging.INFO
+            if level >= args.printLevel:
+                print x
+        args.__dict__['printFunc'] = printFunc
     evalTopicModelOnTestDataFromTaskpath(**args.__dict__)

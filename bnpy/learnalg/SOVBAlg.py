@@ -151,4 +151,4 @@ class SOVBAlg(LearnAlg):
         self.eval_custom_func(
             isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
 
-        return self.buildRunInfo(evBound=evBound, SS=SS)
+        return self.buildRunInfo(Data=DataIterator, evBound=evBound, SS=SS)

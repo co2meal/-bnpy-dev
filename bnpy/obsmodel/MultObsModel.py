@@ -363,7 +363,7 @@ class MultObsModel(AbstractObsModel):
                 ElogphiT=ElogphiT, **kwargs)
             return dict(E_log_soft_ev=E_log_soft_ev, ElogphiT=ElogphiT)
 
-    def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False):
+    def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False, **kwargs):
         """ Calculate obsModel's objective using suff stats SS and Post.
 
         Args

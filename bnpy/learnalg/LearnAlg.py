@@ -438,6 +438,7 @@ class LearnAlg(object):
         else:
             cFuncModule = cFuncPath  # directly passed in as object
 
+        kwargs['nLap'] = self.algParams['nLap']
         kwargs['lapFrac'] = lapFrac
         kwargs['isFinal'] = isFinal
         kwargs['isInitial'] = isInitial

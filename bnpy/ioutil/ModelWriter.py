@@ -13,7 +13,7 @@ import os
 from distutils.dir_util import mkpath
 from shutil import copy2
 from sys import platform
-
+from bnpy.util import as2D
 
 def makePrefixForLap(lap):
     """ Get string prefix for saving lap-specific info to disk.
@@ -168,8 +168,9 @@ def saveTopicModel(hmodel, SS, fpath, prefix, doLinkBest=False,
     if hasattr(hmodel.allocModel, 'rho'):
         EstPDict['rho'] = hmodel.allocModel.rho
         EstPDict['omega'] = hmodel.allocModel.omega
-    EstPDict['probs'] = np.asarray(hmodel.allocModel.get_active_comp_probs(),
-                                   dtype=np.float32)
+    EstPDict['probs'] = np.asarray(
+        hmodel.allocModel.get_active_comp_probs(),
+        dtype=np.float32)
     if hasattr(hmodel.allocModel, 'alpha'):
         EstPDict['alpha'] = hmodel.allocModel.alpha
     if hasattr(hmodel.allocModel, 'gamma'):
@@ -177,23 +178,23 @@ def saveTopicModel(hmodel, SS, fpath, prefix, doLinkBest=False,
     lamPrior = hmodel.obsModel.Prior.lam
     if np.allclose(lamPrior, lamPrior[0]):
         lamPrior = lamPrior[0]
-    EstPDict['lam'] = np.asarray(lamPrior, dtype=np.float32)
+    EstPDict['lam'] = np.asarray(lamPrior, dtype=np.float64)
 
     EstPDict['K'] = hmodel.obsModel.K
     EstPDict['vocab_size'] = hmodel.obsModel.D
     if SS is not None:
         if hasattr(SS, 'nDoc'):
             EstPDict['nDoc'] = SS.nDoc
-        EstPDict['nTotalToken'] = np.sum(SS.WordCounts, axis=1)
+        EstPDict['countvec'] = np.sum(SS.WordCounts, axis=1)
 
     # Obsmodel parameters
     if str(type(hmodel.obsModel)).count('Mult') and SS is not None:
         SparseWordCounts = np.asarray(SS.WordCounts, dtype=np.float32)
         SparseWordCounts[SparseWordCounts < sparseEPS] = 0
         SparseWordCounts = scipy.sparse.csr_matrix(SparseWordCounts)
-        EstPDict['SparseWordCount_data'] = SparseWordCounts.data
-        EstPDict['SparseWordCount_indices'] = SparseWordCounts.indices
-        EstPDict['SparseWordCount_indptr'] = SparseWordCounts.indptr
+        EstPDict['TopicWordCount_data'] = SparseWordCounts.data
+        EstPDict['TopicWordCount_indices'] = SparseWordCounts.indices
+        EstPDict['TopicWordCount_indptr'] = SparseWordCounts.indptr
     else:
         # Temporary point estimate of topic-by-word matrix
         # TODO: handle EM case where these estimates already exist
@@ -201,5 +202,36 @@ def saveTopicModel(hmodel, SS, fpath, prefix, doLinkBest=False,
         EstPDict['topics'] = hmodel.obsModel.EstParams.phi
         delattr(hmodel.obsModel, 'EstParams')
 
-    outmatfile = os.path.join(fpath, prefix + 'TopicModel')
-    scipy.io.savemat(outmatfile, EstPDict, oned_as='row')
+    outdirpath = os.path.join(fpath, prefix + "TopicSnapshot/")
+    try:
+        os.mkdir(outdirpath)
+    except OSError as e:
+        if not str(e).count("File exists"):
+            raise e
+    for key in EstPDict:
+        outtxtpath = os.path.join(outdirpath, key + ".txt")
+        if isinstance(EstPDict[key], np.ndarray):
+            arr = EstPDict[key]
+            if arr.ndim == 0 or EstPDict[key].size == 1:
+                val = None
+                try:
+                    val = int(EstPDict[key])
+                    assert np.allclose(val, EstPDict[key])
+                except ValueError:
+                    val = float(EstPDict[key])
+                except AssertionError:
+                    val = float(EstPDict[key])
+
+                if val is None:
+                    val = str(EstPDict[key])
+
+                with open(outtxtpath, 'w') as f:
+                    f.write(str(val) + "\n")
+            else:
+                np.savetxt(outtxtpath, as2D(arr))
+        else:
+            with open(outtxtpath, 'w') as f:
+                f.write(str(EstPDict[key]) + "\n")
+
+    #outmatfile = os.path.join(fpath, prefix + 'TopicModel')
+    #scipy.io.savemat(outmatfile, EstPDict, oned_as='row')

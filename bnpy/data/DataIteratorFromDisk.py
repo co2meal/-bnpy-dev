@@ -312,10 +312,22 @@ class DataIteratorFromDisk(object):
         else:
             DataInfo = dict()
         if self.datafileList[0].endswith('.ldac'):
-            if 'vocab_size' not in DataInfo:
-                vocab_size = int(os.environ['W'])
-                DataInfo['vocab_size'] = vocab_size
             DataInfo['nDocTotal'] = self.totalSize
+            if 'vocab_size' not in DataInfo:
+                vocabfilepath = os.path.join(self.datapath, 'vocab.txt')
+                if 'W' in os.environ:
+                    vocab_size = int(os.environ['W'])
+                elif os.path.exists(vocabfilepath):
+                    with open(vocabfilepath) as f:
+                        for termID, l in enumerate(f):
+                            pass
+                        vocab_size = termID + 1
+                    assert vocab_size > 0
+                else:
+                    raise ValueError(
+                        "Could not determine vocabulary size." + \
+                        " Either provide vocab.txt or W environ variable.")
+                DataInfo['vocab_size'] = vocab_size
         elif self.dtype == 'GroupXData':
             DataInfo['nDocTotal'] = self.totalSize
         else:

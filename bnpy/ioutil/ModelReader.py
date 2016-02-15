@@ -298,6 +298,25 @@ def loadTopicModel(
         return loadTopicModelFromMEDLDA(matfilepath, prefix,
                                         returnTPA=returnTPA)
 
+    snapshotList = glob.glob(os.path.join(matfilepath, 'Lap*TopicSnapshot'))
+    matfileList = glob.glob(os.path.join(matfilepath, 'Lap*TopicModel.mat'))
+
+    if len(snapshotList) > 0:
+        if prefix is None:
+            snapshotList.sort()
+            snapshotPath = snapshotList[-1]
+        else:
+            snapshotPath = None
+            for curPath in snapshotList:
+                if curPath.count(prefix):
+                    snapshotPath = curPath
+        return loadTopicModelFromTxtFiles(
+            snapshotPath,
+            normalizeTopics=normalizeTopics,
+            normalizeProbs=normalizeProbs,
+            returnWordCounts=returnWordCounts,
+            returnTPA=returnTPA)
+
     if prefix is not None:
         matfilepath = os.path.join(matfilepath, prefix + 'TopicModel.mat')
     Mdict = loadDictFromMatfile(matfilepath)
@@ -352,6 +371,99 @@ def loadTopicModel(
         return topics, probs, alpha
 
     infAlg = 'VB'
+    if 'gamma' in Mdict:
+        aPriorDict = dict(alpha=Mdict['alpha'], gamma=Mdict['gamma'])
+        HDPTopicModel = AllocModelConstructorsByName['HDPTopicModel']
+        amodel = HDPTopicModel(infAlg, aPriorDict)
+    else:
+        FiniteTopicModel = AllocModelConstructorsByName['FiniteTopicModel']
+        amodel = FiniteTopicModel(infAlg, dict(alpha=Mdict['alpha']))
+    omodel = ObsModelConstructorsByName['Mult'](infAlg, **Mdict)
+    hmodel = HModel(amodel, omodel)
+    hmodel.set_global_params(**Mdict)
+    if returnWordCounts:
+        return hmodel, Mdict['WordCounts']
+    return hmodel
+
+
+def loadTopicModelFromTxtFiles(
+        snapshotPath, returnTPA=False, returnWordCounts=False,
+        normalizeProbs=True, normalizeTopics=True, **kwargs):
+    ''' Load from snapshot text files.
+
+    Returns
+    -------
+    hmodel
+    '''
+    Mdict = dict()
+    possibleKeys = ['K', 'alpha', 'beta', 'lam',
+        'gamma', 'nTopics', 'nTypes', 'vocab_size']
+    keyMap = dict(beta='lam', nTopics='K', nTypes='vocab_size')
+    for key in possibleKeys:
+        try:
+            arr = np.loadtxt(snapshotPath + "/%s.txt" % (key))
+            if key in keyMap:
+                Mdict[keyMap[key]] = arr
+            else:
+                Mdict[key] = arr
+        except Exception:
+            pass
+    assert 'K' in Mdict
+    assert 'lam' in Mdict
+    K = int(Mdict['K'])
+    V = int(Mdict['vocab_size'])
+
+    if os.path.exists(snapshotPath + "/topics.txt"):
+        Mdict['topics'] = np.loadtxt(snapshotPath + "/topics.txt")
+        assert Mdict['topics'].ndim == 2
+        assert Mdict['topics'].shape == (K,V)
+    else:
+        TWC_data = np.loadtxt(snapshotPath + "/TopicWordCount_data.txt")
+        TWC_inds = np.loadtxt(snapshotPath + "/TopicWordCount_indices.txt",
+            dtype=np.int32)
+        TWC_indptr = np.loadtxt(snapshotPath + "/TopicWordCount_indptr.txt",
+            dtype=np.int32)
+        TWC = scipy.sparse.csr_matrix(
+            (TWC_data, TWC_inds, TWC_indptr), shape=(K,V))
+        Mdict['WordCounts'] = TWC.toarray()
+
+    if returnTPA:
+        # Load topics : 2D array, K x vocab_size
+        if 'WordCounts' in Mdict:
+            topics = Mdict['WordCounts'] + Mdict['lam']
+        else:
+            topics = Mdict['topics']
+        topics = as2D(toCArray(topics, dtype=np.float64))
+        assert topics.ndim == 2
+        K = topics.shape[0]
+        if normalizeTopics:
+            topics /= topics.sum(axis=1)[:,np.newaxis]
+
+        # Load probs : 1D array, size K
+        try:
+            probs = Mdict['probs']
+        except KeyError:
+            probs = (1.0 / K) * np.ones(K)
+        probs = as1D(toCArray(probs, dtype=np.float64))
+        assert probs.ndim == 1
+        assert probs.size == K
+        if normalizeProbs:
+            probs = probs / np.sum(probs)
+
+        # Load alpha : scalar float > 0
+        try:
+            alpha = float(Mdict['alpha'])
+        except KeyError:
+            if 'alpha' in os.environ:
+                alpha = float(os.environ['alpha'])
+            else:
+                raise ValueError('Unknown parameter alpha')
+        return topics, probs, alpha
+
+    # BUILD HMODEL FROM LOADED TXT
+    infAlg = 'VB'
+    # avoids circular import
+    from bnpy.HModel import HModel
     if 'gamma' in Mdict:
         aPriorDict = dict(alpha=Mdict['alpha'], gamma=Mdict['gamma'])
         HDPTopicModel = AllocModelConstructorsByName['HDPTopicModel']
