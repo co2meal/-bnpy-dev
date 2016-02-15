@@ -35,7 +35,6 @@ def LoadFuncFromCPPLib(libpath, srcpath, funcName):
             assert len(argTypeList) > 0
             setattr(getattr(lib, funcName), 'restype', None)
             setattr(getattr(lib, funcName), 'argtypes', argTypeList)
-        print 'LOADED from CDLL: ', funcName
         return getattr(lib, funcName)
     except OSError as e:
         warnings.warning(str(e))

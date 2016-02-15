@@ -6,6 +6,8 @@ import scipy.io
 import sklearn.metrics
 import bnpy
 import glob
+import warnings
+import logging
 
 from scipy.special import digamma
 from scipy.misc import logsumexp
@@ -21,6 +23,7 @@ VERSION = 0.1
 def evalTopicModelOnTestDataFromTaskpath(
         taskpath='', 
         queryLap=0,
+        nLap=0,
         seed=42,
         dataSplitName='test',
         fracHeldout=0.2,
@@ -43,7 +46,7 @@ def evalTopicModelOnTestDataFromTaskpath(
     DataKwargs = loadDataKwargsFromDisk(taskpath)
 
     # Check if info is stored in topic-model form
-    topicFileList = glob.glob(os.path.join(taskpath, 'Lap*TopicModel.mat'))
+    topicFileList = glob.glob(os.path.join(taskpath, 'Lap*Topic*'))
     if len(topicFileList) > 0:
         topics, probs, alpha = loadTopicModel(
             taskpath, queryLap=queryLap,
@@ -204,7 +207,7 @@ def evalTopicModelOnTestDataFromTaskpath(
     if printFunc:
         etime = time.time() - stime
         curLapStr = '%7.3f' % (queryLap)
-        nLapStr = '%d' % (kwargs['learnAlg'].algParams['nLap'])
+        nLapStr = '%d' % (nLap)
         logmsg = '  %s/%s heldout metrics   | K %4d | %s'
         logmsg = logmsg % (curLapStr, nLapStr, K, scoreMsg) 
         printFunc(logmsg, 'info')
@@ -252,7 +255,17 @@ def calcPredLikForDoc(docData, topics, probs, alpha,
     # the ratio of seen / total equals the desired fracHeldoutSeen
     nUHeldout = int(np.floor(nHeldout / fracHeldoutSeen))
     if nUHeldout > unseenWordTypes.size:
-        raise ValueError('Cannot make good split')
+        nUHeldout = unseenWordTypes.size - nHeldout
+
+    fracHeldoutPresent = nHeldout / float(unseenWordTypes.size)
+    if fracHeldoutPresent < 0.5 * fracHeldoutSeen:
+        warnings.warn(
+            "Frac of heldout types thare are PRESENT is %.3f" % (
+                fracHeldoutPresent))
+    elif fracHeldoutPresent > 1.5 * fracHeldoutSeen:
+        warnings.warn(
+            "Frac of heldout types thare are PRESENT is %.3f" % (
+                fracHeldoutPresent))
     heldoutUWords = unseenWordTypes[:nUHeldout]
     trainUWords = unseenWordTypes[nUHeldout:]
 
@@ -428,8 +441,19 @@ if __name__ == '__main__':
     parser.add_argument('taskpath', type=str)
     parser.add_argument('--queryLap', type=float, default=None)
     parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--restartLP', type=int, default=None)
-    parser.add_argument('--fracHeldout', type=float, default=0.2)
+    parser.add_argument('--printStdOut', type=int, default=1)
+    parser.add_argument('--printLevel', type=int, default=logging.INFO)
+    #parser.add_argument('--restartLP', type=int, default=None)
+    #parser.add_argument('--fracHeldout', type=float, default=0.2)
     args = parser.parse_args()
 
+    if args.printStdOut:
+        def printFunc(x, level='debug', **kwargs):
+            if level == 'debug':
+                level = logging.DEBUG
+            elif level == 'info':
+                level = logging.INFO
+            if level >= args.printLevel:
+                print x
+        args.__dict__['printFunc'] = printFunc
     evalTopicModelOnTestDataFromTaskpath(**args.__dict__)
