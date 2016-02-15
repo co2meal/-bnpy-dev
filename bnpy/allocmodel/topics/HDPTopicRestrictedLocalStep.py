@@ -82,8 +82,6 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         xSSslice.setMergeUIDPairs(mUIDPairs)
         for key, arr in Mdict.items():
             xSSslice.setMergeTerm(key, arr, dims='M')
-    if targetUID == 9:
-        from IPython import embed; embed()
     # Prepare dict of info for debugging/inspection
     Info = dict()
     Info['Kfresh'] = Kfresh

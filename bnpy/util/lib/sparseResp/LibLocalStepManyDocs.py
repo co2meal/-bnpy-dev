@@ -178,7 +178,6 @@ def compareLPValsAtKey(LPold, LPnew, key):
         print '  Good. Same value for LP[%s]' % (key)
     except AssertionError as e:
         print '  BAD!! Mismatch for LP[%s]' % (key)
-        from IPython import embed; embed()
         raise(e)
 
 

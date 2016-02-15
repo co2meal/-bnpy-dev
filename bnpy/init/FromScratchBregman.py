@@ -157,10 +157,6 @@ def initSS_BregmanDiv(
             xSS.reorderComps(neworder)
         else:
             assert np.allclose(np.unique(targetZ), np.arange(xSS.K))
-        if not len(Mu) == xSS.K:
-            print len(Mu)
-            print xSS.K
-            from IPython import embed; embed()
         assert np.allclose(len(Mu), xSS.K)
     # Reorder the components from big to small
     oldids_bigtosmall = np.argsort(-1 * xSS.getCountVec())

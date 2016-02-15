@@ -71,7 +71,6 @@ def init_global_params(obsModel, Data, K=0, seed=0,
 
     InitArgs = dict(lam=lam, topics=topics, Data=Data)
     obsModel.set_global_params(**InitArgs)
-    from IPython import embed; embed()
     if 'savepath' in kwargs:
         import scipy.io
         topics = obsModel.getTopics()
@@ -92,6 +91,7 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
         topics : 2D array, size K x Data.vocab_size
                  non-negative entries, rows sum to one
     '''
+    topics = None
     lam = None
     
     if initObsModelScale > 0.0:
@@ -127,6 +127,8 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
         lam, Z = KMeansRex.RunKMeans(X, K, seed=seed,
                                         Niter=25,
                                         initname='plusplus')
+        for k in range(K):
+            lam[k] = np.sum(X[Z == k], axis=0)
         lam += smoothParam
 
     elif initname == 'randomfromarg':
@@ -136,8 +138,8 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
 
     elif initname == 'randomfromprior':
         # Draw K topic-word probability vectors i.i.d. from their prior
-        lam = obsModel.Prior.lam
-        topics = PRNG.gamma(lam, 1., (K, Data.vocab_size))
+        priorLam = obsModel.Prior.lam
+        topics = PRNG.gamma(priorLam, 1., (K, Data.vocab_size))
 
     elif initname.count('anchor'):
         K = np.minimum(K, Data.vocab_size)
