@@ -1053,7 +1053,8 @@ class WordsData(DataObj):
         # lists
         startPos = 0
         for d in xrange(nDocTotal):
-            docseed = (seed * d) % (100000000) # need docseed to have type int
+            # Need docseed to be type int, have non-zero value for all d
+            docseed = (seed * d + seed) % (100000000)
             PRNG = np.random.RandomState(docseed)
 
             # Draw topic appearance probabilities for this document

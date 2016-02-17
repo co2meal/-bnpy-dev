@@ -50,8 +50,7 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
         wCts = Data.word_count[start:stop]
         docWordHist = np.zeros(V)
         docWordHist[wIDs] = wCts
-        squareIm = np.reshape(docWordHist, (np.sqrt(V), np.sqrt(V)))
-
+        squareIm = np.reshape(docWordHist, (sqrtV, sqrtV))
         pylab.subplot(nrows, ncols, plotPos + 1)
         pylab.imshow(squareIm, **kwargs)
         pylab.axis('image')

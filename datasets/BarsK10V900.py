@@ -70,13 +70,23 @@ def CreateToyDataFromLDAModel(**kwargs):
             kwargs[key] = Defaults[key]
     return WordsData.CreateToyDataFromLDAModel(**kwargs)
 
+def showTrueTopics(pylab=None, block=False):
+    import bnpy.viz.BarsViz as BarsViz
+    if pylab is not None:
+        BarsViz.pylab = pylab
+    BarsViz.showTopicsAsSquareImages(
+        Defaults['topics'], vmin=0, vmax=np.percentile(Defaults['topics'], 95))
+    BarsViz.pylab.show(block=block)
 
-def showExampleDocs(pylab=None):
+def showExampleDocs(pylab=None, block=False):
     import bnpy.viz.BarsViz as BarsViz
     WData = CreateToyDataFromLDAModel(seed=SEED)
     if pylab is not None:
         BarsViz.pylab = pylab
     BarsViz.plotExampleBarsDocs(WData)
+    BarsViz.pylab.show(block=block)
 
 if __name__ == '__main__':
-    showExampleDocs()
+    showTrueTopics()
+    showExampleDocs(block=True)
+
