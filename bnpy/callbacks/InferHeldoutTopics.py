@@ -215,19 +215,176 @@ def evalTopicModelOnTestDataFromTaskpath(
     return SaveVars
 
 
+def createTrainTestSplitOfVocab(
+        seen_wids,
+        seen_wcts,
+        vocab_size,
+        fracHeldout=0.2,
+        ratioSeenToUnseenInHoldout=1/9.,
+        MINSIZE=10,
+        seed=42):
+    ''' Create train/test split of the vocab words
+
+    Returns
+    -------
+    Info : dict with fields
+    * tr_seen_wids
+    * tr_unsn_wids
+    * ho_seen_wids
+    * ho_unsn_wids
+    * ratio
+
+    Example
+    -------
+    >>> seen_wids = np.arange(100)
+    >>> swc = np.ones(100)
+    >>> Info = createTrainTestSplitOfVocab(seen_wids, swc, 1000, 0.2, 1.0/10.0)
+    >>> print Info['ratio']
+    0.1
+    >>> I213 = createTrainTestSplitOfVocab(seen_wids, 213, 0.2, 1.0/10.0)
+    >>> print I213['ratio']
+    0.1
+    >>> print len(I213['tr_seen_wids'])
+    80
+    >>> print len(I213['ho_seen_wids'])
+    11
+    >>> print len(I213['ho_unsn_wids'])
+    110
+    >>> # Here's an example that fails
+    >>> I111 = createTrainTestSplitOfVocab(seen_wids, 111, 0.2, 1.0/10.0)
+    raises ValueError
+    '''
+    seen_wids = np.asarray(seen_wids, dtype=np.int32)
+    # Split seen words into train and heldout
+    # Enforcing the desired fraction as much as possible
+    # while guaranteeing minimum size
+    n_ho_seen = int(np.ceil(fracHeldout * len(seen_wids)))
+    if len(seen_wids) < 2 * MINSIZE:
+        raise ValueError(
+            "Cannot create training and test set with " + 
+            "at least MINSIZE=%d seen (present) words" % (MINSIZE))
+    elif n_ho_seen < MINSIZE:
+        n_ho_seen = MINSIZE
+    n_tr_seen = len(seen_wids) - n_ho_seen
+    assert n_tr_seen >= MINSIZE
+    assert n_ho_seen >= MINSIZE
+
+    # Now, divide the un-seen words similarly
+    n_ttl_unsn = vocab_size - len(seen_wids)
+    n_ho_unsn = int(np.ceil(n_ho_seen / ratioSeenToUnseenInHoldout))
+    while n_ho_unsn > n_ttl_unsn and n_ho_seen > MINSIZE:
+        # Try to shrink heldout set
+        n_ho_seen -= 1
+        n_ho_unsn = int(np.ceil(n_ho_seen / ratioSeenToUnseenInHoldout))
+
+    if n_ho_seen < MINSIZE:
+        raise ValueError(
+            "Cannot create test set with " + 
+            "at least MINSIZE=%d seen/present words" % (MINSIZE))
+    if n_ho_unsn > n_ttl_unsn:
+        raise ValueError(
+            "Cannot create heldout set with desired ratio of unseen words")
+    assert n_ho_unsn >= MINSIZE
+    ratio = n_ho_seen / float(n_ho_unsn)
+
+    # Now actually do the shuffling of vocab ids
+    PRNG = np.random.RandomState(seed)
+    shuffled_inds = PRNG.permutation(len(seen_wids))
+    tr_seen_wids = seen_wids[shuffled_inds[:n_tr_seen]].copy()
+    tr_seen_wcts = seen_wcts[shuffled_inds[:n_tr_seen]].copy() 
+    ho_seen_wids = seen_wids[
+        shuffled_inds[n_tr_seen:n_tr_seen+n_ho_seen]].copy()
+    ho_seen_wcts = seen_wcts[
+        shuffled_inds[n_tr_seen:n_tr_seen+n_ho_seen]].copy()
+    assert len(ho_seen_wids) == n_ho_seen
+    assert len(tr_seen_wids) == n_tr_seen
+
+    unsn_wids = np.setdiff1d(np.arange(vocab_size), seen_wids)
+    PRNG.shuffle(unsn_wids)
+    ho_unsn_wids = unsn_wids[:n_ho_unsn].copy()
+    tr_unsn_wids = unsn_wids[n_ho_unsn:].copy()
+    assert len(ho_unsn_wids) == n_ho_unsn
+
+    Info = dict(
+        ratio=ratio,
+        tr_seen_wcts=tr_seen_wcts,
+        ho_seen_wcts=ho_seen_wcts,
+        tr_seen_wids=tr_seen_wids,
+        ho_seen_wids=ho_seen_wids,
+        tr_unsn_wids=tr_unsn_wids,
+        ho_unsn_wids=ho_unsn_wids,)
+
+    ho_all_wids = np.hstack([ho_seen_wids, ho_unsn_wids])
+    tr_all_wids = np.hstack([tr_seen_wids, tr_unsn_wids])
+    n_all = len(ho_all_wids) + len(tr_all_wids)
+    if n_all < vocab_size:
+        xtra_seen_wids = seen_wids[
+            shuffled_inds[n_tr_seen+n_ho_seen:]].copy()
+        xtra_seen_wcts = seen_wcts[
+            shuffled_inds[n_tr_seen+n_ho_seen:]].copy()
+        assert vocab_size - n_all == len(xtra_seen_wids)
+        Info['xtra_seen_wids'] = xtra_seen_wids
+        Info['xtra_seen_wcts'] = xtra_seen_wcts
+    return Info
+
 def calcPredLikForDoc(docData, topics, probs, alpha,
-                      fracHeldout=0.2,
-                      fracHeldoutSeen=0.1,
-                      seed=42,
-                      MINSIZE=10, LPkwargs=dict(), **kwargs):
+                      LPkwargs=dict(),
+                      **kwargs):
     ''' Calculate predictive likelihood for single doc under given model.
 
     Returns
     -------
     '''
-    Info = dict()
     assert docData.nDoc == 1
+    Info = createTrainTestSplitOfVocab(
+        docData.word_id, docData.word_count, docData.vocab_size,
+        **kwargs)
+    # # Run local step to get DocTopicCounts
+    DocTopicCount_d, moreInfo_d = inferDocTopicCountForDoc(
+        Info['tr_seen_wids'], Info['tr_seen_wcts'],
+        topics, probs, alpha, **LPkwargs)
+    Info.update(moreInfo_d)
 
+    # # Compute point-estimate of topic probs in this doc
+    theta_d = DocTopicCount_d + alpha * probs
+    Epi_d = theta_d / np.sum(theta_d)
+
+    # # Evaluate likelihood
+    Info['DocTopicCount'] = DocTopicCount_d
+    ho_wcts = Info['ho_seen_wcts'].copy()
+    ho_wids = Info['ho_seen_wids'].copy()
+    if 'xtra_seen_wids' in Info:
+        ho_wids.append(Info['xtra_seen_wids'])
+        ho_wcts.append(Info['xtra_seen_wcts'])
+
+    probPerToken_d = np.dot(topics[:, ho_wids].T, Epi_d)
+    logProbPerToken_d = np.log(probPerToken_d)
+    Info['sumlogProbTokens'] = np.sum(logProbPerToken_d * ho_wcts)
+    Info['nHeldoutToken'] = np.sum(ho_wcts)
+
+    # # Eval retrieval metrics
+    ho_all_wids = np.hstack([Info['ho_seen_wids'], Info['ho_unsn_wids']])
+    scoresOfHeldoutTypes_d = np.dot(topics[:, ho_all_wids].T, Epi_d)
+    trueLabelsOfHeldoutTypes_d = np.zeros(ho_all_wids.size, dtype=np.int32)
+    trueLabelsOfHeldoutTypes_d[:len(Info['ho_seen_wids'])] = 1
+    assert np.sum(trueLabelsOfHeldoutTypes_d) == len(Info['ho_seen_wids'])
+    # AUC metric
+    fpr, tpr, thr = sklearn.metrics.roc_curve(
+        trueLabelsOfHeldoutTypes_d, scoresOfHeldoutTypes_d)
+    auc = sklearn.metrics.auc(fpr, tpr)
+    # Top R precision, where R = total num positive instances
+    topR = len(Info['ho_seen_wids'])
+    topRHeldoutWordTypes = np.argsort(-1 * scoresOfHeldoutTypes_d)[:topR]
+    R_precision = sklearn.metrics.precision_score(
+        trueLabelsOfHeldoutTypes_d[topRHeldoutWordTypes],
+        np.ones(topR))
+    Info['auc'] = auc
+    Info['R_precision'] = R_precision
+    Info['scoresOfHeldoutTypes'] = scoresOfHeldoutTypes_d
+    # # That's all folks
+    return Info
+
+    """
     # Split document into training and heldout
     # assigning each unique vocab type to one or the other
     nSeen_d = docData.word_id.size
@@ -339,7 +496,7 @@ def calcPredLikForDoc(docData, topics, probs, alpha,
     Info['nHeldoutToken'] = nHeldoutToken_d
     Info['sumlogProbTokens'] = sumlogProbTokens_d
     return Info
-
+    """
 
 
 def calcPredLikForDocFromHModel(
