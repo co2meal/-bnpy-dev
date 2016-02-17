@@ -7,6 +7,7 @@ import RandUtil
 from .PrettyPrintUtil import np2flatstr, flatstr2np
 from .PrettyPrintUtil import split_str_into_fixed_width_lines
 from .MatMultUtil import dotATA, dotATB, dotABT
+from .MemoryUtil import getMemUsageOfCurProcess_MiB, calcObjSize_MiB
 from .RandUtil import choice, multinomial
 from .SpecialFuncUtil import MVgammaln, MVdigamma, digamma, gammaln
 from .SpecialFuncUtil import LOGTWO, LOGPI, LOGTWOPI, EPS
@@ -31,4 +32,5 @@ __all__ = ['RandUtil',
            'argsortBigToSmallByTiers',
            'numpyToSharedMemArray', 'sharedMemToNumpyArray',
            'sharedMemDictToNumpy', 'fillSharedMemArray',
+           'getMemUsageOfCurProcess', 'calcObjSize_MiB',
            ]

@@ -438,7 +438,7 @@ class WordsData(DataObj):
         ------
         s : string
         """
-        nUniqueDoc = np.sum(self.getDocTypeCountMatrix() > 0, axis=0)
+        nUniqueDoc = self.getSparseDocTypeBinaryMatrix().sum(axis=0)
         bbins = list()
         bNames = list()
         gap = 0
@@ -479,6 +479,20 @@ class WordsData(DataObj):
                 binHeaderStr += " %6s" % ("<" + bNames[e])
         return "Hist of unique docs per word type\n" \
             + "%s\n%s" % (binHeaderStr, binCountStr)
+
+
+    def clearCache(self):
+        ''' Remove any cached matrices, which can always be recomputed.
+
+        Post Condition
+        --------------
+        Removes all attributes matching "__[A-Za-z]Mat",
+        such as "__DocTypeCountMat"
+        '''
+        for key in self.__dict__.keys():
+            if key.startswith("__") and key.endswith("Mat"):
+                print 'DELETED ', key, ' <<<'
+                delattr(self, key)
 
     def getTokenTypeCountMatrix(self):
         ''' Get dense matrix counting vocab usage across all words in dataset
@@ -566,7 +580,7 @@ class WordsData(DataObj):
         setattr(self, key, B)
         return B
 
-    def getDocTypeCountMatrix(self, weights=None, **kwargs):
+    def getDocTypeCountMatrix(self, weights=None, doCache=1, **kwargs):
         ''' Get dense matrix counting vocab usage for each document.
 
         Returns
@@ -580,11 +594,11 @@ class WordsData(DataObj):
 
         C = self.getSparseDocTypeCountMatrix(weights=weights, **kwargs)
         X = C.toarray()
-        if weights is None:
+        if weights is None and doCache:
             setattr(self, key, X)
         return X
 
-    def getSparseDocTypeCountMatrix(self, weights=None, **kwargs):
+    def getSparseDocTypeCountMatrix(self, weights=None, doCache=1, **kwargs):
         ''' Make sparse matrix counting vocab usage for each document.
 
         Returns
@@ -610,7 +624,7 @@ class WordsData(DataObj):
             (data, self.word_id, self.doc_range),
             shape=(self.nDoc, self.vocab_size),
             dtype=np.float64)
-        if weights is None:
+        if weights is None and doCache:
             setattr(self, key, C)
         elif weights.size == self.nDoc:
             W = scipy.sparse.csr_matrix(

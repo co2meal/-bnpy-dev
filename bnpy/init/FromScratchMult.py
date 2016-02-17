@@ -68,7 +68,8 @@ def init_global_params(obsModel, Data, K=0, seed=0,
                                          initarg=initarg,
                                          seed=seed,
                                          **kwargs)
-
+    if hasattr(Data, 'clearCache'):
+        Data.clearCache()
     InitArgs = dict(lam=lam, topics=topics, Data=Data)
     obsModel.set_global_params(**InitArgs)
     if 'savepath' in kwargs:

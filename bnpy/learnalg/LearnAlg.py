@@ -339,6 +339,7 @@ class LearnAlg(object):
                         isFinal=0, rho=None):
         """ Print state of provided model and progress variables to log.
         """
+        from bnpy import getCurMemCost_MiB
         if hasattr(self, 'ConvergeInfo') and 'maxDiff' in self.ConvergeInfo:
             countStr = 'Ndiff%9.3f' % (self.ConvergeInfo['maxDiff'])
         else:
@@ -356,10 +357,12 @@ class LearnAlg(object):
         maxLap = self.algParams['nLap'] + self.algParams['startLap']
         maxLapStr = '%d' % (maxLap)
 
-        logmsg = '  %s/%s after %6.0f sec. | K %4d | ev % .9e | %s %s'
+        logmsg = '  %s/%s after %6.0f sec. |'
+        logmsg += ' %8.3f MiB | K %4d | ev % .9e | %s %s'
         logmsg = logmsg % (lapStr,
                            maxLapStr,
                            self.get_elapsed_time(),
+                           getCurMemCost_MiB(),
                            hmodel.allocModel.K,
                            evBound,
                            countStr,

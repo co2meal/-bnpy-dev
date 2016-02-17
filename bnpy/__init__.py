@@ -3,11 +3,23 @@
 import os
 import sys
 
+def getCurMemCost_MiB():
+    import psutil
+    # return the memory usage in MB
+    process = psutil.Process(os.getpid())
+    mem_MiB = process.memory_info_ex().rss / float(2 ** 20)
+    return mem_MiB
+
+def pprintCurMemCost(label=''):
+    # return the memory usage in MB
+    mem_MiB = getCurMemCost
+    print "%.3f MiB | %s" % (mem_MiB, label)
+
 # Configure PYTHONPATH before importing any bnpy modules
-root = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-2])
-sys.path.append(os.path.join(root, 'datasets/'))
-sys.path.append(os.path.join(root, 'third-party/'))
-sys.path.append(os.path.join(root, 'third-party/anchorwordtopics/'))
+BNPYROOTDIR = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-2])
+sys.path.append(os.path.join(BNPYROOTDIR, 'datasets/'))
+sys.path.append(os.path.join(BNPYROOTDIR, 'third-party/'))
+sys.path.append(os.path.join(BNPYROOTDIR, 'third-party/anchorwordtopics/'))
 
 import data
 import suffstats
@@ -33,27 +45,27 @@ load_model = ioutil.ModelReader.load_model
 save_model = ioutil.ModelWriter.save_model
 
 # Configure save location
-hasOutdir = False
-hasWriteableOutdir = False
+_hasOutdir = False
+_hasWriteableOutdir = False
 if 'BNPYOUTDIR' in os.environ:
-    hasOutdir = True
-    outdir = os.environ['BNPYOUTDIR']
-    if not os.path.exists(outdir):
+    _hasOutdir = True
+    _outdir = os.environ['BNPYOUTDIR']
+    if not os.path.exists(_outdir):
         try:
-            os.makedirs(outdir)
+            os.makedirs(_outdir)
         except OSError as e:
             pass
-    if os.path.exists(outdir):
+    if os.path.exists(_outdir):
         try:
-            testfilepath = os.path.join(
-                outdir, '.bnpy-test-write-permissions.txt')
-            with open(testfilepath, 'w') as f:
+            _testfilepath = os.path.join(
+                _outdir, '.bnpy-test-write-permissions.txt')
+            with open(_testfilepath, 'w') as _f:
                 pass
         except IOError:
-            sys.exit('BNPYOUTDIR not writeable: %s' % (outdir))
-        hasWriteableOutdir = True
-if not hasWriteableOutdir:
-    if hasOutdir:
+            sys.exit('BNPYOUTDIR not writeable: %s' % (_outdir))
+        _hasWriteableOutdir = True
+if not _hasWriteableOutdir:
+    if _hasOutdir:
         raise ValueError(
             'BNPYOUTDIR has invalid value. Need valid writeable directory. \n' +
             os.environ['BNPYOUTDIR'])
@@ -77,7 +89,6 @@ __all__ = ['run', 'Run', 'learnalg', 'allocmodel', 'obsmodel', 'suffstats',
 try:
     from matplotlib import pylab
     import viz
-    canPlot = True
     __all__.append('viz')
 except ImportError:
     print "Error importing matplotlib. Plotting disabled."

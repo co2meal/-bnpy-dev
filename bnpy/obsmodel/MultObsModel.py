@@ -353,7 +353,7 @@ class MultObsModel(AbstractObsModel):
         '''
         ElogphiT = self.GetCached('E_logphiT', 'all')  # V x K
         doSparse1 = 'activeonlyLP' in kwargs and kwargs['activeonlyLP'] == 2
-        doSparse2 = 'nnzPerRow' in kwargs and kwargs['nnzPerRow'] < self.K
+        doSparse2 = 'nnzPerRowLP' in kwargs and kwargs['nnzPerRowLP'] < self.K
         if doSparse2 and doSparse1:
             return dict(ElogphiT=ElogphiT)
         else:

@@ -96,7 +96,8 @@ def sparseLocalStep_WordCountData(
         reviseActiveEveryLP,
         verboseLP)
     # Package results up into dict
-    LP = dict()
+    if not isinstance(LP, dict):
+        LP = dict()
     LP['nnzPerRow'] = nnzPerRowLP
     LP['DocTopicCount'] = TopicCount_OUT
     indptr = np.arange(
@@ -116,7 +117,7 @@ def sparseLocalStep_WordCountData(
     if restartLP > 0:
         LP['Info']['nRestartsAccepted'] = nRAcceptVec[0]
         LP['Info']['nRestartsTried'] = nRTrialVec[0]
-    writeLogMessageForManyDocs(Data, LP['Info'], 
+    writeLogMessageForManyDocs(Data, LP['Info'], LP, 
         convThrLP=convThrLP, **kwargs)
     return LP
 

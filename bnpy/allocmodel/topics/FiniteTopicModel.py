@@ -5,8 +5,9 @@ from bnpy.suffstats import SuffStatBag
 from ...util import digamma, gammaln
 from ...util import NumericUtil
 
-from LocalStepManyDocs import calcLocalParams
-
+import LocalStepManyDocs
+from bnpy.util.NumericUtil import calcRlogR, calcRlogRdotv
+from bnpy.util.SparseRespStatsUtil import calcSparseRlogR, calcSparseRlogRdotv
 
 class FiniteTopicModel(AllocModel):
 
@@ -111,10 +112,23 @@ class FiniteTopicModel(AllocModel):
                 q(\pi_d) = Dirichlet(theta[d,0], ... theta[d, K-1])
         '''
         alphaEbeta = self.alpha * np.ones(self.K)
-        LP = calcLocalParams(Data, LP, alphaEbeta, **kwargs)
-        assert 'resp' in LP
-        assert 'theta' in LP
+        doSparse1 = 'activeonlyLP' in kwargs and kwargs['activeonlyLP'] == 2
+        doSparse2 = 'nnzPerRowLP' in kwargs and kwargs['nnzPerRowLP'] < self.K
+        doFastSparseForWordsData = hasattr(Data, 'word_count') and \
+                LP['obsModelName'].count('Mult') and \
+                doSparse1 and doSparse2
+        if doFastSparseForWordsData:
+            LP = LocalStepManyDocs.sparseLocalStep_WordCountData(
+                Data, LP, alphaEbeta, **kwargs)
+            LP['localStepMethod'] = \
+                'LocalStepManyDocs.sparseLocalStep_WordCountData'
+        else:
+            LP = LocalStepManyDocs.calcLocalParams(
+                Data, LP, alphaEbeta, **kwargs)
+            LP['localStepMethod'] = 'LocalStepManyDocs.calcLocalParams'
+        assert 'resp' in LP or 'spR' in LP
         assert 'DocTopicCount' in LP
+        assert 'theta' in LP
         return LP
 
     def initLPFromResp(self, Data, LP):
@@ -155,9 +169,7 @@ class FiniteTopicModel(AllocModel):
         LP['ElogPi'] = ElogPi
         return LP
 
-    def get_global_suff_stats(self, Data, LP,
-                              doPrecompEntropy=None,
-                              cslice=(0, None), **kwargs):
+    def get_global_suff_stats(self, Data, LP, **kwargs):
         ''' Calculate sufficient statistics for global updates.
 
         Parameters
@@ -182,6 +194,9 @@ class FiniteTopicModel(AllocModel):
                 Vector of entropy contributions from each comp.
                 Hvec[k] = \sum_{n=1}^N H[q(z_n)], a function of 'resp'
         '''
+        SS = calcSummaryStats(Data, LP, alpha=self.alpha, **kwargs)
+        return SS
+        """
         resp = LP['resp']
         _, K = resp.shape
 
@@ -196,6 +211,7 @@ class FiniteTopicModel(AllocModel):
             SS.setELBOTerm('Hvec', Hvec, dims='K')
             SS.setELBOTerm('L_alloc', Lalloc, dims=None)
         return SS
+        """
 
     def update_global_params(self, SS, rho=None, **kwargs):
         ''' Update global parameters to optimize the ELBO objective.
@@ -300,6 +316,7 @@ def L_alloc(Data=None, LP=None, nDoc=0, alpha=1.0, **kwargs):
         nDoc = Data.nDoc
     if LP is None:
         LP = dict(**kwargs)
+
     K = LP['DocTopicCount'].shape[1]
     cDiff = nDoc * c_Func(alpha, K) - c_Func(LP['theta'])
     slackVec = LP['DocTopicCount'] + alpha - LP['theta']
@@ -314,12 +331,34 @@ def L_entropy(Data=None, LP=None, resp=None, returnVector=0):
     -------
     L_entropy : scalar float
     """
+    spR = None
     if LP is not None:
-        resp = LP['resp']
-    if hasattr(Data, 'word_count') and resp.shape[0] == Data.nUniqueToken:
-        Hvec = -1 * NumericUtil.calcRlogRdotv(resp, Data.word_count)
+        if 'resp' in LP:
+            resp = LP['resp']
+        elif 'spR' in LP:
+            spR = LP['spR']
+            N, K = LP['spR'].shape  
+        else:
+            raise ValueError("LP dict missing resp or spR")
+    if resp is not None:
+        N, K = LP['resp'].shape
+
+    if hasattr(Data, 'word_count') and N == Data.word_count.size:
+        if resp is not None:
+            Hvec = -1 * NumericUtil.calcRlogRdotv(resp, Data.word_count)
+        elif spR is not None:
+            Hvec = calcSparseRlogRdotv(v=Data.word_count, **LP)
+        else:
+            raise ValueError("Missing resp assignments!")
     else:
-        Hvec = -1 * NumericUtil.calcRlogR(resp)
+        if resp is not None:
+            Hvec = -1 * NumericUtil.calcRlogR(resp)
+        elif 'spR' in LP:
+            assert 'nnzPerRow' in LP
+            Hvec = calcSparseRlogR(**LP)
+        else:
+            raise ValueError("Missing resp assignments!")
+    assert Hvec.size == K
     assert Hvec.min() >= -1e-6
     if returnVector:
         return Hvec
@@ -344,7 +383,8 @@ def c_Func(avec, K=0):
 
 
 def calcSummaryStats(Dslice, LP=None, alpha=None,
-                     doPrecompEntropy=0,
+                     doPrecompEntropy=False,
+                     cslice=(0, None),
                      **kwargs):
     """ Calculate summary from local parameters for given data slice.
 
@@ -369,13 +409,18 @@ def calcSummaryStats(Dslice, LP=None, alpha=None,
             Vector of entropy contributions from each comp.
             Hvec[k] = \sum_{n=1}^N H[q(z_n)], a function of 'resp'
     """
-    resp = LP['resp']
-    _, K = resp.shape
-
+    K = LP['DocTopicCount'].shape[1]
     SS = SuffStatBag(K=K, D=Dslice.dim)
+
+    if cslice[1] is None:
+        SS.setField('nDoc', Dslice.nDoc, dims=None)
+    else:
+        SS.setField('nDoc', cslice[1] - cslice[0], dims=None)
+
     SS.setField('nDoc', Dslice.nDoc, dims=None)
     if doPrecompEntropy:
         Hvec = L_entropy(Dslice, LP, returnVector=1)
+        assert 'theta' in LP
         Lalloc = L_alloc(Dslice, LP, alpha=alpha)
         SS.setELBOTerm('Hvec', Hvec, dims='K')
         SS.setELBOTerm('L_alloc', Lalloc, dims=None)
