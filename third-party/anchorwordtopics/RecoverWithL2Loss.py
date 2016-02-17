@@ -83,9 +83,9 @@ def quadSolveExpGrad(y, x, eps, alpha=None, XX=None):
     XY = dot(x, y)
     YY = float(dot(y, y))
 
-    start_time = time.time()
-    y_copy = copy(y)
-    x_copy = copy(x)
+    #start_time = time.time()
+    #y_copy = copy(y)
+    #x_copy = copy(x)
 
     (K, n) = x.shape
     if alpha is None:
