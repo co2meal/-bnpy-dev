@@ -24,6 +24,7 @@ def evalTopicModelOnTestDataFromTaskpath(
         taskpath='', 
         queryLap=0,
         nLap=0,
+        elapsedTime=None,
         seed=42,
         dataSplitName='test',
         fracHeldout=0.2,
@@ -190,6 +191,8 @@ def evalTopicModelOnTestDataFromTaskpath(
     SVars['avgLikScore'] = SaveVars['avgPredLL']
     SVars['lapTrain'] = queryLap
     SVars['K'] = K
+    if elapsedTime is not None:
+        SVars['timeTrain'] = elapsedTime
     for key in SVars:
         if key.endswith('PerDoc'):
             continue
@@ -600,6 +603,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--printStdOut', type=int, default=1)
     parser.add_argument('--printLevel', type=int, default=logging.INFO)
+    parser.add_argument('--elapsedTime', type=float, default=None)
     #parser.add_argument('--restartLP', type=int, default=None)
     #parser.add_argument('--fracHeldout', type=float, default=0.2)
     args = parser.parse_args()

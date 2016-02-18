@@ -86,8 +86,10 @@ def runHeldoutCallback(**kwargs):
     MATfile format: Lap0020.000MAPStateSeqs.mat
     '''
     taskpath = kwargs['learnAlg'].savedir
+    elapsedTime = kwargs['learnAlg'].get_elapsed_time()
     InferHeldoutTopics.evalTopicModelOnTestDataFromTaskpath(
         taskpath=taskpath,
+        elapsedTime=elapsedTime,
         queryLap=kwargs['lapFrac'],
         printFunc=HeldoutMetricsLogger.pprint,
         **kwargs)

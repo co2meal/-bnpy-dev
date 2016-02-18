@@ -284,6 +284,8 @@ class LearnAlg(object):
         prefix = ModelWriter.makePrefixForLap(lap)
         with open(self.mkfile('laps-saved-params.txt'), 'a') as f:
             f.write('%.4f\n' % (lap))
+        with open(self.mkfile('times-saved-params.txt'), 'a') as f:
+            f.write('%.3f\n' % (self.get_elapsed_time()))
         if self.outputParams['doSaveFullModel']:
             ModelWriter.save_model(
                 hmodel, self.savedir, prefix,
