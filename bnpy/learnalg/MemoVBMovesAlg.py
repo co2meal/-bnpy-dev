@@ -54,6 +54,8 @@ class MemoVBMovesAlg(LearnAlg):
         --------
         hmodel updated in place with improved global parameters.
         '''
+        self.set_start_time_now()
+
         origmodel = hmodel
         self.maxUID = hmodel.obsModel.K - 1
 
@@ -71,7 +73,6 @@ class MemoVBMovesAlg(LearnAlg):
         SS = None
         isConverged = False
         Lscore = -np.inf
-        self.set_start_time_now()
         MoveLog = list()
         MoveRecordsByUID = dict()
         ConvStatus = np.zeros(DataIterator.nBatch)

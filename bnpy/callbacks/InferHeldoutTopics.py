@@ -33,7 +33,14 @@ def evalTopicModelOnTestDataFromTaskpath(
     ''' Evaluate trained topic model saved in specified task on test data
     '''
     # Load saved kwargs for local step
-    LPkwargs = loadLPKwargsFromDisk(taskpath)
+    try:
+        LPkwargs = loadLPKwargsFromDisk(taskpath)
+    except ValueError:
+        LPkwargs = dict(
+            nCoordAscentItersLP=100,
+            convThrLP=0.001,
+            restartLP=0,
+            initDocTopicCountLP='setDocProbsToEGlobalProbs')
     for key in kwargs:
         if key in LPkwargs and kwargs[key] is not None:
             LPkwargs[key] = str2val(kwargs[key])
@@ -41,10 +48,12 @@ def evalTopicModelOnTestDataFromTaskpath(
     # (due to mismatch in objectives)
     if 'restartLP' in LPkwargs:
         LPkwargs['restartLP'] = 0
+    # Force to be 0, so we are fair at test time
+    if 'nnzPerRowLP' in LPkwargs:
+        LPkwargs['nnzPerRowLP'] = 0
 
     # Load test dataset
     Data = loadDataFromSavedTask(taskpath, dataSplitName=dataSplitName)
-    DataKwargs = loadDataKwargsFromDisk(taskpath)
 
     # Check if info is stored in topic-model form
     topicFileList = glob.glob(os.path.join(taskpath, 'Lap*Topic*'))
@@ -62,10 +71,12 @@ def evalTopicModelOnTestDataFromTaskpath(
         assert np.allclose(foundLap, queryLap)
         if hasattr(hmodel.allocModel, 'alpha'):
             alpha = hmodel.allocModel.alpha
-        elif 'alpha' in DataKwargs:
-            alpha = float(DataKwargs['alpha'])
         else:
-            alpha = 0.5
+            try:
+                DataKwargs = loadDataKwargsFromDisk(taskpath)
+                alpha = float(DataKwargs['alpha'])
+            except Exception:
+                alpha = 0.5
         K = hmodel.allocModel.K
     # Prepare debugging statements
     if printFunc: 
@@ -357,8 +368,8 @@ def calcPredLikForDoc(docData, topics, probs, alpha,
     ho_wcts = Info['ho_seen_wcts'].copy()
     ho_wids = Info['ho_seen_wids'].copy()
     if 'xtra_seen_wids' in Info:
-        ho_wids.append(Info['xtra_seen_wids'])
-        ho_wcts.append(Info['xtra_seen_wcts'])
+        ho_wids = np.hstack([ho_wids, Info['xtra_seen_wids']])
+        ho_wcts = np.hstack([ho_wcts, Info['xtra_seen_wcts']])
 
     probPerToken_d = np.dot(topics[:, ho_wids].T, Epi_d)
     logProbPerToken_d = np.log(probPerToken_d)

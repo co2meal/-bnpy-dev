@@ -22,8 +22,9 @@ Colors = [(0, 0, 0),  # black
           (1, 0.6, 0),  # orange
           ]
 
-XLabelMap = dict(laps='num pass thru data',
-                 K='num topics K'
+XLabelMap = dict(laps='num pass thru train data',
+                 K='num topics K',
+                 times='training time (sec)'
                  )
 YLabelMap = dict(
     avgLikScore='heldout log lik',
@@ -130,13 +131,16 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                 suffix = '-' + fileSuffix
             else:
                 suffix = '.txt'
-            laps = np.loadtxt(
-                os.path.join(taskoutpath, prefix + '-lapTrain' + suffix))
-            Ks = np.loadtxt(os.path.join(taskoutpath, prefix + '-K' + suffix))
-            if xvar == 'laps':
-                xs = laps
+            if xvar.count('lap'):
+                xs = np.loadtxt(
+                    os.path.join(taskoutpath, prefix + '-lapTrain.txt'))
+            elif xvar.count('K'):
+                xs = np.loadtxt(os.path.join(taskoutpath, prefix + '-K.txt'))
+            elif xvar.count('time'):
+                xs = np.loadtxt(os.path.join(
+                    taskoutpath, prefix + '-timeTrain.txt'))
             else:
-                xs = Ks
+                raise ValueError("Unrecognized xvar: " + xvar)
             ys = np.loadtxt(
                 os.path.join(taskoutpath, prefix + '-' + yvar + suffix))
 

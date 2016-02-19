@@ -85,6 +85,7 @@ def load_model(matfilepath, prefix='Best', lap=None):
         allocModel = load_alloc_model(matfilepath, prefix)
         model = HModel(allocModel, obsModel)
     except IOError as e:
+        '''
         if prefix == 'Best':
             matList = glob.glob(os.path.join(matfilepath, '*TopicModel.mat'))
             lpwList = glob.glob(os.path.join(matfilepath, '*.log_prob_w'))
@@ -98,6 +99,7 @@ def load_model(matfilepath, prefix='Best', lap=None):
 
             else:
                 raise e
+        '''
         try:
             model = loadTopicModel(matfilepath, prefix=prefix)
         except IOError as e:
@@ -300,7 +302,6 @@ def loadTopicModel(
 
     snapshotList = glob.glob(os.path.join(matfilepath, 'Lap*TopicSnapshot'))
     matfileList = glob.glob(os.path.join(matfilepath, 'Lap*TopicModel.mat'))
-
     if len(snapshotList) > 0:
         if prefix is None:
             snapshotList.sort()
@@ -396,7 +397,7 @@ def loadTopicModelFromTxtFiles(
     hmodel
     '''
     Mdict = dict()
-    possibleKeys = ['K', 'alpha', 'beta', 'lam',
+    possibleKeys = ['K', 'probs', 'alpha', 'beta', 'lam',
         'gamma', 'nTopics', 'nTypes', 'vocab_size']
     keyMap = dict(beta='lam', nTopics='K', nTypes='vocab_size')
     for key in possibleKeys:
@@ -419,12 +420,19 @@ def loadTopicModelFromTxtFiles(
         assert Mdict['topics'].shape == (K,V)
     else:
         TWC_data = np.loadtxt(snapshotPath + "/TopicWordCount_data.txt")
-        TWC_inds = np.loadtxt(snapshotPath + "/TopicWordCount_indices.txt",
-            dtype=np.int32)
-        TWC_indptr = np.loadtxt(snapshotPath + "/TopicWordCount_indptr.txt",
-            dtype=np.int32)
-        TWC = scipy.sparse.csr_matrix(
-            (TWC_data, TWC_inds, TWC_indptr), shape=(K,V))
+        TWC_inds = np.loadtxt(
+            snapshotPath + "/TopicWordCount_indices.txt", dtype=np.int32)
+        if os.path.exists(snapshotPath + "/TopicWordCount_cscindptr.txt"):
+            TWC_cscindptr = np.loadtxt(
+                snapshotPath + "/TopicWordCount_cscindptr.txt", dtype=np.int32)
+            TWC = scipy.sparse.csc_matrix(
+                (TWC_data, TWC_inds, TWC_cscindptr), shape=(K,V))
+        else:
+            TWC_csrindptr = np.loadtxt(
+                snapshotPath + "/TopicWordCount_indptr.txt", dtype=np.int32)
+            TWC = scipy.sparse.csr_matrix(
+                (TWC_data, TWC_inds, TWC_csrindptr), shape=(K,V))
+
         Mdict['WordCounts'] = TWC.toarray()
 
     if returnTPA:

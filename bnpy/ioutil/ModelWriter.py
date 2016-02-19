@@ -208,6 +208,8 @@ def saveTopicModel(hmodel, SS, fpath, prefix, doLinkBest=False,
     except OSError as e:
         if not str(e).count("File exists"):
             raise e
+
+    floatFmt = '%.5e'
     for key in EstPDict:
         outtxtpath = os.path.join(outdirpath, key + ".txt")
         if isinstance(EstPDict[key], np.ndarray):
@@ -217,10 +219,13 @@ def saveTopicModel(hmodel, SS, fpath, prefix, doLinkBest=False,
                 try:
                     val = int(EstPDict[key])
                     assert np.allclose(val, EstPDict[key])
+                    val = '%d' % (val)
                 except ValueError:
                     val = float(EstPDict[key])
+                    val = floatFmt % (val)
                 except AssertionError:
                     val = float(EstPDict[key])
+                    val = floatFmt % (val)
 
                 if val is None:
                     val = str(EstPDict[key])
@@ -228,7 +233,10 @@ def saveTopicModel(hmodel, SS, fpath, prefix, doLinkBest=False,
                 with open(outtxtpath, 'w') as f:
                     f.write(str(val) + "\n")
             else:
-                np.savetxt(outtxtpath, as2D(arr))
+                if key.count('indices') or key.count('indptr'):
+                    np.savetxt(outtxtpath, as2D(arr), fmt='%d')
+                else:
+                    np.savetxt(outtxtpath, as2D(arr), fmt=floatFmt)
         else:
             with open(outtxtpath, 'w') as f:
                 f.write(str(EstPDict[key]) + "\n")
