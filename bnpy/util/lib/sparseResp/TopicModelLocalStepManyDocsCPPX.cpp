@@ -7,7 +7,7 @@
 #include "Eigen/Dense"
 #include <boost/math/special_functions/digamma.hpp>
 #include <boost/math/special_functions/gamma.hpp>
-
+#include "fastexp.h"
 using namespace Eigen;
 using namespace std;
 
@@ -117,7 +117,7 @@ void precomputeTopLRespForEachVocabTerm(
             for (int k = 0; k < K; k++) {
                 if (logScores_n(k) >= pivotScore) {
                     termResp_data(termResp_id) = \
-                        exp(logScores_n(k) - maxScore_n);
+                        fastexp(logScores_n(k) - maxScore_n);
                     termResp_colids(termResp_id) = k;
                     sumResp_n += termResp_data(termResp_id);
                     termResp_id += 1;                        
@@ -310,7 +310,7 @@ double updateAssignmentsForDoc_ReviseActiveSet(
             for (int ka = 0; ka < Kactive; ka++) {
                 if (logScores_n(ka) >= pivotScore) {
                     spResp_data(spRind_dn) = \
-                        exp(logScores_n(ka) - maxScore_n);
+                        fastexp(logScores_n(ka) - maxScore_n);
                     spResp_colids(spRind_dn) = activeTopics_d(ka);
                     sumResp_n += spResp_data(spRind_dn);
                     spRind_dn += 1;                        
@@ -386,7 +386,7 @@ void updateAssignmentsForDoc_FixPerTokenActiveSet(
         double sumResp_n = 0.0;
         for (int ka = 0; ka < nnzPerRow; ka++) {
             spResp_data(spRind_dn_start + ka) = \
-                exp(logScores_n(ka) - maxScore_n);
+                fastexp(logScores_n(ka) - maxScore_n);
             sumResp_n += spResp_data(spRind_dn_start + ka);
         }
 
