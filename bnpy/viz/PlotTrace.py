@@ -272,8 +272,13 @@ def loadXYFromTopicModelSummaryFiles(jobpath, taskid, xvar='laps', yvar='K'):
     ypath = os.path.join(jobpath, taskid, 'predlik-' + yvar + '.txt')
     if not os.path.exists(ypath):
         raise ValueError('Summary text file not found: ' + ypath)
-    lappath = os.path.join(jobpath, taskid, 'predlik-lapTrain.txt')
-    xs = np.loadtxt(lappath)
+    if xvar.count('lap'):
+        xpath = os.path.join(jobpath, taskid, 'predlik-lapTrain.txt')
+    elif xvar.count('time'):
+        xpath = os.path.join(jobpath, taskid, 'predlik-timeTrain.txt')
+    else:
+        xpath = os.path.join(jobpath, taskid, 'predlik-' + xvar + '.txt')       
+    xs = np.loadtxt(xpath)
     ys = np.loadtxt(ypath)
     return xs, ys
 
