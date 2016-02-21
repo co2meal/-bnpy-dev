@@ -232,7 +232,8 @@ class HDPTopicModel(AllocModel):
             assert np.allclose(alphaEbeta[1], 
                 self.alpha * self.rho[1] * (1-self.rho[0]))
         doSparse1 = 'activeonlyLP' in kwargs and kwargs['activeonlyLP'] == 2
-        doSparse2 = 'nnzPerRowLP' in kwargs and kwargs['nnzPerRowLP'] < self.K
+        doSparse2 = 'nnzPerRowLP' in kwargs and \
+            kwargs['nnzPerRowLP'] > 0 and kwargs['nnzPerRowLP'] < self.K
         if hasattr(Data, 'word_count') and \
                 LP['obsModelName'].count('Mult') and \
                 doSparse1 and doSparse2:
