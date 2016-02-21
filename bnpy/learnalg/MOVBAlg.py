@@ -47,6 +47,7 @@ class MOVBAlg(LearnAlg):
         --------
         hmodel updated in place with improved global parameters.
         '''
+        self.set_start_time_now()
         # Initialize Progress Tracking vars like nBatch, lapFrac, etc.
         iterid, lapFrac = self.initProgressTrackVars(DataIterator)
 
@@ -64,7 +65,6 @@ class MOVBAlg(LearnAlg):
         # Begin loop over batches of data...
         SS = None
         isConverged = False
-        self.set_start_time_now()
         while DataIterator.has_next_batch():
 
             # Grab new data

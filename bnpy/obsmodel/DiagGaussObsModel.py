@@ -497,7 +497,7 @@ class DiagGaussObsModel(AbstractObsModel):
         dist += self.D / self.Post.kappa[k]
         return dist
 
-    def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False):
+    def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False, **kwargs):
         """ Calculate obsModel's objective using suff stats SS and Post.
 
         Args

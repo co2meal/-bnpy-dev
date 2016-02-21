@@ -1,5 +1,5 @@
 '''
-BarsK10V900.py
+CleanBars
 
 Toy Bars data, with K=10 topics and vocabulary size 900.
 5 horizontal bars, and 5 vertical bars.
@@ -50,7 +50,7 @@ def get_data(seed=SEED, **kwargs):
         Number of total words to create in each document (all docs same length)
     '''
     Data = CreateToyDataFromLDAModel(seed=seed, **kwargs)
-    Data.name = 'BarsK10V900'
+    Data.name = 'CleanBarsK10'
     Data.summary = get_data_info()
     return Data
 
@@ -60,7 +60,7 @@ def get_test_data(seed=6789, nDocTotal=100, **kwargs):
     Uses different random seed than get_data, but otherwise similar.
     '''
     Data = CreateToyDataFromLDAModel(seed=seed, nDocTotal=nDocTotal, **kwargs)
-    Data.name = 'BarsK10V900'
+    Data.name = 'CleanBarsK10'
     Data.summary = get_data_info()
     return Data
 

@@ -548,7 +548,7 @@ class GaussObsModel(AbstractObsModel):
         return self.Post.nu[k] * np.sum(Q, axis=0) \
             + self.D / self.Post.kappa[k]
 
-    def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False):
+    def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False, **kwargs):
         """ Calculate obsModel's objective using suff stats SS and Post.
 
         Args

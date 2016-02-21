@@ -584,7 +584,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
         return self.Post.nu[k] * np.sum(Q, axis=0) \
             + self.D * np.sum(Qprev, axis=0)
 
-    def calcELBO_Memoized(self, SS, afterMStep=False):
+    def calcELBO_Memoized(self, SS, afterMStep=False, **kwargs):
         ''' Calculate obsModel's objective using suff stats SS and Post.
 
         Args

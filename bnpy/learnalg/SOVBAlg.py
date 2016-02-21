@@ -29,7 +29,7 @@ class SOVBAlg(LearnAlg):
         --------
         hmodel updated in place with improved global parameters.
         '''
-
+        self.set_start_time_now()
         LP = None
         rho = 1.0  # Learning rate
         nBatch = float(DataIterator.nBatch)
@@ -57,8 +57,6 @@ class SOVBAlg(LearnAlg):
         else:
             EvRunningSum = 0
             EvMemory = np.zeros(nBatch)
-
-        self.set_start_time_now()
         while DataIterator.has_next_batch():
 
             # Grab new data

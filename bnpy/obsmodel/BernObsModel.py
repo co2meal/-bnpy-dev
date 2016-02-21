@@ -406,7 +406,7 @@ class BernObsModel(AbstractObsModel):
             Elog1mphiT=Elog1mphiT,
             DataAtomType=self.DataAtomType, **kwargs)
 
-    def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False):
+    def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False, **kwargs):
         """ Calculate obsModel's objective using suff stats SS and Post.
 
         Args
