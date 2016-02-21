@@ -245,7 +245,7 @@ def filterJobs(jpathPattern,
                 doKeep = False
                 continue
             reqval = reqKwArgs[reqkey]
-            if jdict[reqkey] != reqval:
+            if jdict[reqkey] != str(reqval):
                 doKeep = False
             else:
                 reqKwMatches[reqkey] += 1

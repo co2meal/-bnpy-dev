@@ -186,7 +186,8 @@ def evalTopicModelOnTestDataFromTaskpath(
         printFunc("~~~ dpL=%.6e\n~~~hdpL=%.6e" % (dpLscore, hdpLscore))
     # Prepare to save results.
     prefix, lap = getPrefixForLapQuery(taskpath, queryLap)
-    outmatfile = os.path.join(taskpath, prefix + "PredLik.mat")
+    outmatfile = os.path.join(taskpath, prefix + "Heldout_%s.mat"
+        % (dataSplitName))
     # Collect all quantities to save into giant dict.
     SaveVars = dict(
         version=VERSION,
@@ -204,17 +205,22 @@ def evalTopicModelOnTestDataFromTaskpath(
     SVars['K'] = K
     if elapsedTime is not None:
         SVars['timeTrain'] = elapsedTime
+    if dataSplitName.count('test'):
+        outfileprefix = 'predlik-'
+    else:
+        outfileprefix = dataSplitName + '-predlik-'
     for key in SVars:
         if key.endswith('PerDoc'):
             continue
-        outtxtfile = os.path.join(taskpath, 'predlik-%s.txt' % (key))
+        outtxtfile = os.path.join(taskpath, outfileprefix + '%s.txt' % (key))
         with open(outtxtfile, 'a') as f:
             f.write("%.6e\n" % (SVars[key]))
     if printFunc:
         printFunc("DONE with heldout inference at lap %.3f" % queryLap)
         printFunc("Wrote per-doc results in MAT file:" + 
             outmatfile.split(os.path.sep)[-1])
-        printFunc("      Aggregate results in txt files: predlik-__.txt")
+        printFunc("      Aggregate results in txt files: %s__.txt"
+            % (outfileprefix))
 
 
     # Write the summary message
@@ -222,8 +228,8 @@ def evalTopicModelOnTestDataFromTaskpath(
         etime = time.time() - stime
         curLapStr = '%7.3f' % (queryLap)
         nLapStr = '%d' % (nLap)
-        logmsg = '  %s/%s heldout metrics   | K %4d | %s'
-        logmsg = logmsg % (curLapStr, nLapStr, K, scoreMsg) 
+        logmsg = '  %s/%s %s metrics   | K %4d | %s'
+        logmsg = logmsg % (curLapStr, nLapStr, dataSplitName, K, scoreMsg) 
         printFunc(logmsg, 'info')
 
     return SaveVars
@@ -615,6 +621,7 @@ if __name__ == '__main__':
     parser.add_argument('--printStdOut', type=int, default=1)
     parser.add_argument('--printLevel', type=int, default=logging.INFO)
     parser.add_argument('--elapsedTime', type=float, default=None)
+    parser.add_argument('--dataSplitName', type=str, default="test")
     #parser.add_argument('--restartLP', type=int, default=None)
     #parser.add_argument('--fracHeldout', type=float, default=0.2)
     args = parser.parse_args()
