@@ -33,14 +33,15 @@ def evalTopicModelOnTestDataFromTaskpath(
     ''' Evaluate trained topic model saved in specified task on test data
     '''
     # Load saved kwargs for local step
-    try:
-        LPkwargs = loadLPKwargsFromDisk(taskpath)
-    except ValueError:
-        LPkwargs = dict(
-            nCoordAscentItersLP=100,
-            convThrLP=0.001,
-            restartLP=0,
-            initDocTopicCountLP='setDocProbsToEGlobalProbs')
+    #try:
+    #    LPkwargs = loadLPKwargsFromDisk(taskpath)
+    #except ValueError:
+    LPkwargs = dict(
+        nnzPerRowLP=0,
+        nCoordAscentItersLP=100,
+        convThrLP=0.01,
+        restartLP=0,
+        initDocTopicCountLP='setDocProbsToEGlobalProbs')
     for key in kwargs:
         if key in LPkwargs and kwargs[key] is not None:
             LPkwargs[key] = str2val(kwargs[key])
@@ -102,6 +103,7 @@ def evalTopicModelOnTestDataFromTaskpath(
         printFunc(msg)
 
     # Preallocate storage for metrics
+    KactivePerDoc = np.zeros(Data.nDoc)
     logpTokensPerDoc = np.zeros(Data.nDoc)
     nTokensPerDoc = np.zeros(Data.nDoc, dtype=np.int32)
     if hasattr(Data, 'word_count'):
@@ -120,11 +122,12 @@ def evalTopicModelOnTestDataFromTaskpath(
             nTokensPerDoc[d] = Info_d['nHeldoutToken']
             aucPerDoc[d] = Info_d['auc']
             RprecisionPerDoc[d] = Info_d['R_precision']
+            KactivePerDoc[d] = np.sum(Info_d['DocTopicCount'] >= 1.0)
             avgAUCscore = np.mean(aucPerDoc[:d+1])
             avgRscore = np.mean(RprecisionPerDoc[:d+1])
-            scoreMsg = "avgLik %.4f avgAUC %.4f avgRPrec %.4f" % (
+            scoreMsg = "avgLik %.4f avgAUC %.4f avgRPrec %.4f medianKact %d" % (
                 np.sum(logpTokensPerDoc[:d+1]) / np.sum(nTokensPerDoc[:d+1]),
-                avgAUCscore, avgRscore)
+                avgAUCscore, avgRscore, np.median(KactivePerDoc[:d+1]))
             SVars = dict(
                 avgRPrecScore=avgRscore,
                 avgAUCScore=avgAUCscore,
@@ -184,7 +187,16 @@ def evalTopicModelOnTestDataFromTaskpath(
         SVars['dpLscore'] = dpLscore
         SVars['hdpLscore'] = hdpLscore
         printFunc("~~~ dpL=%.6e\n~~~hdpL=%.6e" % (dpLscore, hdpLscore))
+    
+
+    # Record total time spent doing this
+    timeSpent = time.time() - stime
+
     # Prepare to save results.
+    if dataSplitName.count('test'):
+        outfileprefix = 'predlik-'
+    else:
+        outfileprefix = dataSplitName + '-predlik-'
     prefix, lap = getPrefixForLapQuery(taskpath, queryLap)
     outmatfile = os.path.join(taskpath, prefix + "Heldout_%s.mat"
         % (dataSplitName))
@@ -196,6 +208,7 @@ def evalTopicModelOnTestDataFromTaskpath(
         predLLPerDoc=logpTokensPerDoc,
         avgPredLL=np.sum(logpTokensPerDoc) / np.sum(nTokensPerDoc),
         K=K,
+        KactivePerDoc=KactivePerDoc,
         nTokensPerDoc=nTokensPerDoc,
         **LPkwargs)
     SaveVars.update(SVars)
@@ -203,12 +216,19 @@ def evalTopicModelOnTestDataFromTaskpath(
     SVars['avgLikScore'] = SaveVars['avgPredLL']
     SVars['lapTrain'] = queryLap
     SVars['K'] = K
+    for p in [10, 50, 90]:
+        SVars['KactivePercentile%02d' % (p)] = np.percentile(KactivePerDoc, p)
+    # Load previous time spent non training
+    timeSpentFilePath = os.path.join(taskpath, outfileprefix + 'timeSpentNotTraining.txt')
+    if os.path.exists(timeSpentFilePath):
+        with open(timeSpentFilePath,'r') as f:
+            for line in f.readlines():
+                pass
+            prevTime = float(line.strip())
+        timeSpent += prevTime
+    SVars['timeSpentNotTraining'] = timeSpent
     if elapsedTime is not None:
         SVars['timeTrain'] = elapsedTime
-    if dataSplitName.count('test'):
-        outfileprefix = 'predlik-'
-    else:
-        outfileprefix = dataSplitName + '-predlik-'
     for key in SVars:
         if key.endswith('PerDoc'):
             continue
@@ -229,7 +249,7 @@ def evalTopicModelOnTestDataFromTaskpath(
         curLapStr = '%7.3f' % (queryLap)
         nLapStr = '%d' % (nLap)
         logmsg = '  %s/%s %s metrics   | K %4d | %s'
-        logmsg = logmsg % (curLapStr, nLapStr, dataSplitName, K, scoreMsg) 
+        logmsg = logmsg % (curLapStr, nLapStr, '%5s' % (dataSplitName[:5]), K, scoreMsg) 
         printFunc(logmsg, 'info')
 
     return SaveVars

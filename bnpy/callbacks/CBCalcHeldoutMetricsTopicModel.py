@@ -87,9 +87,12 @@ def runHeldoutCallback(**kwargs):
     '''
     taskpath = kwargs['learnAlg'].savedir
     elapsedTime = kwargs['learnAlg'].get_elapsed_time()
-    InferHeldoutTopics.evalTopicModelOnTestDataFromTaskpath(
-        taskpath=taskpath,
-        elapsedTime=elapsedTime,
-        queryLap=kwargs['lapFrac'],
-        printFunc=HeldoutMetricsLogger.pprint,
-        **kwargs)
+    for splitName in ['validation', 'test']:
+        InferHeldoutTopics.evalTopicModelOnTestDataFromTaskpath(
+            dataSplitName=splitName,
+            taskpath=taskpath,
+            elapsedTime=elapsedTime,
+            queryLap=kwargs['lapFrac'],
+            printFunc=HeldoutMetricsLogger.pprint,
+            **kwargs)
+
