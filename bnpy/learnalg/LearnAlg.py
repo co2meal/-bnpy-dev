@@ -14,7 +14,7 @@ import logging
 import os
 import sys
 import scipy.io
-
+import ElapsedTimeLogger
 from bnpy.ioutil import ModelWriter
 from bnpy.util import isEvenlyDivisibleFloat
 
@@ -280,6 +280,7 @@ class LearnAlg(object):
         '''
         if lap in self.SavedIters or self.savedir is None:
             return
+        ElapsedTimeLogger.startEvent("io", "saveparams")
         self.SavedIters.add(lap)
         prefix = ModelWriter.makePrefixForLap(lap)
         with open(self.mkfile('laps-saved-params.txt'), 'a') as f:
@@ -294,6 +295,7 @@ class LearnAlg(object):
                 doSaveObsModel=self.outputParams['doSaveObsModel'])
         if self.outputParams['doSaveTopicModel']:
             ModelWriter.saveTopicModel(hmodel, SS, self.savedir, prefix)
+        ElapsedTimeLogger.stopEvent("io", "saveparams")
 
     def mkfile(self, fname):
         """ Create full system path for provided file basename.
@@ -360,7 +362,7 @@ class LearnAlg(object):
         maxLapStr = '%d' % (maxLap)
 
         logmsg = '  %s/%s after %6.0f sec. |'
-        logmsg += ' %8.3f MiB | K %4d | ev % .9e | %s %s'
+        logmsg += ' %8.1f MiB | K %4d | ev % .9e | %s %s'
         logmsg = logmsg % (lapStr,
                            maxLapStr,
                            self.get_elapsed_time(),

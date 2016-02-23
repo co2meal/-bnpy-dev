@@ -60,6 +60,7 @@ class MultObsModel(AbstractObsModel):
             lam = lam * np.ones(D)
         assert lam.size == D
         self.Prior.setField('lam', lam, dims=('D'))
+        self.prior_cFunc = c_Func(lam)
 
     def setupWithAllocModel(self, allocModel):
         ''' Using the allocation model, determine the modeling scenario.
@@ -364,7 +365,8 @@ class MultObsModel(AbstractObsModel):
                 ElogphiT=ElogphiT, **kwargs)
             return dict(E_log_soft_ev=E_log_soft_ev, ElogphiT=ElogphiT)
 
-    def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False, **kwargs):
+    def calcELBO_Memoized(self, SS, 
+            returnVec=0, afterGlobalStep=False, **kwargs):
         """ Calculate obsModel's objective using suff stats SS and Post.
 
         Args
@@ -381,12 +383,12 @@ class MultObsModel(AbstractObsModel):
         elbo = np.zeros(SS.K)
         Post = self.Post
         Prior = self.Prior
-        if not afterMStep:
+        if not afterGlobalStep:
             Elogphi = self.GetCached('E_logphi', 'all')  # K x V
-
         for k in xrange(SS.K):
-            elbo[k] = c_Diff(Prior.lam, Post.lam[k])
-            if not afterMStep:
+            elbo[k] = self.prior_cFunc - self.GetCached('cFunc', k)
+            #elbo[k] = c_Diff(Prior.lam, Post.lam[k])
+            if not afterGlobalStep:
                 elbo[k] += np.inner(SS.WordCounts[k] + Prior.lam - Post.lam[k],
                                     Elogphi[k])
         if returnVec:
@@ -423,8 +425,9 @@ class MultObsModel(AbstractObsModel):
         ---------
         gap : scalar real, indicates change in ELBO after merge of kA, kB
         '''
-        Prior = self.Prior
-        cPrior = c_Func(Prior.lam)
+        #Prior = self.Prior
+        #cPrior = c_Func(Prior.lam)
+        cPrior = self.prior_cFunc
 
         Post = self.Post
         cA = c_Func(Post.lam[kA])
@@ -442,14 +445,14 @@ class MultObsModel(AbstractObsModel):
         Gap : 2D array, size K x K, upper-triangular entries non-zero
               Gap[j,k] : scalar change in ELBO after merge of k into j
         '''
-        Prior = self.Prior
-        cPrior = c_Func(Prior.lam)
+        cPrior = self.prior_cFunc
 
         Post = self.Post
         c = np.zeros(SS.K)
         for k in xrange(SS.K):
             c[k] = c_Func(Post.lam[k])
 
+        tmpvec = np.zeros(Post.D)
         Gap = np.zeros((SS.K, SS.K))
         for j in xrange(SS.K):
             for k in xrange(j + 1, SS.K):
@@ -506,6 +509,26 @@ class MultObsModel(AbstractObsModel):
             logp[k] = c_Diff(Prior.lam, lam)
         return np.sum(logp)
 
+    def _cFunc(self, k=None):
+        ''' Compute cached value of cumulant function at desired cluster index.
+
+        Args
+        ----
+        k : int or str or None
+            None or 'prior' uses the prior parameter
+            otherwise, uses integer cluster index
+
+        Returns
+        -------
+        cval : scalar real
+        '''
+        if k is None or k == 'prior':
+            return c_Func(self.Prior.lam)
+        elif k == 'all':
+            raise NotImplementedError("TODO")
+        else:
+            return c_Func(self.Post.lam[k])
+
     def _E_logphi(self, k=None):
         if k is None or k == 'prior':
             lam = self.Prior.lam
@@ -529,7 +552,18 @@ class MultObsModel(AbstractObsModel):
             -------
             ElogphiT : 2D array, vocab_size x K
         '''
-        ElogphiT = self._E_logphi(k).T.copy()
+        if k is None or k == 'prior':
+            lam = self.Prior.lam
+            ElogphiT = digamma(lam) - digamma(np.sum(lam))
+        elif k == 'all':
+            ElogphiT = self.Post.lam.T.copy()
+            digamma(ElogphiT, out=ElogphiT)
+            digammaColSumVec = digamma(np.sum(self.Post.lam, axis=1))
+            ElogphiT -= digammaColSumVec[np.newaxis,:]
+        else:
+            ElogphiT = digamma(self.Post.lam[k]) - \
+                digamma(self.Post.lam[k].sum())
+        assert ElogphiT.flags.c_contiguous
         return ElogphiT
 
     def getSerializableParamsForLocalStep(self):

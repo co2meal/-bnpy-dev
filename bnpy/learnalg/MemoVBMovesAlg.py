@@ -124,10 +124,13 @@ class MemoVBMovesAlg(LearnAlg):
             self.LastUpdateLap[batchID] = lapFrac
 
             # Global step
-            hmodel = self.globalStep(hmodel, SS, lapFrac)
+            hmodel, didUpdate = self.globalStep(hmodel, SS, lapFrac)
 
             # ELBO calculation
-            Lscore = hmodel.calc_evidence(SS=SS)
+            ElapsedTimeLogger.startEvent('global', 'ev')
+            Lscore = hmodel.calc_evidence(
+                SS=SS, afterGlobalStep=didUpdate)
+            ElapsedTimeLogger.stopEvent('global', 'ev')
 
             # Birth moves!
             if self.hasMove('birth') and hasattr(SS, 'propXSS'):
@@ -249,7 +252,9 @@ class MemoVBMovesAlg(LearnAlg):
         SSbatch : bnpy.suffstats.SuffStatBag
         '''
         # Fetch the current batch of data
+        ElapsedTimeLogger.startEvent('io', 'loadbatch')
         Dbatch = DataIterator.getBatch(batchID=batchID)
+        ElapsedTimeLogger.stopEvent('io', 'loadbatch')
         # Prepare the kwargs for the local and summary steps
         # including args for the desired merges/deletes/etc.
         if not isinstance(MovePlans, dict):
@@ -453,7 +458,7 @@ class MemoVBMovesAlg(LearnAlg):
         LastUpdateLap attribute will indicate batchID was updated at lapFrac,
         unless working with a copy not raw memory (doCopy=1).
         '''
-        ElapsedTimeLogger.startEvent('global', 'loadbatch')
+        ElapsedTimeLogger.startEvent('global', 'fastfwdSS')
         try:
             SSbatch = self.SSmemory[batchID]
         except KeyError:
@@ -508,7 +513,7 @@ class MemoVBMovesAlg(LearnAlg):
         SSbatch.removeMergeTerms()
         if not doCopy:
             self.LastUpdateLap[batchID] = lapFrac
-        ElapsedTimeLogger.stopEvent('global', 'loadbatch')
+        ElapsedTimeLogger.stopEvent('global', 'fastfwdSS')
         return SSbatch
 
     def globalStep(self, hmodel, SS, lapFrac):
@@ -520,17 +525,21 @@ class MemoVBMovesAlg(LearnAlg):
         '''
         ElapsedTimeLogger.startEvent('global', 'update')
         doFullPass = self.algParams['doFullPassBeforeMstep']
+        didUpdate = False
         if self.algParams['doFullPassBeforeMstep'] == 1:
             if lapFrac >= 1.0:
                 hmodel.update_global_params(SS)
+                didUpdate = True
         elif doFullPass > 1.0:
             if lapFrac >= 1.0 or (doFullPass < SS.nDoc):
                 # update if we've seen specified num of docs, not before
                 hmodel.update_global_params(SS)
+                didUpdate = True
         else:
             hmodel.update_global_params(SS)
+            didUpdate = True
         ElapsedTimeLogger.stopEvent('global', 'update')
-        return hmodel
+        return hmodel, didUpdate
 
     def makeMovePlans(self, hmodel, SS,
                       MovePlans=dict(),
