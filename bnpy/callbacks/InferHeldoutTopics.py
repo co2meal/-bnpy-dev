@@ -188,8 +188,7 @@ def evalTopicModelOnTestDataFromTaskpath(
         SVars['hdpLscore'] = hdpLscore
         printFunc("~~~ dpL=%.6e\n~~~hdpL=%.6e" % (dpLscore, hdpLscore))
     
-
-    # Record total time spent doing this
+    # Record total time spent doing current work
     timeSpent = time.time() - stime
 
     # Prepare to save results.
@@ -218,17 +217,21 @@ def evalTopicModelOnTestDataFromTaskpath(
     SVars['K'] = K
     for p in [10, 50, 90]:
         SVars['KactivePercentile%02d' % (p)] = np.percentile(KactivePerDoc, p)
-    # Load previous time spent non training
-    timeSpentFilePath = os.path.join(taskpath, outfileprefix + 'timeSpentNotTraining.txt')
+    if elapsedTime is not None:
+        SVars['timeTrainAndEval'] = elapsedTime + timeSpent
+    # Load previous time spent non training from disk
+    timeSpentFilePath = os.path.join(
+        taskpath, outfileprefix + 'timeEvalOnly.txt')
     if os.path.exists(timeSpentFilePath):
         with open(timeSpentFilePath,'r') as f:
             for line in f.readlines():
                 pass
             prevTime = float(line.strip())
         timeSpent += prevTime
-    SVars['timeSpentNotTraining'] = timeSpent
+    SVars['timeEvalOnly'] = timeSpent
+    # Mark total time spent purely on training
     if elapsedTime is not None:
-        SVars['timeTrain'] = elapsedTime
+        SVars['timeTrain'] = SVars['timeTrainAndEval'] - timeSpent
     for key in SVars:
         if key.endswith('PerDoc'):
             continue
