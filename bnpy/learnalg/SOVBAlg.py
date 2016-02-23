@@ -138,8 +138,8 @@ class SOVBAlg(LearnAlg):
             if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):
                 self.saveDiagnostics(lapFrac, SS, evBound)
             if self.isSaveParamsCheckpoint(lapFrac, iterid):
-                self.saveParams(lapFrac, hmodel, SS)
-
+                self.saveParams(lapFrac, hmodel, tryToSparsifyOutput=1)
+                # don't save SS here, since its for one batch only
             self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
             # .... end loop over data
 

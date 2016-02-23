@@ -205,7 +205,8 @@ class MemoVBMovesAlg(LearnAlg):
             if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):
                 self.saveDiagnostics(lapFrac, SS, Lscore)
             if self.isSaveParamsCheckpoint(lapFrac, iterid):
-                self.saveParams(lapFrac, hmodel, SS)
+                self.saveParams(lapFrac, hmodel, SS,
+                    didExactUpdateWithSS=didUpdate)
 
             # Custom func hook
             self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))

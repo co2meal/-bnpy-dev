@@ -275,7 +275,7 @@ class LearnAlg(object):
             or np.allclose(lap, 4.0) \
             or np.allclose(lap, 8.0)
 
-    def saveParams(self, lap, hmodel, SS=None):
+    def saveParams(self, lap, hmodel, SS=None, **kwargs):
         ''' Save current model to disk
         '''
         if lap in self.SavedIters or self.savedir is None:
@@ -294,7 +294,8 @@ class LearnAlg(object):
                 doLinkBest=True,
                 doSaveObsModel=self.outputParams['doSaveObsModel'])
         if self.outputParams['doSaveTopicModel']:
-            ModelWriter.saveTopicModel(hmodel, SS, self.savedir, prefix)
+            ModelWriter.saveTopicModel(
+                hmodel, SS, self.savedir, prefix, **kwargs)
         ElapsedTimeLogger.stopEvent("io", "saveparams")
 
     def mkfile(self, fname):
