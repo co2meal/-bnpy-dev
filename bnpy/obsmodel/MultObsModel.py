@@ -418,6 +418,22 @@ class MultObsModel(AbstractObsModel):
         else:
             return SS.SumWordCounts.sum() - extraSS.SumWordCounts.sum()
 
+    def calcCFuncForMergeComp(self, SS, kA=None, kB=None, tmpvec=None):
+        ''' Compute cumulant function value directly from suff stats
+
+        Returns
+        -------
+        cval : c_Func evaluated on SS[kA] + SS[kB] + priorlam
+        '''
+        if tmpvec is None:
+            tmpvec = SS.WordCounts[kA] + SS.WordCounts[kB]
+        else:
+            np.add(SS.WordCounts[kA], SS.WordCounts[kB], out=tmpvec)
+        tmpvec += self.Prior.lam
+        gammalnsum = gammaln(np.sum(tmpvec))
+        gammaln(tmpvec, out=tmpvec)
+        return gammalnsum - np.sum(tmpvec)
+
     def calcHardMergeGap(self, SS, kA, kB):
         ''' Calculate change in ELBO after a hard merge applied to this model
 
@@ -433,8 +449,9 @@ class MultObsModel(AbstractObsModel):
         cA = c_Func(Post.lam[kA])
         cB = c_Func(Post.lam[kB])
 
-        lam = self.calcPostParamsForComp(SS, kA, kB)
-        cAB = c_Func(lam)
+        cAB = self.calcCFuncForMergeComp(SS, kA, kB)
+        #lam = self.calcPostParamsForComp(SS, kA, kB)
+        #cAB = c_Func(lam)
         return cA + cB - cPrior - cAB
 
     def calcHardMergeGap_AllPairs(self, SS):
@@ -456,8 +473,10 @@ class MultObsModel(AbstractObsModel):
         Gap = np.zeros((SS.K, SS.K))
         for j in xrange(SS.K):
             for k in xrange(j + 1, SS.K):
-                lam = self.calcPostParamsForComp(SS, j, k)
-                cjk = c_Func(lam)
+                cjk = self.calcCFuncForMergeComp(SS, j, k, tmpvec=tmpvec)
+                #lam = self.calcPostParamsForComp(SS, j, k)
+                #oldcjk = c_Func(lam)
+                #assert np.allclose(cjk, oldcjk)
                 Gap[j, k] = c[j] + c[k] - cPrior - cjk
         return Gap
 
