@@ -18,8 +18,9 @@ import PlotComps
 
 import JobFilter
 import TaskRanker
+import BestJobSearcher
 
 __all__ = ['GaussViz', 'BernViz', 'BarsViz', 'SequenceViz',
            'PlotTrace', 'PlotELBO', 'PlotK', 'ProposalViz',
            'PlotComps', 'PlotParamComparison',
-           'PlotHeldoutLik', 'JobFilter', 'TaskRanker']
+           'PlotHeldoutLik', 'JobFilter', 'TaskRanker', 'BestJobSearcher']
