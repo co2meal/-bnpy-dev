@@ -111,7 +111,7 @@ class FiniteTopicModel(AllocModel):
                 Defines approximate posterior on doc-topic weights.
                 q(\pi_d) = Dirichlet(theta[d,0], ... theta[d, K-1])
         '''
-        alphaEbeta = self.alpha * np.ones(self.K)
+        alphaEbeta = (self.alpha / self.K) * np.ones(self.K)
         doSparse1 = 'activeonlyLP' in kwargs and kwargs['activeonlyLP'] == 2
         doSparse2 = 'nnzPerRowLP' in kwargs and \
             kwargs['nnzPerRowLP'] > 0 and kwargs['nnzPerRowLP'] < self.K
@@ -197,22 +197,6 @@ class FiniteTopicModel(AllocModel):
         '''
         SS = calcSummaryStats(Data, LP, alpha=self.alpha, **kwargs)
         return SS
-        """
-        resp = LP['resp']
-        _, K = resp.shape
-
-        SS = SuffStatBag(K=K, D=Data.get_dim())
-        if cslice[1] is None:
-            SS.setField('nDoc', Data.nDoc, dims=None)
-        else:
-            SS.setField('nDoc', cslice[1] - cslice[0], dims=None)
-        if doPrecompEntropy:
-            Hvec = self.L_entropy(Data, LP, returnVector=1)
-            Lalloc = self.L_alloc(Data, LP)
-            SS.setELBOTerm('Hvec', Hvec, dims='K')
-            SS.setELBOTerm('L_alloc', Lalloc, dims=None)
-        return SS
-        """
 
     def update_global_params(self, SS, rho=None, **kwargs):
         ''' Update global parameters to optimize the ELBO objective.
@@ -319,8 +303,8 @@ def L_alloc(Data=None, LP=None, nDoc=0, alpha=1.0, **kwargs):
         LP = dict(**kwargs)
 
     K = LP['DocTopicCount'].shape[1]
-    cDiff = nDoc * c_Func(alpha, K) - c_Func(LP['theta'])
-    slackVec = LP['DocTopicCount'] + alpha - LP['theta']
+    cDiff = nDoc * c_Func(alpha / K, K) - c_Func(LP['theta'])
+    slackVec = LP['DocTopicCount'] + alpha / K - LP['theta']
     slackVec *= LP['ElogPi']
     return cDiff + np.sum(slackVec)
 

@@ -30,6 +30,7 @@ YLabelMap = dict(
     avgLikScore='heldout log lik',
     avgAUCScore='heldout AUC',
     avgRPrecScore='heldout R precision',
+    Kactive='num topics / doc',
     )
 
 
@@ -95,6 +96,7 @@ def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
 
 def plot_all_tasks_for_job(jobpath, label, taskids=None,
                            lineType='.-',
+                           spreadLineType='--',
                            color=None,
                            yvar='avgLikScore',
                            xvar='laps',
@@ -112,9 +114,9 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
     if not os.path.exists(jobpath):
         print 'PATH NOT FOUND', jobpath
         return None
-    if not yvar.startswith('avg'):
+    if not yvar.startswith('avg') and yvar.count('Kactive') == 0:
         yvar = 'avg' + yvar
-    if not yvar.endswith('Score'):
+    if not yvar.endswith('Score') and yvar.count('Kactive') == 0:
         yvar = yvar + 'Score'
 
     if color is None:
@@ -125,7 +127,8 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         taskoutpath = os.path.join(jobpath, taskid)
         hpaths = glob.glob(os.path.join(taskoutpath, '*' + fileSuffix))
         txtpaths = glob.glob(os.path.join(taskoutpath, 'predlik-*.txt'))
-
+        ys_hi = None
+        ys_lo = None
         if len(txtpaths) > 0:
             if fileSuffix.endswith('.txt'):
                 suffix = '-' + fileSuffix
@@ -141,8 +144,16 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                     taskoutpath, prefix + '-timeTrain.txt'))
             else:
                 raise ValueError("Unrecognized xvar: " + xvar)
-            ys = np.loadtxt(
-                os.path.join(taskoutpath, prefix + '-' + yvar + suffix))
+            if yvar.count('Kactive') and not yvar.count('Percentile'):
+                ys = np.loadtxt(os.path.join(taskoutpath, 
+                        prefix + '-' + yvar + 'Percentile50.txt'))
+                ys_lo = np.loadtxt(os.path.join(taskoutpath, 
+                    prefix + '-' + yvar + 'Percentile10.txt'))
+                ys_hi = np.loadtxt(os.path.join(taskoutpath, 
+                    prefix + '-' + yvar + 'Percentile90.txt'))
+            else:
+                ys = np.loadtxt(
+                    os.path.join(taskoutpath, prefix + '-' + yvar + suffix))
 
             if minLap > 0 and taskoutpath.count('fix'):
                 mask = laps > minLap
@@ -170,6 +181,11 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         if xjitter is not None:
             xs = xs + xjitter
         pylab.plot(xs, ys, lineType, **plotargs)
+        if ys_lo is not None:
+            del plotargs['label']
+            pylab.plot(xs, ys_lo, spreadLineType, **plotargs)
+            pylab.plot(xs, ys_hi, spreadLineType, **plotargs)
+
         if showFinalPt:
             pylab.plot(xs[-1], ys[-1], '.', **plotargs)
     pylab.xlabel(XLabelMap[xvar])
