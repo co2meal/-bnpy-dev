@@ -66,6 +66,105 @@ double calcElapsedTime(timespec start_time, timespec end_time) {
     return diffSec + diffNano / 1.0e9;
 }
 
+
+struct LessThanFor1DArray {
+    const double* xptr;
+
+    LessThanFor1DArray(const double * xptrIN) {
+        xptr = xptrIN;
+    }
+
+    bool operator()(int i, int j) {
+        return xptr[i] < xptr[j];
+    }
+
+};
+
+struct GreaterThanFor1DArray {
+    const double* xptr;
+
+    GreaterThanFor1DArray(const double * xptrIN) {
+        xptr = xptrIN;
+    }
+
+    bool operator()(int i, int j) {
+        return xptr[i] > xptr[j];
+    }
+};
+
+struct Argsortable1DArray {
+    double* xptr;
+    int* iptr;
+    int size;
+    
+    // Constructor
+    Argsortable1DArray(double* xptrIN, int sizeIN) {
+        xptr = xptrIN;
+        size = sizeIN;
+        iptr = new int[size];
+        resetIndices(size);
+    }
+
+    // Helper method: reset iptr array to 0, 1, ... K-1 
+    void resetIndices(int cursize) {
+        assert(cursize <= size);
+        for (int i = 0; i < cursize; i++) {
+            iptr[i] = i;
+        }
+    }
+
+    void pprint() {
+        for (int i = 0; i < size; i++) {
+            printf("%03d:% 05.2f ",
+                this->iptr[i],
+                this->xptr[this->iptr[i]]);
+        }
+        printf("\n");
+    }
+
+    void argsort() {
+        this->argsort_AscendingOrder();
+    }
+
+    void argsort_AscendingOrder() {
+        std::sort(
+            this->iptr,
+            this->iptr + this->size,
+            LessThanFor1DArray(this->xptr)
+            );
+    }
+
+    void argsort_DescendingOrder() {
+        std::sort(
+            this->iptr,
+            this->iptr + this->size,
+            GreaterThanFor1DArray(this->xptr)
+            );
+    }
+
+    void findSmallestL(int L) {
+        assert(L >= 0);
+        assert(L < this->size);
+        std::nth_element(
+            this->iptr,
+            this->iptr + L,
+            this->iptr + this->size,
+            LessThanFor1DArray(this->xptr)
+            );
+    }
+
+    void findLargestL(int L, int Kactive) {
+        assert(L >= 0);
+        assert(L <= Kactive);
+        std::nth_element(
+            this->iptr,
+            this->iptr + Kactive - L,
+            this->iptr + Kactive,
+            LessThanFor1DArray(this->xptr)
+            );
+    }
+};
+
 void precomputeTopLRespForEachVocabTerm(
         int nnzPerRow,
         int V,
@@ -225,6 +324,100 @@ double calcELBOForDoc(
     return ELBO;
 }
 
+
+double updateAssignmentsForDoc_ReviseActiveSetDupOK(  
+    int d,
+    int start_d,
+    int N_d,
+    int nnzPerRow,
+    int Kactive,
+    ExtArr1D_d alphaEbeta, 
+    ExtArr2D_d Eloglik,
+    ExtArr1D_d word_count,
+    ExtArr1D_i word_id,
+    ExtArr2D_d & topicCount,
+    ExtArr1D_d & spResp_data,
+    ExtArr1D_i & spResp_colids,
+    Arr1D_i & activeTopics_d,
+    Arr1D_d & ElogProb_d,
+    Arr1D_d & logScores_n,
+    Argsortable1DArray & logScoresHandler,
+    int initProbsToEbeta,
+    int doTrackELBO
+    )
+{
+    double totalLogSumResp = 0.0;
+
+    // Update ElogProb_d for active topics
+    if (initProbsToEbeta == 1) {
+        for (int ka = 0; ka < Kactive; ka++) {
+            int k = activeTopics_d(ka);
+            ElogProb_d(k) = log(alphaEbeta(k));
+        }
+    }  else {
+        for (int ka = 0; ka < Kactive; ka++) {
+            int k = activeTopics_d(ka);
+            ElogProb_d(k) = boost::math::digamma(
+                topicCount(d, k) + alphaEbeta(k));
+        }
+    }
+    // RESET topicCounts for doc d
+    topicCount.row(d).fill(0);
+
+    // Update Resp_d for active topics
+    // UPDATE assignments, obeying sparsity constraint
+    for (int n = start_d; n < start_d + N_d; n++) {
+        int spRind_dn_start = n * nnzPerRow;
+        double w_ct = word_count(n);
+        int w_id = word_id(n);
+        int argmax_n = 0;
+        double maxScore_n;
+        for (int ka = 0; ka < Kactive; ka++) {
+            int k = activeTopics_d(ka);
+            logScores_n(ka) = ElogProb_d(k) + Eloglik(w_id, k);
+            if (ka == 0 || logScores_n(ka) > maxScore_n) {
+                maxScore_n = logScores_n(ka);
+                if (nnzPerRow == 1) {
+                    argmax_n = k;
+                }
+            }
+        }
+        if (nnzPerRow == 1) {
+            spResp_data(spRind_dn_start) = 1.0;
+            spResp_colids(spRind_dn_start) = argmax_n;
+            topicCount(d, argmax_n) += w_ct;
+            if (doTrackELBO) {
+                totalLogSumResp += w_ct * maxScore_n;
+            }
+        } else {
+            // Use handler's built-in findLargestL functionality
+            logScoresHandler.resetIndices(Kactive);
+            logScoresHandler.findLargestL(nnzPerRow, Kactive);
+
+            // Read off the top L values into spR data structures
+            int spRind_dn = spRind_dn_start;
+            double sumResp_n = 0.0;
+            for (int j = 0; j < nnzPerRow; j++) {
+                int ka = logScoresHandler.iptr[Kactive - j - 1];
+                spResp_data(spRind_dn) = fastexp(
+                    logScoresHandler.xptr[ka] - maxScore_n);
+                spResp_colids(spRind_dn) = activeTopics_d(ka);
+                sumResp_n += spResp_data(spRind_dn);
+                spRind_dn += 1;
+            }
+            for (spRind_dn = spRind_dn_start;
+                    spRind_dn < spRind_dn_start + nnzPerRow; spRind_dn++) {
+                spResp_data(spRind_dn) /= sumResp_n;
+                topicCount(d, spResp_colids(spRind_dn)) += \
+                    w_ct * spResp_data(spRind_dn);
+            }
+            if (doTrackELBO) {
+                totalLogSumResp += w_ct * (maxScore_n + log(sumResp_n));
+            }
+        } // end if statement branch for nnz > 1
+    } // end for loop over tokens in this doc
+    return totalLogSumResp;
+}
 
 double updateAssignmentsForDoc_ReviseActiveSet(  
     int d,
@@ -422,7 +615,8 @@ double tryRestartsForDoc(
     Arr1D_d & prevTopicCount_d,
     Arr1D_d & ElogProb_d,
     Arr1D_d & logScores_n,
-    Arr1D_d & tempScores_n,
+    Argsortable1DArray & logScoresHandler,
+    //Arr1D_d & tempScores_n,
     ExtArr1D_i & rAcceptVec,
     ExtArr1D_i & rTrialVec,
     int numRestarts,
@@ -442,11 +636,11 @@ double tryRestartsForDoc(
     }
     for (int riter = 0; riter < numRestarts; riter++) {
         if (riter == 0) {
-            totalLogSumResp = updateAssignmentsForDoc_ReviseActiveSet(
+            totalLogSumResp = updateAssignmentsForDoc_ReviseActiveSetDupOK(
                 d, start_d, N_d, nnzPerRow, Kactive,
                 alphaEbeta, Eloglik, word_count, word_id, 
                 topicCount, spResp_data, spResp_colids,
-                activeTopics_d, ElogProb_d, logScores_n, tempScores_n,
+                activeTopics_d, ElogProb_d, logScores_n, logScoresHandler,
                 0, 1);
             // ELBO for current configuration
             curELBO = calcELBOForDoc(d, alphaEbeta, topicCount,
@@ -499,11 +693,11 @@ double tryRestartsForDoc(
         // Run inference forward from forced new location
         int NSTEP = 2;
         for (int step = 0; step < NSTEP; step++) { 
-            totalLogSumResp = updateAssignmentsForDoc_ReviseActiveSet(
+            totalLogSumResp = updateAssignmentsForDoc_ReviseActiveSetDupOK(
                 d, start_d, N_d, nnzPerRow, Kactive,
                 alphaEbeta, Eloglik, word_count, word_id, 
                 topicCount, spResp_data, spResp_colids,
-                activeTopics_d, ElogProb_d, logScores_n, tempScores_n,
+                activeTopics_d, ElogProb_d, logScores_n, logScoresHandler,
                 0, step == NSTEP - 1);
         }
         // If the change is small, abandon current proposal
@@ -558,11 +752,11 @@ double tryRestartsForDoc(
             topicCount(d, k) = prevTopicCount_d(k);
         }
         // Final update! Make sure spResp reflects best topicCounts found
-        updateAssignmentsForDoc_ReviseActiveSet(
+        updateAssignmentsForDoc_ReviseActiveSetDupOK(
             d, start_d, N_d, nnzPerRow, Kactive,
             alphaEbeta, Eloglik, word_count, word_id, 
             topicCount, spResp_data, spResp_colids,
-            activeTopics_d, ElogProb_d, logScores_n, tempScores_n,
+            activeTopics_d, ElogProb_d, logScores_n, logScoresHandler,
             0, 0);
     } // end if to synchronize at best known assignments
 
@@ -629,6 +823,9 @@ void sparseLocalStepManyDocs_ActiveOnly(
     
     Arr1D_d termResp_data;
     Arr1D_i termResp_colids;
+
+    Argsortable1DArray logScoresHandler = Argsortable1DArray(
+        logScores_n.data(), K);  
 
     if (initProbsToEbeta == 2) {
         termResp_data = Arr1D_d::Zero(V * nnzPerRow);
@@ -762,7 +959,7 @@ void sparseLocalStepManyDocs_ActiveOnly(
             // COMPUTE ASSIGNMENTS FOR CURRENT ACTIVE SET
             if (doReviseActiveSet) {
                 //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
-                updateAssignmentsForDoc_ReviseActiveSet(
+                updateAssignmentsForDoc_ReviseActiveSetDupOK(
                     d, start_d, N_d, nnzPerRow, Kactive,
                     alphaEbeta,
                     Eloglik,
@@ -774,7 +971,7 @@ void sparseLocalStepManyDocs_ActiveOnly(
                     activeTopics_d,
                     ElogProb_d,
                     logScores_n,
-                    tempScores_n,
+                    logScoresHandler,
                     (initProbsToEbeta == 1) && (iter == 0),
                     0);
                 //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
@@ -858,7 +1055,7 @@ void sparseLocalStepManyDocs_ActiveOnly(
                 prevTopicCount_d,
                 ElogProb_d,
                 logScores_n,
-                tempScores_n,
+                logScoresHandler,
                 rAcceptVec,
                 rTrialVec,
                 numRestarts,

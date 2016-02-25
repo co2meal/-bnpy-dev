@@ -71,7 +71,9 @@ struct Argsortable1DArray {
 
     void pprint() {
         for (int i = 0; i < size; i++) {
-            printf("%03d:% 05.2f ", this->iptr[i], this->xptr[this->iptr[i]]);
+            printf("%03d:% 05.2f ",
+                this->iptr[i],
+                this->xptr[this->iptr[i]]);
         }
         printf("\n");
     }
@@ -166,7 +168,7 @@ void findTopL_WITHCOPY(
             i += 1;
         }
     }
-    assert(i == topL - 1);
+    assert(i == topL);
 }
 
 double calcElapsedTime(timespec start_time, timespec end_time) {
@@ -178,6 +180,7 @@ double calcElapsedTime(timespec start_time, timespec end_time) {
 void testSpeed_findTopL(
     int topL,
     int K,
+
     int nRep)
 {
     if (topL >= K) {
@@ -206,23 +209,37 @@ void testSpeed_findTopL(
         std::srand(rep); // Set random seed
         // Fill with random values
         for (int k = 0; k < K; k++) {
-            scoreVec(k) = std::rand();
+            int val = std::rand();
+            scoreVec(k) = ((double) val / (double) RAND_MAX);
         }
+        scoreVec(0) = 55.0;
+        scoreVec(K-1) = 55.0; // Make a duplicate!!
         
-        //start_time = clock();
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
         findTopL_WITHSTRUCT(arr,
             topLdata_WITHSTRUCT, topLinds_WITHSTRUCT, topL, K);
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
-        //end_time = clock();
         elapsedSec_WITHSTRUCT += calcElapsedTime(start_time, end_time);
 
-        //start_time = clock();
+        int found0 = 0;
+        int foundKm1 = 0;
+        for (int ka = 0; ka < topL; ka++) {
+            //printf("%4d %6.2f\n", 
+            //    topLinds_WITHSTRUCT(ka), topLdata_WITHSTRUCT(ka));
+            if (topLinds_WITHSTRUCT(ka) == 0) {
+                found0 = 1;
+            } else if (topLinds_WITHSTRUCT(ka) == K - 1) {
+                foundKm1 = 1;
+            }
+        }
+        //printf("\n");
+        assert(found0 > 0);
+        assert(foundKm1 > 0);
+        /*
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
         findTopL_WITHCOPY(scoreVec, tempScoreVec,
             topLdata_WITHCOPY, topLinds_WITHCOPY, topL, K);
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
-        //end_time = clock();
         elapsedSec_WITHCOPY += calcElapsedTime(start_time, end_time);
 
         // VERIFY
@@ -236,7 +253,7 @@ void testSpeed_findTopL(
                     printf("BAD!\n");
                 }
             }
-        }
+        }*/
     }
 
     printf("K=%d topL=%d\n", K, topL);
