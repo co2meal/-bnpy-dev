@@ -404,9 +404,12 @@ def calcSummaryStats(Dslice, LP=None, alpha=None,
 
     SS.setField('nDoc', Dslice.nDoc, dims=None)
     if doPrecompEntropy:
-        Hvec = L_entropy(Dslice, LP, returnVector=1)
         assert 'theta' in LP
         Lalloc = L_alloc(Dslice, LP, alpha=alpha)
-        SS.setELBOTerm('Hvec', Hvec, dims='K')
+        if 'nnzPerRow' in LP and LP['nnzPerRow'] == 1:
+            SS.setELBOTerm('Hvec', 0.0, dims=None)
+        else:
+            Hvec = L_entropy(Dslice, LP, returnVector=1)
+            SS.setELBOTerm('Hvec', Hvec, dims='K')
         SS.setELBOTerm('L_alloc', Lalloc, dims=None)
     return SS
