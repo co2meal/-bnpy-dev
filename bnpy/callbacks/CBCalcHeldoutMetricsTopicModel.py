@@ -86,8 +86,8 @@ def runHeldoutCallback(**kwargs):
     MATfile format: Lap0020.000MAPStateSeqs.mat
     '''
     taskpath = kwargs['learnAlg'].savedir
-    elapsedTime = kwargs['learnAlg'].get_elapsed_time()
     for splitName in ['validation', 'test']:
+        elapsedTime = kwargs['learnAlg'].get_elapsed_time()
         InferHeldoutTopics.evalTopicModelOnTestDataFromTaskpath(
             dataSplitName=splitName,
             taskpath=taskpath,

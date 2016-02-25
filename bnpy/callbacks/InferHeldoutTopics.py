@@ -32,10 +32,8 @@ def evalTopicModelOnTestDataFromTaskpath(
         **kwargs):
     ''' Evaluate trained topic model saved in specified task on test data
     '''
-    # Load saved kwargs for local step
-    #try:
-    #    LPkwargs = loadLPKwargsFromDisk(taskpath)
-    #except ValueError:
+    stime = time.time()
+
     LPkwargs = dict(
         nnzPerRowLP=0,
         nCoordAscentItersLP=100,
@@ -109,7 +107,6 @@ def evalTopicModelOnTestDataFromTaskpath(
     if hasattr(Data, 'word_count'):
         aucPerDoc = np.zeros(Data.nDoc)
         RprecisionPerDoc = np.zeros(Data.nDoc)
-    stime = time.time()
     for d in range(Data.nDoc):
         Data_d = Data.select_subset_by_mask([d], doTrackFullSize=0)
         if hasattr(Data, 'word_count'):
@@ -187,10 +184,6 @@ def evalTopicModelOnTestDataFromTaskpath(
         SVars['dpLscore'] = dpLscore
         SVars['hdpLscore'] = hdpLscore
         printFunc("~~~ dpL=%.6e\n~~~hdpL=%.6e" % (dpLscore, hdpLscore))
-    
-    # Record total time spent doing current work
-    timeSpent = time.time() - stime
-
     # Prepare to save results.
     if dataSplitName.count('test'):
         outfileprefix = 'predlik-'
@@ -217,21 +210,32 @@ def evalTopicModelOnTestDataFromTaskpath(
     SVars['K'] = K
     for p in [10, 50, 90]:
         SVars['KactivePercentile%02d' % (p)] = np.percentile(KactivePerDoc, p)
+
+    
+    # Record total time spent doing current work
+    timeSpent = time.time() - stime
     if elapsedTime is not None:
         SVars['timeTrainAndEval'] = elapsedTime + timeSpent
     # Load previous time spent non training from disk
-    timeSpentFilePath = os.path.join(
-        taskpath, outfileprefix + 'timeEvalOnly.txt')
-    if os.path.exists(timeSpentFilePath):
-        with open(timeSpentFilePath,'r') as f:
+    timeSpentFilepaths = glob.glob(os.path.join(taskpath, '*-timeEvalOnly.txt'))
+    totalTimeSpent = timeSpent    
+    splitTimeSpent = timeSpent    
+    for timeSpentFilepath in timeSpentFilepaths:
+        with open(timeSpentFilepath,'r') as f:
             for line in f.readlines():
                 pass
             prevTime = float(line.strip())
-        timeSpent += prevTime
-    SVars['timeEvalOnly'] = timeSpent
+        cond1 = dataSplitName.count('valid')
+        cond2 = timeSpentFilepath.count('valid')
+        if cond1 and cond2:
+            splitTimeSpent += prevTime
+        elif (not cond1) and (not cond2):
+            splitTimeSpent += prevTime
+        totalTimeSpent += prevTime
+    SVars['timeEvalOnly'] = splitTimeSpent
     # Mark total time spent purely on training
     if elapsedTime is not None:
-        SVars['timeTrain'] = SVars['timeTrainAndEval'] - timeSpent
+        SVars['timeTrain'] = SVars['timeTrainAndEval'] - totalTimeSpent
     for key in SVars:
         if key.endswith('PerDoc'):
             continue
@@ -244,7 +248,6 @@ def evalTopicModelOnTestDataFromTaskpath(
             outmatfile.split(os.path.sep)[-1])
         printFunc("      Aggregate results in txt files: %s__.txt"
             % (outfileprefix))
-
 
     # Write the summary message
     if printFunc:
