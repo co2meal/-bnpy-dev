@@ -153,8 +153,11 @@ def create_best_link(hardmatfile, linkmatfile):
             os.symlink(hardmatfile, linkmatfile)
 
 
-def saveTopicModel(hmodel, SS, fpath, prefix, doLinkBest=False,
-                   sparseEPS=0.002):
+def saveTopicModel(hmodel, SS, fpath, prefix,
+                   didExactUpdateWithSS=True, 
+                   tryToSparsifyOutput=False,
+                   doLinkBest=False,
+                   sparseEPS=0.002, **kwargs):
     ''' Write TopicModel to .mat formatted file on disk.
 
     Post Condition
@@ -186,12 +189,22 @@ def saveTopicModel(hmodel, SS, fpath, prefix, doLinkBest=False,
         if hasattr(SS, 'nDoc'):
             EstPDict['nDoc'] = SS.nDoc
         EstPDict['countvec'] = np.sum(SS.WordCounts, axis=1)
-
+    isMult = str(type(hmodel.obsModel)).count('Mult') > 0
     # Obsmodel parameters
-    if str(type(hmodel.obsModel)).count('Mult') and SS is not None:
+    # Remember, if no update has occurred,
+    # then we'd be saving suff stats that are *not* in sync with model params
+    if isMult and SS is not None and didExactUpdateWithSS:
         SparseWordCounts = np.asarray(SS.WordCounts, dtype=np.float32)
         SparseWordCounts[SparseWordCounts < sparseEPS] = 0
         SparseWordCounts = scipy.sparse.csr_matrix(SparseWordCounts)
+        EstPDict['TopicWordCount_data'] = SparseWordCounts.data
+        EstPDict['TopicWordCount_indices'] = SparseWordCounts.indices
+        EstPDict['TopicWordCount_indptr'] = SparseWordCounts.indptr
+    elif isMult and tryToSparsifyOutput:
+        effWordCount = np.asarray(hmodel.obsModel.Post.lam, dtype=np.float32)
+        effWordCount -= lamPrior
+        effWordCount[effWordCount < sparseEPS] = 0
+        SparseWordCounts = scipy.sparse.csr_matrix(effWordCount)
         EstPDict['TopicWordCount_data'] = SparseWordCounts.data
         EstPDict['TopicWordCount_indices'] = SparseWordCounts.indices
         EstPDict['TopicWordCount_indptr'] = SparseWordCounts.indptr
