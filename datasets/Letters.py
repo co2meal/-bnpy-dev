@@ -3,6 +3,7 @@ import time
 
 from bnpy.data import GroupXData
 
+
 def get_data(nDocTotal=200, nObsPerDoc=300,
 		nLetterPerDoc=3, seed=0, dstart=0, **kwargs):
 	''' Generate data as GroupXData object
@@ -15,16 +16,16 @@ def get_data(nDocTotal=200, nObsPerDoc=300,
 	# Letters decay in probability from A to Z
 	LetterProbs = np.ones(nLetters)
 	for i in range(1, nLetters):
-		LetterProbs[i] = 0.95 * LetterProbs[i-1]
+		LetterProbs[i] = 0.95 * LetterProbs[i - 1]
 	LetterProbs /= LetterProbs.sum()
 
 	X = np.zeros((nDocTotal * nObsPerDoc, 64))
 	TrueZ = np.zeros(nDocTotal * nObsPerDoc)
-	doc_range = np.zeros(nDocTotal+1, dtype=np.int32)
+	doc_range = np.zeros(nDocTotal + 1, dtype=np.int32)
 	for d in xrange(nDocTotal):
 		start_d = d * nObsPerDoc
 		doc_range[d] = start_d
-		doc_range[d+1] = start_d + nObsPerDoc
+		doc_range[d + 1] = start_d + nObsPerDoc
 
 		# Select subset of letters to appear in current document
 		mustIncludeLetter = (dstart + d) % 26

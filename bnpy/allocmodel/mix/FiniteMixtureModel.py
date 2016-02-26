@@ -8,7 +8,8 @@ from bnpy.suffstats import SuffStatBag
 from bnpy.util import NumericUtil
 from bnpy.util import logsumexp
 from bnpy.util import gammaln, digamma
-
+from bnpy.util.SparseRespUtil import sparsifyLogResp
+from DPMixtureModel import calcSummaryStats, calcHrespFromLP
 
 class FiniteMixtureModel(AllocModel):
 
@@ -67,7 +68,7 @@ class FiniteMixtureModel(AllocModel):
         '''
         return list()
 
-    def calc_local_params(self, Data, LP, **kwargs):
+    def calc_local_params(self, Data, LP, nnzPerRowLP=0, **kwargs):
         ''' Compute local parameters for each data item and component.
 
         Parameters
@@ -88,6 +89,7 @@ class FiniteMixtureModel(AllocModel):
                 resp[n, k] = p(z[n] = k | x[n])
         '''
         lpr = LP['E_log_soft_ev']
+        K = lpr.shape[1]
         if self.inferType.count('EM') > 0:
             # Using point estimates, for EM algorithm
             lpr += np.log(self.w)
@@ -97,14 +99,21 @@ class FiniteMixtureModel(AllocModel):
         else:
             # Full Bayesian approach, for VB or GS algorithms
             lpr += self.Elogw
-            # Calculate exp in numerically safe way,
-            # in-place so no new allocations occur
-            NumericUtil.inplaceExpAndNormalizeRows(lpr)
-        LP['resp'] = lpr
-        assert np.allclose(lpr.sum(axis=1), 1)
+            if nnzPerRowLP and (nnzPerRowLP > 0 and nnzPerRowLP < K):
+                # SPARSE Assignments
+                LP['nnzPerRow'] = nnzPerRowLP
+                LP['spR'] = sparsifyLogResp(lpr, nnzPerRow=nnzPerRowLP)
+                assert np.all(np.isfinite(LP['spR'].data))
+            else:
+                # DENSE Assignments
+                # Calculate exp in numerically safe way,
+                # in-place so no new allocations occur
+                NumericUtil.inplaceExpAndNormalizeRows(lpr)
+                LP['resp'] = lpr
+                assert np.allclose(lpr.sum(axis=1), 1)
         return LP
 
-    def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
+    def get_global_suff_stats(self, Data, LP, **kwargs):
         ''' Calculate sufficient statistics for global updates.
 
         Parameters
@@ -125,10 +134,13 @@ class FiniteMixtureModel(AllocModel):
                 N[k] = expected number of items assigned to comp k
 
             Also has optional ELBO field when precompELBO is True
-            * ElogqZ : 1D array, size K
+            * Hresp : 1D array, size K
                 Vector of entropy contributions from each comp.
-                ElogqZ[k] = \sum_{n=1}^N resp[n,k] log resp[n,k]
+                Hresp[k] = \sum_{n=1}^N resp[n,k] log resp[n,k]
         '''
+        SS = calcSummaryStats(Data, LP, **kwargs)
+        return SS
+        """
         Nvec = np.sum(LP['resp'], axis=0)
         if hasattr(Data, 'dim'):
             SS = SuffStatBag(K=Nvec.size, D=Data.dim)
@@ -140,6 +152,7 @@ class FiniteMixtureModel(AllocModel):
             ElogqZ_vec = self.E_logqZ(LP)
             SS.setELBOTerm('ElogqZ', ElogqZ_vec, dims=('K'))
         return SS
+        """
 
     def update_global_params_EM(self, SS, **kwargs):
         """ Update attribute w to optimize the ELBO ML/MAP objective.
@@ -308,16 +321,25 @@ class FiniteMixtureModel(AllocModel):
         if self.inferType == 'EM':
             return LP['evidence'] + self.log_pdf_dirichlet(self.w)
         elif self.inferType.count('VB') > 0:
-            evW = self.E_logpW() - self.E_logqW()
-            if SS.hasELBOTerm('ElogqZ'):
-                ElogqZ = np.sum(SS.getELBOTerm('ElogqZ'))
+            L_alloc = Lalloc(SS=SS, theta=self.theta, Elogw=self.Elogw)
+            if SS.hasELBOTerm('Hresp'):
+                L_entropy = np.sum(SS.getELBOTerm('Hresp'))
             else:
-                ElogqZ = np.sum(self.E_logqZ(LP))
+                L_entropy = np.sum(calcHrespFromLP(LP=LP))
             if SS.hasAmpFactor():
-                evZ = self.E_logpZ(SS) - SS.ampF * ElogqZ
+                L_entropy *= SS.ampF
+            return L_entropy + L_alloc
+            '''
+            evW = self.E_logpW() - self.E_logqW()
+            if SS.hasELBOTerm('Hresp'):
+                Hresp = np.sum(SS.getELBOTerm('Hresp'))
             else:
-                evZ = self.E_logpZ(SS) - ElogqZ
+                Hresp = np.sum(calcHrespFromLP(LP=LP))
+            if SS.hasAmpFactor():
+                Hresp *= SS.ampF
+            evZ = self.E_logpZ(SS) + 
             return evZ + evW
+            '''
         else:
             raise NotImplementedError(
                 'Unrecognized inferType ' + self.inferType)
@@ -326,11 +348,6 @@ class FiniteMixtureModel(AllocModel):
         ''' Bishop PRML eq. 10.72
         '''
         return np.inner(SS.N, self.Elogw)
-
-    def E_logqZ(self, LP):
-        ''' Bishop PRML eq. 10.75
-        '''
-        return NumericUtil.calcRlogR(LP['resp'])
 
     def E_logpW(self):
         ''' Bishop PRML eq. 10.73
@@ -432,3 +449,17 @@ class FiniteMixtureModel(AllocModel):
         cPrior = gammaln(self.gamma) - SS.K * gammaln(self.gamma / SS.K)
         cPost = gammaln(np.sum(theta)) - np.sum(gammaln(theta))
         return cPrior - cPost
+
+def c_Dir(tvec):
+    return gammaln(tvec.sum()) - gammaln(tvec).sum() 
+
+def Lalloc(Nvec=None, SS=None, gamma=0.5, theta=None, Elogw=None):
+    assert theta is not None
+    K = theta.size
+    if Elogw is None:
+        Elogw = digamma(theta) - digamma(theta.sum())
+    if Nvec is None:
+        Nvec = SS.N
+    Lalloc = c_Dir(gamma/K * np.ones(K)) - c_Dir(theta)
+    Lalloc_slack = np.inner(Nvec + gamma/K - theta, Elogw)
+    return Lalloc + Lalloc_slack

@@ -64,18 +64,7 @@ def calcELBO_NonlinearTerms(SS=None, LP=None,
         if SS is not None and SS.hasELBOTerm('Hresp'):
             Hresp = SS.getELBOTerm('Hresp')
         else:
-            if LP is not None and 'spR' in LP:
-                nnzPerRow = LP['nnzPerRow']
-                if nnzPerRow > 1:
-                    # handles multiply by -1 already
-                    Hresp = calcSparseRlogR(**LP) 
-                    assert np.all(np.isfinite(Hresp))
-                else:
-                    Hresp = 0.0
-            else:
-                if LP is not None and 'resp' in LP:
-                    resp = LP['resp']
-                Hresp = -1 * NumericUtil.calcRlogR(resp)
+            Hresp = calcHrespFromLP(LP=LP, resp=resp)
     if returnMemoizedDict:
         return dict(Hresp=Hresp)
     Lentropy = np.sum(Hresp)
@@ -85,6 +74,20 @@ def calcELBO_NonlinearTerms(SS=None, LP=None,
         return dict(Lentropy=Lentropy)
     return Lentropy
 
+def calcHrespFromLP(LP=None, resp=None):
+    if LP is not None and 'spR' in LP:
+        nnzPerRow = LP['nnzPerRow']
+        if nnzPerRow > 1:
+            # Handles multiply by -1 already
+            Hresp = calcSparseRlogR(**LP) 
+            assert np.all(np.isfinite(Hresp))
+        else:
+            Hresp = 0.0
+    else:
+        if LP is not None and 'resp' in LP:
+            resp = LP['resp']
+        Hresp = -1 * NumericUtil.calcRlogR(resp)
+    return Hresp
 
 def calcELBOGain_NonlinearTerms(beforeSS=None, afterSS=None):
     """ Compute gain in ELBO score by transition from before to after values.
@@ -1006,7 +1009,6 @@ def calcSummaryStats(Data, LP,
     else:
         SS = SuffStatBag(K=K, D=Data.vocab_size, M=M)
     SS.setField('N', Nvec, dims=('K'))
-
     if doPrecompEntropy:
         Mdict = calcELBO_NonlinearTerms(LP=LP, returnMemoizedDict=1)
         if type(Mdict['Hresp']) == float:
