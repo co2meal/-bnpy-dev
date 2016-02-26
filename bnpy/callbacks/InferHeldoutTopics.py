@@ -67,6 +67,10 @@ def evalTopicModelOnTestDataFromTaskpath(
             # Convert to topics 2D array (K x V)
             topics = hmodel.obsModel.getTopics()
             probs = hmodel.allocModel.get_active_comp_probs()
+        else:
+            hmodel.obsModel.setEstParamsFromPost(hmodel.obsModel.Post)
+            hmodel.obsModel.inferType = "EM" # Point estimate!
+
         assert np.allclose(foundLap, queryLap)
         if hasattr(hmodel.allocModel, 'alpha'):
             alpha = hmodel.allocModel.alpha
@@ -86,7 +90,7 @@ def evalTopicModelOnTestDataFromTaskpath(
             nAtom = Data.word_count.sum()
         else:
             nAtom = Data.nObs
-        msg = "%s heldout data. %d documents. %d total words." % (
+        msg = "%s heldout data. %d documents. %d total atoms." % (
             Data.name, Data.nDoc, nAtom)
         printFunc(msg)
         printFunc("Using trained model from lap %7.3f with %d topics" % (
@@ -151,6 +155,7 @@ def evalTopicModelOnTestDataFromTaskpath(
                 printFunc(msg + scoreMsg)
     # Aggregate results
     meanlogpTokensPerDoc = np.sum(logpTokensPerDoc) / np.sum(nTokensPerDoc)
+    '''
     # Compute heldout Lscore
     if not hasattr(Data, 'word_count'):
         if hasattr(hmodel.allocModel, 'gamma'):
@@ -184,6 +189,7 @@ def evalTopicModelOnTestDataFromTaskpath(
         SVars['dpLscore'] = dpLscore
         SVars['hdpLscore'] = hdpLscore
         printFunc("~~~ dpL=%.6e\n~~~hdpL=%.6e" % (dpLscore, hdpLscore))
+    '''
     # Prepare to save results.
     if dataSplitName.count('test'):
         outfileprefix = 'predlik-'
@@ -581,6 +587,15 @@ def calcPredLikForDocFromHModel(
     hoData = docData.select_subset_by_mask(atomMask=heldoutIDs)
     trData = docData.select_subset_by_mask(atomMask=trainIDs)
 
+    Epi_global = hmodel.allocModel.get_active_comp_probs()
+    LP = hmodel.obsModel.calc_local_params(hoData)
+    hoLik_d = LP['E_log_soft_ev']
+    hoLik_d += np.log(Epi_global)[np.newaxis,:]
+    logProbPerToken_d = logsumexp(hoLik_d, axis=1)
+    Info['sumlogProbTokens'] = np.sum(logProbPerToken_d)
+    Info['nHeldoutToken'] = len(heldoutIDs)
+    return Info
+    '''
     # Run local step to get DocTopicCounts
     DocTopicCount_d, Info = inferDocTopicCountForDocFromHModel(
         trData, hmodel, **LPkwargs)
@@ -598,6 +613,7 @@ def calcPredLikForDocFromHModel(
     Info['nHeldoutToken'] = len(heldoutIDs)
     Info['sumlogProbTokens'] = np.sum(logProbPerToken_d)
     return Info
+    '''
 
 def inferDocTopicCountForDoc(
         word_id, word_ct, topics, probs, alpha, 
