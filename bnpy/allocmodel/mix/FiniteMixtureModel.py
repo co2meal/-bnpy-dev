@@ -148,10 +148,7 @@ class FiniteMixtureModel(AllocModel):
         -------
         w set to valid vector of size SS.K.
         """
-        if np.allclose(self.gamma, 1.0):
-            w = SS.N
-        else:
-            w = SS.N + self.gamma - 1.0  # MAP estimate. Requires gamma>1
+        w = SS.N + (self.gamma / SS.K) - 1.0  # MAP estimate. Requires gamma>1
         self.w = w / w.sum()
         self.K = SS.K
 
@@ -162,7 +159,7 @@ class FiniteMixtureModel(AllocModel):
         -------
         theta set to valid posterior for SS.K components.
         """
-        self.theta = self.gamma + SS.N
+        self.theta = self.gamma / SS.K + SS.N
         self.Elogw = digamma(self.theta) - digamma(self.theta.sum())
         self.K = SS.K
 
@@ -173,12 +170,12 @@ class FiniteMixtureModel(AllocModel):
         -------
         theta set to valid posterior for SS.K components.
         """
-        thetaStar = self.gamma + SS.N
+        thetaStar = self.gamma / SS.K + SS.N
         self.theta = rho * thetaStar + (1 - rho) * self.theta
         self.Elogw = digamma(self.theta) - digamma(self.theta.sum())
         self.K = SS.K
 
-    def init_global_params(self, K=0, **kwargs):
+    def init_global_params(self, Data=None, K=0, **kwargs):
         """ Initialize global parameters to reasonable default values.
 
         Post Condition for EM
@@ -244,9 +241,10 @@ class FiniteMixtureModel(AllocModel):
 
         self.K = int(K)
         if self.inferType == 'EM':
-            self.w = (N + self.gamma) / (N + self.gamma).sum()
+            self.w = N + (self.gamma / K)
+            self.w /= self.w.sum()
         else:
-            self.theta = N + self.gamma
+            self.theta = N + self.gamma / K
             self.Elogw = digamma(self.theta) - digamma(self.theta.sum())
 
     def setParamsFromBeta(self, K, beta=None):
@@ -337,9 +335,9 @@ class FiniteMixtureModel(AllocModel):
     def E_logpW(self):
         ''' Bishop PRML eq. 10.73
         '''
-        return gammaln(self.K * self.gamma) \
-            - self.K * gammaln(self.gamma) + \
-            (self.gamma - 1) * self.Elogw.sum()
+        return gammaln(self.gamma) \
+            - self.K * gammaln(self.gamma/self.K) + \
+            (self.gamma / self.K - 1) * self.Elogw.sum()
 
     def E_logqW(self):
         ''' Bishop PRML eq. 10.76
@@ -353,7 +351,7 @@ class FiniteMixtureModel(AllocModel):
         if wvec is None:
             wvec = self.w
         if avec is None:
-            avec = self.gamma * np.ones(self.K)
+            avec = (self.gamma / self.K) * np.ones(self.K)
         logC = gammaln(np.sum(avec)) - np.sum(gammaln(avec))
         return logC + np.sum((avec - 1.0) * np.log(wvec))
 
@@ -425,12 +423,12 @@ class FiniteMixtureModel(AllocModel):
     def getConditionalProbVec_Unnorm(self, SS):
         ''' Returns a K vector of positive values \propto p(z_i|z_-i)
         '''
-        return SS.N + self.gamma
+        return SS.N + self.gamma / SS.K
 
     def calcMargLik(self, SS):
         ''' Calculate marginal likelihood of assignments, summed over all comps
         '''
-        theta = self.gamma + SS.N
-        cPrior = gammaln(SS.K * self.gamma) - SS.K * gammaln(self.gamma)
+        theta = self.gamma / SS.K + SS.N
+        cPrior = gammaln(self.gamma) - SS.K * gammaln(self.gamma / SS.K)
         cPost = gammaln(np.sum(theta)) - np.sum(gammaln(theta))
         return cPrior - cPost
