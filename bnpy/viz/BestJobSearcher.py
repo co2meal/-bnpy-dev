@@ -10,13 +10,16 @@ def makeBestJobPathViaGridSearch(
         **kwargs):
     ''' Given a wildcard jobpath, make a jobpath-var-BEST directory
     '''
+    # Remove trailing '/', if present
+    jobpathPattern = jobpathPattern.rstrip(os.path.sep)
     bestjobpath, bestjobwildpairs = findBestJobViaGridSearch(
         jobpathPattern, wildcard=wildcard, **kwargs)
-
     LINKtobestjobpath = jobpathPattern.replace(wildcard, 'BEST')
     # Remove any old version from this search
     if os.path.islink(LINKtobestjobpath):
         os.unlink(LINKtobestjobpath)
+    assert os.path.exists(bestjobpath)
+    
     # Make a new symlink
     os.symlink(bestjobpath, LINKtobestjobpath)
     print "Made New Directory"
@@ -41,8 +44,12 @@ def findBestJobViaGridSearch(
     # Identify the fields that we are searching over
     wildVarNames = list()
     keyvalPairs = jobpathPattern.split('-')
+    if len(keyvalPairs) <= 1:
+        raise ValueError("jobpathPattern not parseable into name=val pairs")
+    basepath = keyvalPairs[0]
+    keyvalPairs = keyvalPairs[1:]
     keyvalStartLocs = np.asarray([len(kv) for kv in keyvalPairs])
-    keyvalStartLocs = np.hstack([0,np.cumsum(keyvalStartLocs+1)])
+    keyvalStartLocs = np.hstack([len(basepath), len(basepath) + np.cumsum(keyvalStartLocs+1)])
     start = 0
     while True:
         wcloc = jobpathPattern.find(wildcard, start)
@@ -79,7 +86,11 @@ def findBestJobViaGridSearch(
         # Pretty print a summary
         jobwildstr = ""
         for varName in wildVarNames:
-            start = jobpath.find(varName)
+            start = jobpath.find("-" + varName + "=")
+            if start >= 0:
+                start += 1 # correct for leading '-'
+            else:
+                raise ValueError("jobpath did not have key=val: %s=val" % (varName))
             stop = jobpath.find('-', start)
             if stop < 0:
                 stop = len(jobpath)
