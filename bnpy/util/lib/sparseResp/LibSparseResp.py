@@ -43,7 +43,48 @@ def sparsifyResp_cpp(Resp, nnzPerRow, order='C'):
     return spR
 
 def sparsifyLogResp_cpp(logResp, nnzPerRow, order='C'):
-    '''
+    ''' Compute sparse resp from log weights
+
+    Example
+    -------
+    >>> logResp = np.asarray([-1.0, -2, -3, -4, -100, -200])
+    >>> spR = sparsifyLogResp_cpp(logResp[np.newaxis,:], 2)
+    >>> print spR.data.sum()
+    1.0
+    >>> print spR.indices.min()
+    0
+    >>> print spR.indices.max()
+    1
+    >>> print spR.data
+    [ 0.73105858  0.26894142]
+
+    >>> # Try duplicates in weights that don't influence top L
+    >>> logResp = np.asarray([-500., -500., -500., -4, -1, -2])
+    >>> spR = sparsifyLogResp_cpp(logResp[np.newaxis,:], 3)
+    >>> print spR.data.sum()
+    1.0
+    >>> print np.unique(spR.indices)
+    [3 4 5]
+
+    >>> # Try duplicates in weights that DO influence top L
+    >>> logResp = np.asarray([-500., -500., -500., -500., -1, -2])
+    >>> spR = sparsifyLogResp_cpp(logResp[np.newaxis,:], 4)
+    >>> print spR.data.sum()
+    1.0
+    >>> print np.unique(spR.indices)
+    [2 3 4 5]
+
+    >>> # Try big problem
+    >>> from bnpy.util.SparseRespUtil import sparsifyLogResp_numpy_vectorized
+    >>> logResp = np.log(np.random.rand(100, 10))
+    >>> spR = sparsifyLogResp_cpp(logResp, 7)
+    >>> spR2 = sparsifyLogResp_numpy_vectorized(logResp, 7)
+    >>> np.allclose(spR.toarray(), spR2.toarray())
+    True
+
+    Returns
+    -------
+    spR : csr_matrix
     '''
     if not hasEigenLibReady:
         raise ValueError("Cannot find library %s. Please recompile."

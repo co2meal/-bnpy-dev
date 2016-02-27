@@ -130,6 +130,106 @@ typedef Map<Arr2D_d> ExtArr2D_d;
 typedef Map<Arr1D_d> ExtArr1D_d;
 typedef Map<Arr1D_i> ExtArr1D_i;
 
+
+
+struct LessThanFor1DArray {
+    const double* xptr;
+
+    LessThanFor1DArray(const double * xptrIN) {
+        xptr = xptrIN;
+    }
+
+    bool operator()(int i, int j) {
+        return xptr[i] < xptr[j];
+    }
+
+};
+
+struct GreaterThanFor1DArray {
+    const double* xptr;
+
+    GreaterThanFor1DArray(const double * xptrIN) {
+        xptr = xptrIN;
+    }
+
+    bool operator()(int i, int j) {
+        return xptr[i] > xptr[j];
+    }
+};
+
+struct Argsortable1DArray {
+    double* xptr;
+    int* iptr;
+    int size;
+    
+    // Constructor
+    Argsortable1DArray(double* xptrIN, int sizeIN) {
+        xptr = xptrIN;
+        size = sizeIN;
+        iptr = new int[size];
+        resetIndices(size);
+    }
+
+    // Helper method: reset iptr array to 0, 1, ... K-1 
+    void resetIndices(int cursize) {
+        assert(cursize <= size);
+        for (int i = 0; i < cursize; i++) {
+            iptr[i] = i;
+        }
+    }
+
+    void pprint() {
+        for (int i = 0; i < size; i++) {
+            printf("%03d:% 05.2f ",
+                this->iptr[i],
+                this->xptr[this->iptr[i]]);
+        }
+        printf("\n");
+    }
+
+    void argsort() {
+        this->argsort_AscendingOrder();
+    }
+
+    void argsort_AscendingOrder() {
+        std::sort(
+            this->iptr,
+            this->iptr + this->size,
+            LessThanFor1DArray(this->xptr)
+            );
+    }
+
+    void argsort_DescendingOrder() {
+        std::sort(
+            this->iptr,
+            this->iptr + this->size,
+            GreaterThanFor1DArray(this->xptr)
+            );
+    }
+
+    void findSmallestL(int L) {
+        assert(L >= 0);
+        assert(L < this->size);
+        std::nth_element(
+            this->iptr,
+            this->iptr + L,
+            this->iptr + this->size,
+            LessThanFor1DArray(this->xptr)
+            );
+    }
+
+    void findLargestL(int L, int Kactive) {
+        assert(L >= 0);
+        assert(L <= Kactive);
+        std::nth_element(
+            this->iptr,
+            this->iptr + L,
+            this->iptr + Kactive,
+            GreaterThanFor1DArray(this->xptr)
+            );
+    }
+};
+
 void sparsifyResp(
         double* Resp_IN,
         int nnzPerRow,
@@ -213,9 +313,13 @@ void sparsifyLogResp(
     ExtArr2D_d logResp (logResp_IN, N, K);
     ExtArr1D_d spR_data (spR_data_OUT, N * nnzPerRow);
     ExtArr1D_i spR_colids (spR_colids_OUT, N * nnzPerRow);
-    VectorXd curRow (K);
+    
+    //VectorXd curRow (K);
+    Argsortable1DArray curRowHandler = Argsortable1DArray(
+        logResp.data(), K);  
 
     for (int n = 0; n < N; n++) {
+        /*
         // Copy current row over into a temp buffer
         std::copy(logResp.data() + (n * K),
                   logResp.data() + ((n+1) * K),
@@ -241,11 +345,32 @@ void sparsifyLogResp(
             }
         }
         assert(nzk == nnzPerRow);
+        */
+        int M = n * nnzPerRow;
+
+        curRowHandler.resetIndices(K);
+        // After this call,
+        // iptr will have first L indices correspond to largest clusters
+        curRowHandler.findLargestL(nnzPerRow, K);
+
+        // Walk through iptr to read off top L cluster indices
+        // And also find the maximum value, to do save exp later
+        double maxlogResp_n = curRowHandler.xptr[0];
+        for (int ell = 0; ell < nnzPerRow; ell++) {
+            int m = M + ell;
+            int k = curRowHandler.iptr[ell];
+            spR_colids(m) = k;
+            spR_data(m) = curRowHandler.xptr[k];
+            if (curRowHandler.xptr[k] > maxlogResp_n) {
+                maxlogResp_n = curRowHandler.xptr[k];
+            }
+        }
 
         // Compute exp of each of the non-zero values in row n
         double rowsum = 0.0;
         for (int nzk = 0; nzk < nnzPerRow; nzk++) {
             int m = M + nzk;
+            //spR_data(m) = exp(curRowHandler.xptr[nzk] - maxlogResp_n);
             spR_data(m) = exp(spR_data(m) - maxlogResp_n);
             rowsum += spR_data(m);
         }
@@ -253,6 +378,9 @@ void sparsifyLogResp(
         for (int nzk = 0; nzk < nnzPerRow; nzk++) {
             spR_data(M + nzk) /= rowsum;
         }
+
+        // Advance the pointer for next time
+        curRowHandler.xptr += K;
     }
     
 }
