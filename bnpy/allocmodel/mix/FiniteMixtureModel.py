@@ -93,9 +93,17 @@ class FiniteMixtureModel(AllocModel):
         if self.inferType.count('EM') > 0:
             # Using point estimates, for EM algorithm
             lpr += np.log(self.w)
-            lprPerItem = logsumexp(lpr, axis=1)
-            np.exp(lpr - lprPerItem[:, np.newaxis], out=lpr)
-            LP['evidence'] = lprPerItem.sum()
+            if nnzPerRowLP and (nnzPerRowLP > 0 and nnzPerRowLP < K):
+                # SPARSE Assignments
+                LP['nnzPerRow'] = nnzPerRowLP
+                LP['spR'] = sparsifyLogResp(lpr, nnzPerRow=nnzPerRowLP)
+                assert np.all(np.isfinite(LP['spR'].data))
+            else:
+                lprPerItem = logsumexp(lpr, axis=1)
+                lpr -= lprPerItem[:, np.newaxis]
+                np.exp(lpr, out=lpr)
+                LP['resp'] = lpr
+                LP['evidence'] = lprPerItem.sum()
         else:
             # Full Bayesian approach, for VB or GS algorithms
             lpr += self.Elogw
