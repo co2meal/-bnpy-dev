@@ -127,13 +127,13 @@ def plotJobs(jpaths, legNames, styles=None, density=2,
 
 
 def plot_all_tasks_for_job(jobpath, label, taskids=None,
-                           lineType='.-',
                            color=None,
                            colorID=0,
                            density=2,
                            yvar='evidence',
                            markersize=10,
                            linewidth=2,
+                           linestyle='-',
                            drawLineToXMax=None,
                            xvar='laps',
                            **kwargs):
@@ -241,15 +241,19 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                 ys = np.hstack([ys[:10], ys[10::2]])
                 curDensity = (xs.size - 10) / (xs[-1] - xs[9])
 
-        plotargs = dict(markersize=markersize, linewidth=linewidth, label=None,
-                        color=color, markeredgecolor=color)
+        plotargs = dict(
+            markersize=markersize,
+            linewidth=linewidth,
+            linestyle=linestyle,
+            label=None,
+            color=color, markeredgecolor=color)
         for key in kwargs:
             if key in plotargs:
                 plotargs[key] = kwargs[key]
         if tt == 0:
             plotargs['label'] = label
 
-        pylab.plot(xs, ys, lineType, **plotargs)
+        pylab.plot(xs, ys, **plotargs)
         if drawLineToXMax:
             xs_dashed = np.asarray([xs[-1], drawLineToXMax])
             ys_dashed = np.asarray([ys[-1], ys[-1]])
@@ -280,6 +284,9 @@ def loadXYFromTopicModelSummaryFiles(jobpath, taskid, xvar='laps', yvar='K'):
         xpath = os.path.join(jobpath, taskid, 'predlik-' + xvar + '.txt')       
     xs = np.loadtxt(xpath)
     ys = np.loadtxt(ypath)
+    # HACK!
+    if yvar.count('Lik') and jobpath.count('Berk') and np.max(ys) > 100:
+        ys /= 64
     return xs, ys
 
 
