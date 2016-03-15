@@ -7,6 +7,7 @@ from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from bnpy.util import dotATA, dotATB, dotABT
 from bnpy.util import numpyToSharedMemArray, fillSharedMemArray
+from bnpy.util import as1D, as2D, as3D
 
 from AbstractObsModel import AbstractObsModel
 
@@ -40,11 +41,13 @@ class MixGaussObsModel(AbstractObsModel):
     eta[k,c]   : float
     '''
 
-    ####
     def get_name(self):
         return 'MixGauss'
 
     def get_info_string(self):
+        return 'Mixture of Gaussians with full covariance.'
+
+    def get_info_string_prior(self):
         return 'Mixture of Gaussians with full covariance.'
 
     def _cholB(self, kc='all'):
@@ -60,9 +63,13 @@ class MixGaussObsModel(AbstractObsModel):
         return scipy.linalg.cholesky(B, lower=True)
 
     def _logdetB(self, kc=None):
-        k, c = kc
-        cholB = self.GetCached('cholB', (k, c))
-        return 2 * np.sum(np.log(np.diag(cholB)))
+        if kc is None:
+            B = self.Prior.B
+            return 2 * np.sum(np.log(np.diag(scipy.linalg.cholesky(B, lower=True))))
+        else:
+            k, c = kc
+            cholB = self.GetCached('cholB', (k, c))
+            return 2 * np.sum(np.log(np.diag(cholB)))
 
     def _E_logdetL(self, kc='all'):
         dvec = np.arange(1, self.D + 1, dtype=np.float)
@@ -88,13 +95,15 @@ class MixGaussObsModel(AbstractObsModel):
             for kk in xrange(self.K):
                 for cc in xrange(self.C):
                     retArr[kk, cc] = self.GetCached('E_logpsi', (kk, cc))
+            return retArr
+        elif kc is None:
+            return digamma(self.Prior.eta) - digamma(self.C * self.Prior.eta)
         else:
             k, c = kc
             eta = self.Post.eta[k,:]
             return digamma(eta[c]) - digamma(np.sum(eta))
-    ####
 
-    def __init__(self, inferType='VB',C=1, D=0, min_covar=None,
+    def __init__(self, inferType='VB',C=3, D=0, min_covar=None,
                  Data=None,
                  **PriorArgs):
         ''' Initialize bare obsmodel with valid prior hyperparameters.
@@ -149,15 +158,14 @@ class MixGaussObsModel(AbstractObsModel):
         self.Prior.setField('m', m, dims=('D'))
         self.Prior.setField('B', B, dims=('D', 'D'))
 
-
-    def calcSummaryStats(self, Data, SS, LP, **kwargs):
+    def calcSummaryStats(self, Data, SS, LP, doPrecompEntropy=False, **kwargs):
         ''' Calculate summary statistics for given dataset and local parameters
 
         Returns
         --------
         SS : SuffStatBag object, with K components.
         '''
-        return calcSummaryStats(Data, SS, LP, **kwargs)
+        return calcSummaryStats(Data, SS, LP, doPrecompEntropy=doPrecompEntropy, **kwargs)
 
     def updatePost(self, SS):
         ''' Update attribute Post for all comps given suff stats.
@@ -197,8 +205,8 @@ class MixGaussObsModel(AbstractObsModel):
             kappa : 2D array, size K x C
         '''
         Prior = self.Prior 
-        nu = Prior.nu + SS.N 
-        kappa = Prior.kappa + SS.N 
+        nu = Prior.nu + SS.N_full
+        kappa = Prior.kappa + SS.N_full
         m = (Prior.kappa * np.reshape(Prior.m, ((1,1,SS.x.shape[2]))) + SS.x) / kappa[:, :, np.newaxis] 
         Bmm = Prior.B + Prior.kappa * np.outer(Prior.m, Prior.m) 
         B = SS.xxT + Bmm[np.newaxis, np.newaxis, :] 
@@ -215,110 +223,305 @@ class MixGaussObsModel(AbstractObsModel):
             eta : 2D array, size K x C
         '''
         Prior = self.Prior
-        eta = Prior.eta + SS.N
+        eta = Prior.eta + SS.N_full
         return eta
 
-####
-# first step of local inference procedure : calculate
-# the conditional log likelihood under each superstate
-# by summing over substates
-def calcLocalParams(Dslice, **kwargs):
-    L = calcLogSoftEvMatrix_FromPost(Dslice, **kwargs)
-    LP = dict(E_log_soft_ev_full=L)
-    LP = dict(E_log_soft_ev=np.sum(L, axis=2))
-    return LP
+    # first step of local inference procedure : calculate
+    # the conditional log likelihood under each superstate
+    # by summing over substates
+    def calcLocalParams(self, Data, **kwargs):
+        L = self.calcLogSoftEvMatrix_FromPost_Full(Data, **kwargs)
+        LP = dict(E_log_soft_ev_full=L)
+        LP = dict(E_log_soft_ev=np.sum(L, axis=2))
+        return LP
 
-def calcLogSoftEvMatrix_FromPost(Dslice, **kwargs):
-    ''' Calculate expected log soft ev matrix for variational.
+    def calcLogSoftEvMatrix_FromPost(self, Data, **kwargs):
+        ''' Calculate expected log soft ev matrix for variational.
 
-    Returns
-    ------
-    L : 2D array, size N x K
-    '''
-    K = kwargs['K']
-    C = kwargs['C']
-    L = np.zeros((Dslice.nObs, K, C))
-    for k in xrange(K):
+        Returns
+        ------
+        L : 2D array, size N x K
+        '''
+        L = self.calcLogSoftEvMatrix_FromPost_Full(Data, **kwargs)
+        return np.sum(L, axis=2)
+
+
+    def calcLogSoftEvMatrix_FromPost_Full(self, Data, **kwargs):
+        ''' Calculate expected log soft ev matrix for variational.
+
+        Returns
+        ------
+        L : 3D array, size N x K x C
+        '''
+        K = self.Post.K
+        C = self.Post.C
+        L = np.zeros((Data.nObs, K, C))
+        for k in xrange(K):
+            for c in xrange(C):
+                L[:, k, c] = - 0.5 * Data.dim * LOGTWOPI \
+                    + 0.5 * self.GetCached('E_logdetL', (k,c)) \
+                    - 0.5 * self._mahalDist_Post(Data.X,k=k,c=c) 
+        return L + np.tile(self.GetCached('E_logpsi'), (Data.nObs,1,1))
+
+    def _mahalDist_Post(self, X, k, c): 
+        ''' Calc expected mahalonobis distance from comp k to each data atom
+
+        Returns
+        --------
+        distvec : 1D array, size N
+               distvec[n] gives E[ (x-\mu) \Lam (x-\mu) ] for comp k and substate c
+        '''
+        Q = np.linalg.solve(self.GetCached('cholB', (k,c)),
+                            (X - self.Post.m[k,c]).T)
+        Q *= Q
+        return self.Post.nu[k,c] * np.sum(Q, axis=0) + self.D / self.Post.kappa[k,c]
+
+    # input  : LP dict computed by alloc model, 
+    #          containing resp field which holds
+    #          marginal assignment probabilities 
+    #          at each time point t,
+    # output : LP dict containing substate
+    #          marginal probabilities  
+    def calcSubstateLocalParams(self, Data, LP, **kwargs):
+        L = self.calcSubstateMarginalProbabilities(Data, LP, **kwargs)
+        LP['substate_resp'] = L
+        return LP
+
+    def calcSubstateMarginalProbabilities(self, Data, LP, **kwargs):
+        N = Data.nObs
+        K = self.Post.K
+        C = self.Post.C
+        L = np.zeros((N, K, C))
+
+        resp = LP['resp'] # N x K
+        E_log_soft_ev = self.calcLogSoftEvMatrix_FromPost_Full(Data, **kwargs) # N x K x C
+        Z = np.sum(E_log_soft_ev, axis=2)
+        E_log_soft_ev /= Z[:,:,np.newaxis]
+        L = resp[:,:,np.newaxis] * E_log_soft_ev 
+        return L
+
+    def calcSummaryStats(self, Data, SS, LP, doPrecompEntropy=False, **kwargs):
+        ''' Calculate summary statistics for given dataset and local parameters
+
+        Returns
+        --------
+        SS : SuffStatBag object, with K components.
+        '''
+        if 'substate_resp' not in LP:
+            LP['substate_resp'] = self.calcHeuristicSubstateResp(Data, SS, LP['resp'], **kwargs)
+        return self.calcSSGivenSubstateResp(Data, SS, LP, doPrecompEntropy=doPrecompEntropy, **kwargs)
+
+    def calcHeuristicSubstateResp(self, Data, SS, resp, **kwargs): # initialize
+        N,K,C = Data.nObs,SS.K,self.C
+        substate_resp = np.zeros((N,K,C))
+
+        # better alternative -- k-means?
         for c in xrange(C):
-            # sum varTheta[:,k,c] for c =1:C
-            L[:, k, c] = - 0.5 * Dslice.dim * LOGTWOPI \
-                + 0.5 * kwargs['E_logdetL'][k, c]  \
-                - 0.5 * _mahalDist_Post(Dslice.X, k, c, **kwargs) 
-                ### SHOULDN'T SECOND LINE BE - 0.5 * kwargs['E_logdetL'][k, c]  \ (not plus?)
-    return L
+            substate_resp[:,:,c] = resp/C
 
-def _mahalDist_Post(X, k, c, D=None,
-                    cholB=None,
-                    m=None, nu=None, kappa=None, **kwargs):
-    ''' Calc expected mahalonobis distance from comp k to each data atom
+        return substate_resp
 
-    Returns
-    --------
-    distvec : 1D array, size N
-           distvec[n] gives E[ (x-\mu) \Lam (x-\mu) ] for comp k and substate c
-    '''
-    Q = np.linalg.solve(cholB[k],
-                        (X - m[k,c]).T)
-    Q *= Q
-    return nu[k,c] * np.sum(Q, axis=0) + D / kappa[k,c]
+    def calcSSGivenSubstateResp(self, Data, SS, LP, doPrecompEntropy=False, **kwargs):
+        substate_resp = LP['substate_resp']
+        X = Data.X # N x D
+        D = Data.dim
+        N, K, C = substate_resp.shape
+        self.K = K
+        if SS is None:
+            print "this will not print"
+            SS = SuffStatBag(K=K, D=D, C=C) 
+        else:
+            SS.C = C
+            SS._Fields.C = C
 
-# input  : LP dict computed by alloc model, 
-#          containing resp field which holds
-#          marginal assignment probabilities 
-#          at each time point t,
-# output : LP dict containing substate
-#          marginal probabilities  
-def calcSubstateLocalParams(Data, LP, **kwargs):
-    L = calcSubstateMarginalProbabilities(Data, LP, **kwargs)
-    LP['substate_resp'] = L
-    return LP
+        # Expected count for each k, c
+        #  Usually computed by allocmodel. But just in case...
+        if not hasattr(SS, 'N'):
+            SS.setField('N', np.sum(substate_resp, axis=0), dims=('K','C'))
+        SS.setField('N_full', np.sum(substate_resp, axis=0), dims=('K','C'))
+        # Expected mean for each k
+        SS.setField('x', np.dot(substate_resp.transpose(1,2,0), X), dims=('K','C','D')) # NOT OPTIMIZED USING BLAS ROUTINES
+        
+        # Expected outer-product for each k, c
+        sqrtSResp = np.sqrt(substate_resp) # N x K x C
+        xxT = np.zeros((K, C, D, D))
+        for k in xrange(K):
+            for c in xrange(C):
+                xxT[k,c] = dotATA(sqrtSResp[:, k, c][:, np.newaxis] * Data.X)
+        SS.setField('xxT', xxT, dims=('K', 'C', 'D', 'D'))
 
-def calcSubstateMarginalProbabilities(Data, LP, **kwargs):
-    N = Dslice.nObs
-    K = kwargs['K']
-    C = kwargs['C']
-    L = np.zeros((N, K, C))
+        if doPrecompEntropy or True:
+            resp = LP['resp']
 
-    resp = LP['resp'] # N x K
-    E_log_soft_ev = LP['E_log_soft_ev_full'] # N x K x C
-    E_logpsi = kwargs['E_logpsi'] # K x C
-    bpPotential = np.tile(E_logpsi[np.newaxis,:,:], (N,1,1)) + E_log_soft_ev
-    L = resp[:,:,np.newaxis] * normalize(bpPotential, axis=2, norm='l1')
-    return L
+            eps = 1e-100
 
-####
+            T = substate_resp + eps 
+            T /= (resp[:,:,np.newaxis] + eps)
+            np.log(T, out=T)
+            T *= substate_resp
+            
+            Hsubstate = np.sum(T, axis=0)
+            #np.sum(substate_resp * np.log(substate_resp / resp[:,:,np.newaxis]), axis=0)
+            SS.setField('Hsubstate', Hsubstate, dims=('K','C'))
 
-def calcSummaryStats(Data, SS, LP, **kwargs):
-    ''' Calculate summary statistics for given dataset and local parameters
+        return SS
 
-    Returns
-    --------
-    SS : SuffStatBag object, with K components.
-    '''
-    X = Data.X # N x D
-    D = Data.dim
-    substate_resp = LP['substate_resp'] # N x K x C
-    K = substate_resp.shape[1]
-    C = substate_resp.shape[2]
+    def getDatasetScale(self, SS):
+        ''' Get number of observed scalars in dataset from suff stats.
 
-    if SS is None:
-        SS = SuffStatBag(K=K, C=C, D=D)
+        Used for normalizing the ELBO so it has reasonable range.
 
-    # Expected count for each k, c
-    #  Usually computed by allocmodel. But just in case...
-    if not hasattr(SS, 'N'):
-        SS.setField('N', np.sum(substate_resp, axis=0), dims=('K','C'))
-    # Expected mean for each k
-    SS.setField('x', np.dot(substate_resp.transpose(1,2,0), X), dims=('K','C','D')) # NOT OPTIMIZED USING BLAS ROUTINES
-    
-    # Expected outer-product for each k, c
-    sqrtSResp = np.sqrt(substate_resp) # N x K x C
-    xxT = np.zeros((K, C, D, D))
-    for k in xrange(K):
-        for c in xrange(C):
-            xxT[k,c] = dotATA(sqrtSResp[:, k, c][:, np.newaxis] * Data.X)
-    SS.setField('xxT', xxT, dims=('K', 'C', 'D', 'D'))
-    return SS
+        Returns
+        ---------
+        s : scalar positive integer
+        '''
+        return SS.N_full.sum() * SS.D
+
+    def _trace__E_L(self, Smat, kc=None):
+        if kc is None:
+            nu = self.Prior.nu
+            B = self.Prior.B
+        else:
+            k, c = kc
+            nu = self.Post.nu[k,c]
+            B = self.Post.B[k,c]
+        return nu * np.trace(np.linalg.solve(B, Smat))
+
+    def _E_Lmu(self, kc=None):
+        if kc is None:
+            nu = self.Prior.nu
+            B = self.Prior.B
+            m = self.Prior.m
+        else:
+            k, c = kc
+            nu = self.Post.nu[k,c]
+            B = self.Post.B[k,c]
+            m = self.Post.m[k,c]
+        return nu * np.linalg.solve(B, m)
+
+    def _E_muLmu(self, kc=None):
+        if kc is None:
+            nu = self.Prior.nu
+            kappa = self.Prior.kappa
+            m = self.Prior.m
+            B = self.Prior.B
+        else:
+            k, c = kc
+            nu = self.Post.nu[k,c]
+            kappa = self.Post.kappa[k,c]
+            m = self.Post.m[k,c]
+            B = self.Post.B[k,c]
+        Q = np.linalg.solve(self.GetCached('cholB', (k,c)), m.T)
+        return self.D / kappa + nu * np.inner(Q, Q)
+
+    def _E_log_ppsi_qpsi(self, kc=None):
+        eta = self.Post.eta
+        K,C = eta.shape
+        elogpq = 0 
+        for k in xrange(K):
+            for c in xrange(C):
+                elogpq -= (eta[k,c] - self.Prior.eta)*self.GetCached('E_logpsi',(k,c)) - gammaln(eta[k,c])
+            elogpq -= gammaln(np.sum(eta[k]))
+        return elogpq + K * gammaln(C*self.Prior.eta) - K*C*gammaln(self.Prior.eta)
+
+
+    def calcELBO_Memoized(self, SS, afterMStep=False):
+        """ Calculate obsModel's objective using suff stats SS and Post.
+
+        Args
+        -------
+        SS : bnpy SuffStatBag
+        afterMStep : boolean flag
+            if 1, elbo calculated assuming M-step just completed
+
+        Returns
+        -------
+        obsELBO : scalar float
+            Equal to E[ log p(x) + log p(phi) - log q(phi)]
+            want     E[ log p(x | z,y,phi) + log p(phi) - log q(phi) 
+                        + log p(y | z,psi) - log q(y | z,psi) 
+                        + log p(psi) - log q(psi)]
+            need to calc E[ log p(y | z,psi) - log q(y | z,psi) 
+                        + log p(psi) - log q(psi)]
+
+        """
+        K = SS.K
+        C = SS.C
+        elbo = np.zeros((K, C))
+        Post = self.Post
+        Prior = self.Prior
+        for k in xrange(K):
+            for c in xrange(C):
+                elbo[k, c] = c_Diff(Prior.nu,
+                                 self.GetCached('logdetB'),
+                                 Prior.m, Prior.kappa,
+                                 Post.nu[k,c],
+                                 self.GetCached('logdetB', (k,c)),
+                                Post.m[k,c], Post.kappa[k,c],
+                                ) \
+                             + SS.N_full[k,c] * self.GetCached('E_logpsi', (k,c)) \
+                            # E[p(y | z, psi)]
+            if not afterMStep:
+                aDiff = SS.N_full[k,c] + Prior.nu - Post.nu[k,c]
+                bDiff = SS.xxT[k,c] + Prior.B \
+                                  + Prior.kappa * np.outer(Prior.m, Prior.m) \
+                    - Post.B[k,c] \
+                    - Post.kappa[k,c] * np.outer(Post.m[k,c], Post.m[k,c])
+                cDiff = SS.x[k,c] + Prior.kappa * Prior.m \
+                    - Post.kappa[k,c] * Post.m[k,c]
+                dDiff = SS.N_full[k,c] + Prior.kappa - Post.kappa[k,c]
+                elbo[k,c] += 0.5 * aDiff * self.GetCached('E_logdetL', (k,c)) \
+                    - 0.5 * self._trace__E_L(bDiff, (k,c)) \
+                    + np.inner(cDiff, self.GetCached('E_Lmu', (k,c))) \
+                    - 0.5 * dDiff * self.GetCached('E_muLmu', (k,c))
+        H = SS.Hsubstate 
+        return elbo.sum() - 0.5 * np.sum(SS.N_full) * SS.D * LOGTWOPI \
+               + self.GetCached('E_log_ppsi_qpsi') +  np.sum(H[np.nonzero(H<np.float('inf'))])
+
+    def setPostFactors(self, obsModel=None, SS=None, LP=None, Data=None,
+                       nu=0, B=0, m=0, kappa=0,
+                       **kwargs):
+        ''' Set attribute Post to provided values.
+        '''
+        self.ClearCache()
+        if obsModel is not None:
+            if hasattr(obsModel, 'Post'):
+                self.Post = obsModel.Post.copy()
+                self.K = self.Post.K
+            else:
+                self.setPostFromEstParams(obsModel.EstParams)
+            return
+
+        if LP is not None and Data is not None:
+            SS = self.calcSummaryStats(Data, None, LP)
+
+        if SS is not None:
+            self.updatePost(SS)
+        else:
+            m = as3D(m)
+            if m.shape[2] != self.D:
+                m = m.T.copy()
+            K,C, _ = m.shape
+            self.Post = ParamBag(K=K, C=C, D=self.D)
+            self.Post.setField('nu', nu, dims=('K','C')) 
+            self.Post.setField('B', B, dims=('K','C','D', 'D'))
+            self.Post.setField('m', m, dims=('K','C', 'D'))
+            self.Post.setField('kappa', kappa, dims=('K','C')) 
+        self.K = self.Post.K
+
+    def get_mean_for_comp(self, k=None, c=None):
+        if k is None or k == 'prior':
+            return self.Prior.m
+        else:
+            return self.Post.m[k,c]
+
+    def get_covar_mat_for_comp(self, k=None, c=None):
+        if k is None or k == 'prior':
+            return self.Prior.B / self.Prior.nu
+        else:
+            return self.Post.B[k,c] / self.Post.nu[k,c]
+
+
 
 def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):
     ''' Create expected covariance matrix defining Wishart prior.
@@ -384,3 +587,26 @@ def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):
     else:
         raise ValueError('Unrecognized ECovMat procedure %s' % (ECovMat))
     return Sigma
+
+def c_Diff(nu1, logdetB1, m1, kappa1,
+           nu2, logdetB2, m2, kappa2):
+    ''' Evaluate difference of cumulant functions c(params1) - c(params2)
+
+    May be more numerically stable than directly using c_Func
+    to find the difference.
+
+    Returns
+    -------
+    diff : scalar real value of the difference in cumulant functions
+    '''
+    if logdetB1.ndim >= 2:
+        logdetB1 = np.log(np.linalg.det(logdetB1))
+    if logdetB2.ndim >= 2:
+        logdetB2 = np.log(np.linalg.det(logdetB2))
+    D = m1.size
+    dvec = np.arange(1, D + 1, dtype=np.float)
+    return - 0.5 * D * LOGTWO * (nu1 - nu2) \
+           - np.sum(gammaln(0.5 * (nu1 + 1 - dvec))) \
+        + np.sum(gammaln(0.5 * (nu2 + 1 - dvec))) \
+        + 0.5 * D * (np.log(kappa1) - np.log(kappa2)) \
+        + 0.5 * (nu1 * logdetB1 - nu2 * logdetB2)

@@ -1,5 +1,6 @@
 from DiagGaussObsModel import DiagGaussObsModel
 from GaussObsModel import GaussObsModel
+from MixGaussObsModel import MixGaussObsModel
 from ZeroMeanGaussObsModel import ZeroMeanGaussObsModel
 from AutoRegGaussObsModel import AutoRegGaussObsModel
 from MultObsModel import MultObsModel
@@ -12,6 +13,7 @@ ObsModelConstructorsByName = {
     'AutoRegGauss': AutoRegGaussObsModel,
     'Mult': MultObsModel,
     'Bern': BernObsModel,
+    'MixGauss' : MixGaussObsModel
 }
 
 # Make constructor accessible by nickname and fullname
