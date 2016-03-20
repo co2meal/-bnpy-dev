@@ -79,14 +79,23 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2,
     hmodel object has valid global parameters,
     for both its allocModel and its obsModel.
     '''
+    hasSubstates = False
 
     # Extract "true" local params dictionary LP specified in the Data struct
     LP = dict()
     if hasattr(Data, 'TrueParams') and 'Z' in Data.TrueParams:
         LP['Z'] = Data.TrueParams['Z']
-        LP = convertLPFromHardToSoft(LP, Data)
+        if 'Y' in Data.TrueParams:
+            LP['Y'] = Data.TrueParams['Y']
+            hasSubstates = True
+        if hasSubstates:
+            LP = convertLPFromHardToSoftSubstates(LP, Data)
+        else:
+            LP = convertLPFromHardToSoft(LP, Data)
     elif hasattr(Data, 'TrueParams') and 'resp' in Data.TrueParams:
         LP['resp'] = Data.TrueParams['resp']
+        if 'substate_resp' in Data.TrueParams:
+            LP['substate_resp'] = Data.TrueParams['substate_resp']
     else:
         raise ValueError(
             'init_global_params requires TrueLabels or TrueParams.')
@@ -159,6 +168,50 @@ def convertLPFromHardToSoft(LP, Data,
         mask = Z == uniqueAssigned[k]
         resp[mask, k] = 1.0
     LP['resp'] = resp
+    return LP
+
+def convertLPFromHardToSoftSubstates(LP, Data,
+                            initGarbageState=1,
+                            startIDsAt0=False, Kmax=None):
+    ''' Transform array of hard assignment labels in Data into local param dict
+
+    Keyword Args
+    ------------
+    initGarbageState : integer flag (0/1)
+        if on, will add a garbage state for each negative id in TrueZ
+    startIDsAt0 : integer flag (0/1)
+        if off, will index states from 0, 1, ... Kmax-1 with no skipping.
+        if on, can potentially have some states with no assigned data.
+
+    Returns
+    ---------
+    LP : dict
+        with updated fields
+        * 'resp' : 2D array, N x K
+        * 'substate_resp' : 3D array, N x K x C
+    '''
+    Z = LP['Z']
+    Y = LP['Y']
+    uniqueLabels = np.unique(Z)
+    uniqueStates = np.unique(Y)
+    C = len(uniqueStates)
+    uniqueAssigned = [u for u in uniqueLabels if u >= 0]
+    if startIDsAt0:
+        if Kmax is None:
+            Kmax = np.max(uniqueAssigned) + 1
+        uniqueAssigned = np.arange(Kmax)
+    else:
+        Kmax = len(uniqueAssigned)
+
+    substate_resp = np.zeros((Z.size, Kmax, C)) 
+
+    # Fill in "real" states
+    for k in range(Kmax):
+        for c in range(C):
+            mask = ((Z == uniqueAssigned[k]) * (Y == uniqueStates[c]))
+            substate_resp[mask, k, c] = 1.0
+    LP['substate_resp'] = substate_resp
+    LP['resp'] = np.sum(substate_resp, axis=2)
     return LP
 
 

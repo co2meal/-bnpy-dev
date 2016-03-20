@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.linalg
 from scipy.special import gammaln, digamma
-from sklearn.preprocessing import normalize
 
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import LOGTWO, LOGPI, LOGTWOPI, EPS
@@ -158,15 +157,6 @@ class MixGaussObsModel(AbstractObsModel):
         self.Prior.setField('m', m, dims=('D'))
         self.Prior.setField('B', B, dims=('D', 'D'))
 
-    def calcSummaryStats(self, Data, SS, LP, doPrecompEntropy=False, **kwargs):
-        ''' Calculate summary statistics for given dataset and local parameters
-
-        Returns
-        --------
-        SS : SuffStatBag object, with K components.
-        '''
-        return calcSummaryStats(Data, SS, LP, doPrecompEntropy=doPrecompEntropy, **kwargs)
-
     def updatePost(self, SS):
         ''' Update attribute Post for all comps given suff stats.
 
@@ -222,29 +212,20 @@ class MixGaussObsModel(AbstractObsModel):
             --------
             eta : 2D array, size K x C
         '''
-        Prior = self.Prior
-        eta = Prior.eta + SS.N_full
+        eta = self.Prior.eta + SS.N_full
         return eta
 
     # first step of local inference procedure : calculate
     # the conditional log likelihood under each superstate
     # by summing over substates
-    def calcLocalParams(self, Data, **kwargs):
+    def calc_local_params(self, Data, LP=None, **kwargs): 
+        if LP is None:
+            LP = dict()
         L = self.calcLogSoftEvMatrix_FromPost_Full(Data, **kwargs)
-        LP = dict(E_log_soft_ev_full=L)
-        LP = dict(E_log_soft_ev=np.sum(L, axis=2))
+        LP['E_log_soft_ev_full'] = L
+        LP['E_log_soft_ev'] = np.sum(L, axis=2)
+
         return LP
-
-    def calcLogSoftEvMatrix_FromPost(self, Data, **kwargs):
-        ''' Calculate expected log soft ev matrix for variational.
-
-        Returns
-        ------
-        L : 2D array, size N x K
-        '''
-        L = self.calcLogSoftEvMatrix_FromPost_Full(Data, **kwargs)
-        return np.sum(L, axis=2)
-
 
     def calcLogSoftEvMatrix_FromPost_Full(self, Data, **kwargs):
         ''' Calculate expected log soft ev matrix for variational.
@@ -261,7 +242,7 @@ class MixGaussObsModel(AbstractObsModel):
                 L[:, k, c] = - 0.5 * Data.dim * LOGTWOPI \
                     + 0.5 * self.GetCached('E_logdetL', (k,c)) \
                     - 0.5 * self._mahalDist_Post(Data.X,k=k,c=c) 
-        return L + np.tile(self.GetCached('E_logpsi'), (Data.nObs,1,1))
+        return L + self.GetCached('E_logpsi') # NxKxC + KxC 
 
     def _mahalDist_Post(self, X, k, c): 
         ''' Calc expected mahalonobis distance from comp k to each data atom
@@ -276,30 +257,6 @@ class MixGaussObsModel(AbstractObsModel):
         Q *= Q
         return self.Post.nu[k,c] * np.sum(Q, axis=0) + self.D / self.Post.kappa[k,c]
 
-    # input  : LP dict computed by alloc model, 
-    #          containing resp field which holds
-    #          marginal assignment probabilities 
-    #          at each time point t,
-    # output : LP dict containing substate
-    #          marginal probabilities  
-    def calcSubstateLocalParams(self, Data, LP, **kwargs):
-        L = self.calcSubstateMarginalProbabilities(Data, LP, **kwargs)
-        LP['substate_resp'] = L
-        return LP
-
-    def calcSubstateMarginalProbabilities(self, Data, LP, **kwargs):
-        N = Data.nObs
-        K = self.Post.K
-        C = self.Post.C
-        L = np.zeros((N, K, C))
-
-        resp = LP['resp'] # N x K
-        E_log_soft_ev = self.calcLogSoftEvMatrix_FromPost_Full(Data, **kwargs) # N x K x C
-        Z = np.sum(E_log_soft_ev, axis=2)
-        E_log_soft_ev /= Z[:,:,np.newaxis]
-        L = resp[:,:,np.newaxis] * E_log_soft_ev 
-        return L
-
     def calcSummaryStats(self, Data, SS, LP, doPrecompEntropy=False, **kwargs):
         ''' Calculate summary statistics for given dataset and local parameters
 
@@ -308,10 +265,15 @@ class MixGaussObsModel(AbstractObsModel):
         SS : SuffStatBag object, with K components.
         '''
         if 'substate_resp' not in LP:
-            LP['substate_resp'] = self.calcHeuristicSubstateResp(Data, SS, LP['resp'], **kwargs)
+            # should check if post is around and if not, calculate heuristic init (init should be called at most once)
+            print '\n no substate resp in LP\n'
+            #LP['substate_resp'] = self.calcInitSubstateResp(Data, SS, LP['resp'], **kwargs)
+            LP = self.calcSubstateLocalParams(Data, LP, **kwargs)
+        else:
+            print '\n yes substate resp in LP \n'
         return self.calcSSGivenSubstateResp(Data, SS, LP, doPrecompEntropy=doPrecompEntropy, **kwargs)
 
-    def calcHeuristicSubstateResp(self, Data, SS, resp, **kwargs): # initialize
+    def calcInitSubstateResp(self, Data, SS, resp, **kwargs): 
         N,K,C = Data.nObs,SS.K,self.C
         substate_resp = np.zeros((N,K,C))
 
@@ -321,6 +283,43 @@ class MixGaussObsModel(AbstractObsModel):
 
         return substate_resp
 
+    # input  : LP dict computed by alloc model, 
+    #          containing resp field which holds
+    #          marginal assignment probabilities 
+    #          at each time point t,
+    # output : LP dict containing substate
+    #          marginal probabilities  
+    def calcSubstateLocalParams(self, Data, LP, **kwargs):
+
+        L = self.calcSubstateMarginalProbabilities(Data, LP, **kwargs)
+        LP['substate_resp'] = L
+        return LP
+
+    def calcSubstateMarginalProbabilities(self, Data, LP, **kwargs):
+
+        """
+        print LP.keys()
+
+        resp = LP['resp'] # N x K
+        E_log_soft_ev = self.calcLogSoftEvMatrix_FromPost_Full(Data, **kwargs) # N x K x C
+        Z = np.sum(E_log_soft_ev, axis=2)
+        E_log_soft_ev /= Z[:,:,np.newaxis]
+        L = resp[:,:,np.newaxis] * E_log_soft_ev
+        """
+        
+        """
+        vartheta = self.calcLogSoftEvMatrix_FromPost_Full(Data, **kwargs) # N x K x C
+        fwdbwd   = LP['E_log_soft_ev'][:,:,np.newaxis]
+        L = vartheta * fwdbwd # elementwise product
+        Z = np.sum(np.sum(L,axis=2),axis=1)
+        L = L / Z[:,np.newaxis,np.newaxis]
+        """
+
+        resp = LP['resp']
+        vartheta = LP['E_log_soft_ev_full']
+        vartheta /= np.sum(vartheta,axis=2)[:,:,np.newaxis]
+        return resp[:,:,np.newaxis] * vartheta
+
     def calcSSGivenSubstateResp(self, Data, SS, LP, doPrecompEntropy=False, **kwargs):
         substate_resp = LP['substate_resp']
         X = Data.X # N x D
@@ -328,7 +327,6 @@ class MixGaussObsModel(AbstractObsModel):
         N, K, C = substate_resp.shape
         self.K = K
         if SS is None:
-            print "this will not print"
             SS = SuffStatBag(K=K, D=D, C=C) 
         else:
             SS.C = C
@@ -520,6 +518,8 @@ class MixGaussObsModel(AbstractObsModel):
             return self.Prior.B / self.Prior.nu
         else:
             return self.Post.B[k,c] / self.Post.nu[k,c]
+
+
 
 
 

@@ -30,7 +30,7 @@ def get_data(seed=123, nDocTotal=32, T=1000,
     if nUsedStates < K:
         print 'WARNING: NOT ALL TRUE STATES USED IN GENERATED DATA'
 
-    Data = GroupXData(X=X, doc_range=doc_range, TrueZ=Z)
+    Data = GroupXData(X=X, doc_range=doc_range, TrueParams={'Y':Y, 'Z':Z}) #TrueZ=Z
     Data.name = get_short_name()
     Data.summary = get_data_info()
     return Data
