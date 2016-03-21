@@ -7,6 +7,7 @@ from bnpy.util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from bnpy.util import dotATA, dotATB, dotABT
 from bnpy.util import numpyToSharedMemArray, fillSharedMemArray
 from bnpy.util import as1D, as2D, as3D
+from bnpy.util import NumericUtil
 
 from AbstractObsModel import AbstractObsModel
 
@@ -224,7 +225,6 @@ class MixGaussObsModel(AbstractObsModel):
         L = self.calcLogSoftEvMatrix_FromPost_Full(Data, **kwargs)
         LP['E_log_soft_ev_full'] = L
         LP['E_log_soft_ev'] = np.sum(L, axis=2)
-
         return LP
 
     def calcLogSoftEvMatrix_FromPost_Full(self, Data, **kwargs):
@@ -314,10 +314,12 @@ class MixGaussObsModel(AbstractObsModel):
         Z = np.sum(np.sum(L,axis=2),axis=1)
         L = L / Z[:,np.newaxis,np.newaxis]
         """
-
         resp = LP['resp']
         vartheta = LP['E_log_soft_ev_full']
-        vartheta /= np.sum(vartheta,axis=2)[:,:,np.newaxis]
+        varthetaMax = np.max(vartheta, axis=2)
+        vartheta -= varthetaMax[:, :, np.newaxis]
+        np.exp(vartheta, out=vartheta)
+        vartheta /= np.sum(vartheta, axis=2)[:,:,np.newaxis]
         return resp[:,:,np.newaxis] * vartheta
 
     def calcSSGivenSubstateResp(self, Data, SS, LP, doPrecompEntropy=False, **kwargs):
