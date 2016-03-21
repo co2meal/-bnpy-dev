@@ -222,9 +222,26 @@ class MixGaussObsModel(AbstractObsModel):
     def calc_local_params(self, Data, LP=None, **kwargs): 
         if LP is None:
             LP = dict()
-        L = self.calcLogSoftEvMatrix_FromPost_Full(Data, **kwargs)
-        LP['E_log_soft_ev_full'] = L
-        LP['E_log_soft_ev'] = np.sum(L, axis=2)
+        # E_log_soft_ev_full : N x K x C array
+        # gives posterior log weight for cluster k,c for data item n
+        E_log_soft_ev_full = self.calcLogSoftEvMatrix_FromPost_Full(Data, **kwargs)
+        # substate_condresp : N x K x C array
+        # also called "vartheta" in some notation
+        # Gives the conditional prob of each substate given the state
+        # Satisfies np.sum(substate_condresp, axis=1) == 1.0
+        vartheta = E_log_soft_ev_full.copy()
+        varthetaMax = np.max(vartheta, axis=2)
+        vartheta -= varthetaMax[:, :, np.newaxis]
+        np.exp(vartheta, out=vartheta)
+        vartheta /= np.sum(vartheta, axis=2)[:,:,np.newaxis]
+        LP['substate_condresp'] = vartheta
+        assert np.allclose(1.0, np.sum(vartheta,axis=2).flatten())
+        # Modify E_log_soft_ev_full IN PLACE
+        # By multiplication with the conditional probabilities
+        # Summing over substate clusters gives the proper message for each k
+        # that is provided as input to the forward-backward algorithm
+        E_log_soft_ev_full *= vartheta
+        LP['E_log_soft_ev'] = np.sum(E_log_soft_ev_full, axis=2)
         return LP
 
     def calcLogSoftEvMatrix_FromPost_Full(self, Data, **kwargs):
@@ -315,12 +332,15 @@ class MixGaussObsModel(AbstractObsModel):
         L = L / Z[:,np.newaxis,np.newaxis]
         """
         resp = LP['resp']
+        '''
         vartheta = LP['E_log_soft_ev_full']
         varthetaMax = np.max(vartheta, axis=2)
         vartheta -= varthetaMax[:, :, np.newaxis]
         np.exp(vartheta, out=vartheta)
         vartheta /= np.sum(vartheta, axis=2)[:,:,np.newaxis]
-        substate_resp = resp[:,:,np.newaxis] * vartheta
+        '''
+        substate_resp = LP['substate_condresp']
+        substate_resp *= resp[:,:,np.newaxis]
         assert np.allclose(substate_resp.sum(axis=2), resp)
         return substate_resp
 
