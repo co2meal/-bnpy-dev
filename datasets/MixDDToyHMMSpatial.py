@@ -3,8 +3,18 @@ MixDDToyHMM: Diagonally-dominant toy HMM dataset with mixture emissions
 
 '''
 import numpy as np
+import bnpy
 from bnpy.data import GroupXData
 from bnpy.viz import GaussViz
+
+from matplotlib import pylab
+rcParams = pylab.rcParams
+rcParams['pdf.fonttype'] = 42
+rcParams['ps.fonttype'] = 42
+rcParams['text.usetex'] = False
+rcParams['xtick.labelsize'] = 20
+rcParams['ytick.labelsize'] = 20
+rcParams['legend.fontsize'] = 25
 
 
 def get_data(seed=123, nDocTotal=32, T=1000,
@@ -23,8 +33,8 @@ def get_data(seed=123, nDocTotal=32, T=1000,
     '''
     fullX, fullY, fullZ, doc_range = get_X(seed, T, nDocTotal)
     X = np.vstack(fullX)
-    Y = np.asarray(fullY)
-    Z = np.asarray(fullZ)
+    Y = np.asarray(fullY, dtype=np.int32)
+    Z = np.asarray(fullZ, dtype=np.int32)
 
     nUsedStates = len(np.unique(Z))
     if nUsedStates < K:
@@ -175,43 +185,13 @@ def illustrate(Colors=Colors):
             pylab.xlim([-38, 38])
 
 
-if __name__ == '__main__':
-
-    import bnpy
-    from bnpy.obsmodel import MixGaussObsModel
-    from matplotlib import pylab
-
-    N = 5000
-    Data = get_data(T=N, nDocTotal=1)
-    substate_resp = np.zeros((N,K,C))
-    for n in range(N):
-        substate_resp[n, Data.TrueParams['Z'][n], Data.TrueParams['Y'][n]] = 1.
-    LP = {'substate_resp' : substate_resp}
-
-    MM = MixGaussObsModel.MixGaussObsModel(C=C, Data=Data, ECovMat=np.eye(2))
-    SS = MixGaussObsModel.calcSummaryStats(Data=Data,SS=None,LP=LP)
-    MM.updatePost(SS)
-    for k in xrange(K):
-        for c in xrange(C):
-            pylab.plot(MM.Post.m[k,c,0], MM.Post.m[k,c,1],'kx')
-            GaussViz.plotGauss2DContour(MM.Post.m[k,c], MM.Post.B[k,c]/MM.Post.nu[k,c],color='k',radiusLengths=[.5,2]) #[0.5, 1.25, 2]
-            #GaussViz.plotGauss2DContour(mus[k,c], sigmas[k] ,color='r',radiusLengths=[.5,2])
-
-    rcParams = pylab.rcParams
-    rcParams['pdf.fonttype'] = 42
-    rcParams['ps.fonttype'] = 42
-    rcParams['text.usetex'] = False
-    rcParams['xtick.labelsize'] = 20
-    rcParams['ytick.labelsize'] = 20
-    rcParams['legend.fontsize'] = 25
-
-    
+def plotDataWithTrueLabelColors(Data):
     for k in xrange(K):
         zmask = Data.TrueParams['Z'] == k
         pylab.plot(Data.X[zmask, 0], Data.X[zmask, 1], '.', color=Colors[k],
                    markeredgecolor=Colors[k],
                    alpha=0.4) #0.4
-
+        ''' DEPRECATED CODE TO PLOT TRANSITION EDGES
         sigEdges = np.flatnonzero(transPi[k] > 0.0001)
         for j in sigEdges:
             if j == k:
@@ -233,16 +213,86 @@ if __name__ == '__main__':
             pylab.axis('image')
             pylab.ylim([-38, 38])
             pylab.xlim([-38, 38])
-    
-
+        '''
     pylab.gca().yaxis.set_ticks_position('left')
     pylab.gca().xaxis.set_ticks_position('bottom')
-
     pylab.axis('image')
     pylab.ylim([-38, 38])
     pylab.xlim([-38, 38])
 
+def plotCompsForHModel(hmodel, titleStr=None):
+    pylab.figure()
+    for k in xrange(K):
+        for c in xrange(C):
+            meanVec_kc = hmodel.obsModel.Post.m[k,c]
+            CovMat_kc = hmodel.obsModel.Post.B[k,c] / \
+                hmodel.obsModel.Post.nu[k,c]
+            pylab.plot(meanVec_kc[0], meanVec_kc[1], 'kx')
+            GaussViz.plotGauss2DContour(
+                meanVec_kc,
+                CovMat_kc,
+                color=Colors[k],
+                radiusLengths=[.5,2])
+    if titleStr:
+        pylab.title(titleStr)
+    pylab.gca().yaxis.set_ticks_position('left')
+    pylab.gca().xaxis.set_ticks_position('bottom')
+    pylab.axis('image')
+    pylab.ylim([-38, 38])
+    pylab.xlim([-38, 38])
 
-    pylab.savefig('DatasetIllustration2-MixDDToyHMM.png', bbox_inches='tight',
-                  pad_inches=0)
-    #pylab.show(block=True)
+def test_InitFromTruthAndPlotCompsAtEachStep(Data, nIters=3):
+    ''' Verify that inference works as expected from true initialization.
+
+    Procedure
+    ---------
+    1) Create an HModel 
+    2) Initialize it with "grouth truth" params for given dataset
+    3) Run several steps of inference (local/global) forward
+    4) Plot the learned substate clusters at each step
+
+    Post Condition
+    --------------
+    Plots will be created of learned comps at each step
+    '''
+    N = Data.TrueParams['Z'].size
+
+    # Create complete model, with HMM allocations and MixGauss observations
+    hmodel = bnpy.HModel.CreateEntireModel(
+        'VB', 'FiniteHMM', 'MixGaussObsModel',
+        dict(gamma=10.0, alpha=0.5, startAlpha=5.0),
+        dict(C=C, ECovMat=np.eye(2), sF=1.0),
+        Data)
+
+    # Create "ground truth" local parameter dict LP
+    substate_resp = 1e-100 * np.ones((N,K,C))
+    resp = 1e-100 * np.ones((N,K))
+    for n in range(N):
+        resp[n, Data.TrueParams['Z'][n]] = 1.0
+        substate_resp[n, Data.TrueParams['Z'][n], Data.TrueParams['Y'][n]] = 1.
+    trueLP = dict(
+        substate_resp=substate_resp,
+        resp=resp)
+    # Expand the fields of the trueLP to include things needed for the HMM
+    # Like the transition counts
+    trueLP = hmodel.allocModel.initLPFromResp(Data, trueLP)
+
+    # Do summary step and global step
+    trueSS = hmodel.get_global_suff_stats(Data, trueLP)
+    hmodel.update_global_params(trueSS)
+
+    plotCompsForHModel(hmodel, 'From Truth')
+    # Do several iterations of local/global steps
+    for i in range(nIters):
+        LP = hmodel.calc_local_params(Data)
+        SS = hmodel.get_global_suff_stats(Data, LP)
+        hmodel.update_global_params(SS)
+        plotCompsForHModel(hmodel, 'From Truth + %d iter' % (i+1))
+
+if __name__ == '__main__':
+    Data = get_data(T=5000, nDocTotal=1)
+    # Illustrate the raw data
+    plotDataWithTrueLabelColors(Data)
+    # Illustrate model at each step
+    test_InitFromTruthAndPlotCompsAtEachStep(Data, nIters=3)
+    pylab.show(block=True)

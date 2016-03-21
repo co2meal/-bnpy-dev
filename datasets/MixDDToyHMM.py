@@ -5,7 +5,7 @@ MixDDToyHMM: Diagonally-dominant toy HMM dataset with mixture emissions
 import numpy as np
 from bnpy.data import GroupXData
 from bnpy.viz import GaussViz
-
+from matplotlib import pylab
 
 def get_data(seed=123, nDocTotal=32, T=1000,
              **kwargs):
@@ -140,7 +140,6 @@ def illustrate(Colors=Colors):
     if hasattr(Colors, 'colors'):
         Colors = Colors.colors
 
-    from matplotlib import pylab
     rcParams = pylab.rcParams
     rcParams['pdf.fonttype'] = 42
     rcParams['ps.fonttype'] = 42
@@ -189,7 +188,20 @@ def illustrate(Colors=Colors):
 
 
 if __name__ == '__main__':
+    from MixDDToyHMMSpatial import \
+        test_InitFromTruthAndPlotCompsAtEachStep, \
+        plotDataWithTrueLabelColors
+    
+    Data = get_data(T=5000, nDocTotal=1)
+    # Illustrate the raw data
+    plotDataWithTrueLabelColors(Data)
+    # Illustrate model at each step
+    test_InitFromTruthAndPlotCompsAtEachStep(Data, nIters=3)
+    pylab.show(block=True)
+
+    '''
     illustrate()
     pylab.savefig('DatasetIllustration-MixDDToyHMM.eps', bbox_inches='tight',
                   pad_inches=0)
     pylab.show(block=True)
+    '''
