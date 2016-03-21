@@ -290,9 +290,9 @@ class MixGaussObsModel(AbstractObsModel):
     # output : LP dict containing substate
     #          marginal probabilities  
     def calcSubstateLocalParams(self, Data, LP, **kwargs):
-
-        L = self.calcSubstateMarginalProbabilities(Data, LP, **kwargs)
-        LP['substate_resp'] = L
+        substate_resp = self.calcSubstateMarginalProbabilities(
+            Data, LP, **kwargs)
+        LP['substate_resp'] = substate_resp
         return LP
 
     def calcSubstateMarginalProbabilities(self, Data, LP, **kwargs):
@@ -320,7 +320,9 @@ class MixGaussObsModel(AbstractObsModel):
         vartheta -= varthetaMax[:, :, np.newaxis]
         np.exp(vartheta, out=vartheta)
         vartheta /= np.sum(vartheta, axis=2)[:,:,np.newaxis]
-        return resp[:,:,np.newaxis] * vartheta
+        substate_resp = resp[:,:,np.newaxis] * vartheta
+        assert np.allclose(substate_resp.sum(axis=2), resp)
+        return substate_resp
 
     def calcSSGivenSubstateResp(self, Data, SS, LP, doPrecompEntropy=False, **kwargs):
         substate_resp = LP['substate_resp']
