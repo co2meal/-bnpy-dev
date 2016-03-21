@@ -121,7 +121,7 @@ class GroupXData(XData):
         if TrueParams is not None:
             self.TrueParams = dict()
             for key, arr in TrueParams.items():
-                self.TrueParams[key] = toCArray(arr)
+                self.TrueParams[key] = toCArray(arr, dtype=arr.dtype)
 
         if TrueZ is not None:
             if not hasattr(self, 'TrueParams'):
