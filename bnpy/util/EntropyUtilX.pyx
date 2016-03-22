@@ -1,13 +1,40 @@
 """
 References
 ----------
-Neal Hughes
+Neal Hughes (no relation to Mike)
 Blog post on "Fast Python loops with Cython"
 http://nealhughes.net/cython1/
 """
 
 import numpy as np
 from libc.math cimport log
+
+
+def calcRlogR_1D_cython(double[:] R):
+    """ Compute sum of R * log(R). Faster, cython version.
+
+    Args
+    ----
+    R : 1D array, size N
+        Each row must have entries that are strictly positive (> 0).
+        No bounds checking is enforced!
+
+    Returns
+    -------
+    H : 1D array, size K
+        H[k] = np.sum(R[:,k] * log R[:,k])
+    """
+    assert R.ndim == 1
+    cdef int N = R.shape[0]
+    # H is a memoryview here
+    # aka a low-level pointer to array-like object
+    cdef double H = 0.0
+    # Compute using loops (fast!)
+    for n in range(N):
+        H += R[n] * log(R[n])
+    # Return the numpy array, not a memoryview
+    return H
+
 
 def calcRlogR_cython(double[:, :] R):
     """ Compute sum over columns of R * log(R). Faster, cython version.

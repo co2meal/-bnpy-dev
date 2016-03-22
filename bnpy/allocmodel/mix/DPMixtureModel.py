@@ -364,7 +364,7 @@ class DPMixtureModel(AllocModel):
             kA = SSa.uid2k(uidA)
             kB = SSb.uid2k(uidB)
             respAB = LPa['resp'][:, kA] + LPb['resp'][:, kB]
-            m_Hresp[m] = -1 * NumericUtil.calcRlogR(respAB[:,np.newaxis])
+            m_Hresp[m] = -1 * NumericUtil.calcRlogR(respAB)
         assert m_Hresp.min() > -1e-9
         return dict(Hresp=m_Hresp)
 

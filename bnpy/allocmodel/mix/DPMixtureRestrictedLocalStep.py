@@ -75,7 +75,7 @@ def summarizeRestrictedLocalStep_DPMixtureModel(
     else:
         target_resp = curLPslice['spR'][:, ktarget].toarray()
         np.maximum(target_resp, 1e-100, out=target_resp)
-        HrespOrigComp = -1 * NumericUtil.calcRlogR(target_resp)[0]
+        HrespOrigComp = -1 * NumericUtil.calcRlogR(target_resp)
     xSSslice.setELBOTerm('HrespEmptyComp', -1 * HrespOrigComp, dims=None)
 
     # If desired, add merge terms into the expanded summaries,
