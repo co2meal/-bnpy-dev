@@ -282,21 +282,68 @@ class MixGaussObsModel(AbstractObsModel):
         SS : SuffStatBag object, with K components.
         '''
         if 'substate_resp' not in LP:
+            if hasattr(self,'Post'):
+                LP = self.calcSubstateLocalParams(Data, LP, **kwargs)
+            else:
+                substate_resp = self.calcInitSubstateResp(Data, SS, LP, **kwargs)
+                LP['substate_resp'] = substate_resp
             # should check if post is around and if not, calculate heuristic init (init should be called at most once)
-            print '\n no substate resp in LP\n'
+            #print '\n no substate resp in LP\n'
             #LP['substate_resp'] = self.calcInitSubstateResp(Data, SS, LP['resp'], **kwargs)
-            LP = self.calcSubstateLocalParams(Data, LP, **kwargs)
+            
         else:
             print '\n yes substate resp in LP \n'
         return self.calcSSGivenSubstateResp(Data, SS, LP, doPrecompEntropy=doPrecompEntropy, **kwargs)
 
-    def calcInitSubstateResp(self, Data, SS, resp, **kwargs): 
+    def calcInitSubstateResp(self, Data, SS, LP, **kwargs): 
+        resp = LP['resp']
         N,K,C = Data.nObs,SS.K,self.C
         substate_resp = np.zeros((N,K,C))
 
         # better alternative -- k-means?
-        for c in xrange(C):
-            substate_resp[:,:,c] = resp/C
+        #for c in xrange(C):
+        #    substate_resp[:,:,c] = resp/C
+        
+        """
+        from sklearn.cluster import KMeans
+        print 'kmeans'
+        kmeans = KMeans(init='random', n_clusters=K*C, n_init=10,max_iter=10000)
+        kmeans.fit(Data.X)
+        labels = kmeans.labels_
+        for n in xrange(N):
+            cc = labels[n] // K
+            kk = labels[n] %  K
+            substate_resp[n,kk,cc] = 1.0
+        """
+        
+        
+        #print np.nonzero(resp)
+        #print LP.keys()
+        from sklearn.cluster import KMeans
+        max_resp = np.argmax(resp,axis=1)
+        for kk in xrange(K):
+            inds = [n for n in list(np.nonzero(max_resp==kk)[0]) if resp[n,kk] > 0]
+            print len(inds)
+            #inds = range(int(kk*N/float(K)),int((kk+1)*N/float(K)))
+            kmeans = KMeans(init='random', n_clusters=C, n_init=3)#,max_iter=1000)
+            kmeans.fit(Data.X[inds]) #[inds]
+            labels = kmeans.labels_
+            for j,n in enumerate(inds):
+                cc = labels[j]
+                substate_resp[n,kk,cc] = 1.0 #resp[n,kk]#
+        
+
+        #v = 1e-3
+        #substate_resp = np.random.dirichlet(np.ones(K*C)*v, N).reshape((N,K,C))
+        #substate_resp *= resp[:,:,np.newaxis]
+
+        """
+        for n in xrange(N):
+            cc = np.random.randint(C)
+            #kk = random.randint(K)
+            for kk in xrange(K):
+                substate_resp[n,kk,cc] = resp[n,kk]
+        """
 
         return substate_resp
 
