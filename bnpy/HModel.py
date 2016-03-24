@@ -160,6 +160,9 @@ class HModel(object):
             init.FromTruth.init_global_params(self, Data, **initArgs)
         elif initname.count('LP') > 0:
             init.FromLP.init_global_params(self, Data, **initArgs)
+        elif initname.count('bregmanmixture') > 0:
+            init.FromScratchBregmanMixture.init_global_params(
+                self, Data, **initArgs)
         elif initname.count('bregman') > 0:
             init.FromScratchBregman.init_global_params(
                 self, Data, **initArgs)

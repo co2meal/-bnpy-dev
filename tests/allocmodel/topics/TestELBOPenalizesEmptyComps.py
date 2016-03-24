@@ -165,6 +165,7 @@ def makeFigure(**kwargs):
     PointEstELBOVals /= scale
 
     # Set buffer-space for defining plotable area
+    xB = 0.25
     B = 0.19  # big buffer for sides where we will put text labels
     b = 0.01  # small buffer for other sides
     TICKSIZE = 30
@@ -175,7 +176,7 @@ def makeFigure(**kwargs):
     # Plot the results
     figH = pylab.figure(figsize=(9.1, 6))
     axH = pylab.subplot(111)
-    axH.set_position([B, B, (1 - B - b), (1 - B - b)])
+    axH.set_position([xB, B, (1 - xB - b), (1 - B - b)])
 
     plotargs = dict(markersize=20, linewidth=LINEWIDTH)
     pylab.plot(kemptyVals, PointEstELBOVals, 'v-', label='HDP point est',
@@ -216,6 +217,6 @@ if __name__ == "__main__":
     keypress = raw_input('Press y to save, any other key to close >>')
     if keypress.count('y'):
         pylab.savefig(
-            'ELBOchangeVsNumEmpty.eps',
-            bbox_inches='tight',
+            'changeInELBOVsNumEmpty.eps',
+            #bbox_inches='tight',
             format='eps')
