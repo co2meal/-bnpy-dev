@@ -3,6 +3,7 @@ The :mod:`util` module gathers utility functions
 """
 
 import RandUtil
+import OptimizerForPi
 
 from .PrettyPrintUtil import np2flatstr, flatstr2np
 from .PrettyPrintUtil import split_str_into_fixed_width_lines
@@ -19,7 +20,7 @@ from .ShapeUtil import argsortBigToSmallByTiers
 from .ParallelUtil import numpyToSharedMemArray, sharedMemToNumpyArray
 from .ParallelUtil import sharedMemDictToNumpy, fillSharedMemArray
 
-__all__ = ['RandUtil',
+__all__ = ['RandUtil', 'OptimizerForPi',
            'split_str_into_fixed_width_lines',
            'np2flatstr', 'flatstr2np',
            'dotATA', 'dotATB', 'dotABT',

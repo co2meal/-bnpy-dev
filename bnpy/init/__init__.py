@@ -10,6 +10,7 @@ import FromScratchGauss
 import FromScratchMult
 import FromScratchBern
 import FromScratchBregman
+import FromScratchBregmanMixture
 
 # from FromScratchMult import initSSByBregDiv_Mult
 # from FromScratchBern import initSSByBregDiv_Bern
