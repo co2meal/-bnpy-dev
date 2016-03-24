@@ -103,6 +103,12 @@ class WordsData(DataObj):
                 nSlice=nSlice,
                 filesize=filesize,
                 **kwargs)
+        return cls.LoadFromFile_ldac_python(filepath,
+            vocab_size=vocab_size,
+            nDocTotal=nDocTotal,
+            filesize=filesize,
+            **kwargs)
+        ''' THIS HAD A BAD MEMORY LEAK
         try:
             from bnpy.util.TextFileReader \
                 import LoadWordsDataFromFile_ldac_cython
@@ -116,7 +122,7 @@ class WordsData(DataObj):
                 nDocTotal=nDocTotal,
                 filesize=filesize,
                 **kwargs)
-
+        '''
 
     @classmethod
     def LoadFromFile_ldac_python(

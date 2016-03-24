@@ -3,10 +3,11 @@ import numpy as np
 import scipy.sparse
 import psutil
 
-def getMemUsageOfCurProcess_MiB():
+def getMemUsageOfCurProcess_MiB(field='rss'):
     # return the memory usage in MB
     process = psutil.Process(os.getpid())
-    mem_MiB = process.memory_info_ex().rss / float(2 ** 20)
+    mem = getattr(process.memory_info_ex(), field)
+    mem_MiB = mem / float(2 ** 20)
     return mem_MiB
 
 def calcObjSize_MiB(arr):

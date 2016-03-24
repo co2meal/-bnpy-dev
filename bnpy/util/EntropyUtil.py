@@ -4,7 +4,8 @@ import os
 
 hasCython = True
 try:
-    from EntropyUtilX import calcRlogR_cython, calcRlogRdotv_cython
+    from EntropyUtilX import \
+        calcRlogR_1D_cython, calcRlogR_cython, calcRlogRdotv_cython
 except ImportError:
     hasCython = False
 
@@ -33,7 +34,7 @@ def calcRlogR(R, algVersion='cython'):
     '''
     if hasCython and algVersion.count('cython'):
         if R.ndim == 1:
-            return calcRlogR_cython(R[:,np.newaxis])[0]
+            return calcRlogR_1D_cython(R)
         else:
             return calcRlogR_cython(R)
     elif hasNumexpr and algVersion.count('numexpr'):

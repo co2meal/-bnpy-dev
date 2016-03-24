@@ -121,6 +121,8 @@ class MemoVBMovesAlg(LearnAlg):
             SS = self.incrementWholeDataSummary(
                 SS, SSbatch, oldSSbatch, lapFrac=lapFrac, hmodel=hmodel)
             self.SSmemory[batchID] = SSbatch
+            del SSbatch
+            del oldSSbatch
             self.LastUpdateLap[batchID] = lapFrac
 
             # Global step
@@ -186,7 +188,8 @@ class MemoVBMovesAlg(LearnAlg):
                 self.verifyELBOTracking(hmodel, SS, Lscore, 
                     MoveLog=MoveLog, lapFrac=lapFrac)
             self.saveDebugStateAtBatch(
-                'Mstep', batchID, SSchunk=SSbatch, SS=SS, hmodel=hmodel)
+                'Mstep', batchID, SSchunk=self.SSmemory[batchID],
+                SS=SS, hmodel=hmodel)
 
             # Assess convergence
             countVec = SS.getCountVec()
@@ -256,6 +259,7 @@ class MemoVBMovesAlg(LearnAlg):
         ElapsedTimeLogger.startEvent('io', 'loadbatch')
         Dbatch = DataIterator.getBatch(batchID=batchID)
         ElapsedTimeLogger.stopEvent('io', 'loadbatch')
+
         # Prepare the kwargs for the local and summary steps
         # including args for the desired merges/deletes/etc.
         if not isinstance(MovePlans, dict):
@@ -267,6 +271,7 @@ class MemoVBMovesAlg(LearnAlg):
         if self.hasMove('birth'):
             if self.algParams['birth']['b_debugWriteHTML']:
                 trackDocUsage = 1
+
         # Do the real work here: calc local params
         # Pass lap and batch info so logging happens
         ElapsedTimeLogger.startEvent('local', 'update')

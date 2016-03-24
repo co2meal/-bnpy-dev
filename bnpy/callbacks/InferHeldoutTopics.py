@@ -593,7 +593,7 @@ def calcPredLikForDocFromHModel(
     hoLik_d += np.log(Epi_global)[np.newaxis,:]
     logProbPerToken_d = logsumexp(hoLik_d, axis=1)
     Info['sumlogProbTokens'] = np.sum(logProbPerToken_d)
-    Info['nHeldoutToken'] = len(heldoutIDs)
+    Info['nHeldoutToken'] = len(heldoutIDs) * hoData.dim
     return Info
     '''
     # Run local step to get DocTopicCounts
