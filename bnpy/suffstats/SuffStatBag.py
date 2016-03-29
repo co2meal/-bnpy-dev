@@ -532,6 +532,75 @@ class SuffStatBag(object):
                 elif dims == ('K'):
                     mArr[kA] = mArr[kA] + mArr[kB]
 
+
+    def replaceCompsWithContraction(self, 
+            removeUIDs=[],
+            replaceUIDs=[],
+            replaceSS=None,
+            keysToSetNonExtraZero=['sumLogPiRemVec']):
+        ''' Replace existing clusters and remove others.
+
+        Post Condition
+        --------------
+        Values associated with uids in replaceUIDs are copied from replaceSS.
+        Values associated with uids in removeUIDs are removed.
+
+        Examples
+        --------
+        >>> SS = SuffStatBag(K=5, D=2)
+        >>> SS.setField('x', 10 + np.tile(np.arange(5), (2,1)).T, dims=('K','D'))
+        >>> SS.setELBOTerm('Hresp', np.ones(5), dims='K')
+        >>> print SS.uids
+        [0 1 2 3 4]
+        >>> print SS.x
+        [[ 10.  10.]
+         [ 11.  11.]
+         [ 12.  12.]
+         [ 13.  13.]
+         [ 14.  14.]]
+        >>> replaceSS = SuffStatBag(K=2, D=2)
+        >>> replaceSS.setUIDs([1,2])
+        >>> rx = SS.x[replaceSS.uids] + 0.5*SS.x[3][np.newaxis,:]
+        >>> replaceSS.setField('x', rx, dims=('K','D'))
+        >>> replaceSS.setELBOTerm('Hresp', 2*np.ones(2), dims='K')
+        >>> SS.replaceCompsWithContraction(\
+            removeUIDs=[3], replaceUIDs=[1,2], replaceSS=replaceSS)
+        >>> print SS.getELBOTerm('Hresp')
+        [ 1.  2.  2.  1.]
+        >>> print SS.x
+        [[ 10.   10. ]
+         [ 17.5  17.5]
+         [ 18.5  18.5]
+         [ 14.   14. ]]
+        >>> print SS.uids
+        [0 1 2 4]
+        '''
+        intersectUIDs = np.intersect1d(replaceSS.uids, self.uids)
+        if intersectUIDs.size < replaceSS.uids.size:
+            raise ValueError("Cannot replace unfamiliar uids")
+
+        replace_ids = []
+        for uid in replaceUIDs:
+            replace_ids.append(self.uid2k(uid))
+
+        for key, dims in self._Fields._FieldDims.items():
+            if dims is None:
+                continue
+            assert dims[0] == 'K' and 'K' not in dims[1:]
+            arr = getattr(self._Fields, key)
+            arr[replace_ids] = getattr(replaceSS._Fields, key)
+
+        if self.hasELBOTerms():
+            for key, dims in self._ELBOTerms._FieldDims.items():
+                if dims is None:
+                    continue
+                assert dims[0] == 'K' and 'K' not in dims[1:]
+                arr = getattr(self._ELBOTerms, key)
+                arr[replace_ids] = replaceSS.getELBOTerm(key)
+
+        for uid in removeUIDs:
+            self.removeComp(uid=uid)
+
     def replaceCompWithExpansion(self, uid=0, xSS=None,
                                  keysToSetNonExtraZero=['sumLogPiRemVec']):
         ''' Replace existing component with expanded set of statistics.

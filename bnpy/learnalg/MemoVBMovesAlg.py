@@ -369,46 +369,30 @@ class MemoVBMovesAlg(LearnAlg):
         if 'd_targetUIDs' in MovePlans:
             ElapsedTimeLogger.startEvent('delete', 'localexpansion')
             targetUID = MovePlans['d_targetUIDs'][0]
-            # Make copy of current suff stats (minus target state)
-            # to inspire reclustering of junk state.
-            propRemSS = curSSwhole.copy(
-                includeELBOTerms=False, includeMergeTerms=False)
-            for uid in propRemSS.uids:
-                if uid not in MovePlans['d_absorbingUIDSet']:
-                    propRemSS.removeComp(uid=uid)
-            # Give each absorbing UID a termporary new UID
-            oldUIDs = propRemSS.uids.copy()
-            if self.isFirstBatch(lapFrac):
-                newUIDs = self.makeNewUIDs(b_Kfresh=len(oldUIDs))
+            if hasattr(curSSwhole, 'propXSS') and \
+                    targetUID in curSSwhole.propXSS:
+                xInitSS = curSSwhole.propXSS[targetUID].copy(
+                    includeELBOTerms=False)
+                doBuildOnInit = True
             else:
-                assert targetUID in SS.propXSS
-                newUIDs = SS.propXSS[targetUID].uids
-            propRemSS.setUIDs(newUIDs)
-            mUIDPairs = list()
-            for ii, oldUID in enumerate(oldUIDs):
-                mUIDPairs.append((oldUID, newUIDs[ii]))
-
-            # # For topic models, consider inflating some word counts
-            # # for the temporary suff stats used to do restricted steps
-            '''
-            absorbingIDs = np.sort([curSSwhole.uid2k(uid)
-                    for uid in MovePlans['d_absorbingUIDSet']])
-
-            if curModel.getAllocModelName().count('HDPTopic'):
-                if curModel.getObsModelName().count('Mult'):
-                    ktarget = curSSwhole.uid2k(targetUID)
-                    topTargetWords = np.flatnonzero(
-                        curSSwhole.WordCounts[ktarget,:] > 5)
-                    # TODO inflate with topTargetWords on other topics??
-            '''
+                doBuildOnInit = False
+                # Make copy of current suff stats (minus target state)
+                # to inspire reclustering of junk state.
+                xInitSS = curSSwhole.copy(
+                    includeELBOTerms=False, includeMergeTerms=False)
+                for uid in xInitSS.uids:
+                    if uid not in MovePlans['d_absorbingUIDSet']:
+                        xInitSS.removeComp(uid=uid)
+                MovePlans['d_absorbingUIDs'] = xInitSS.uids
             # Run restricted local step
             SSbatch.propXSS[targetUID], rInfo = summarizeRestrictedLocalStep(
                 Dbatch, curModel, LPbatch, 
                 curSSwhole=curSSwhole,
-                xInitSS=propRemSS,
-                xUIDs=newUIDs,
+                xInitSS=xInitSS,
+                doBuildOnInit=doBuildOnInit,
+                xUIDs=xInitSS.uids,
                 targetUID=targetUID,
-                mUIDPairs=mUIDPairs,
+                nUpdateSteps=25,
                 LPkwargs=LPkwargs,
                 emptyPiFrac=0,
                 lapFrac=lapFrac)
@@ -508,10 +492,17 @@ class MemoVBMovesAlg(LearnAlg):
                 hasStoredProposal = hasattr(SSbatch, 'propXSS') and \
                     targetUID in SSbatch.propXSS
                 assert hasStoredProposal
+                SSbatch.replaceCompsWithContraction(
+                    removeUIDs=[targetUID],
+                    replaceUIDs=SSbatch.propXSS[targetUID].uids,
+                    replaceSS=SSbatch.propXSS[targetUID],
+                    )
+                '''
                 SSbatch.replaceCompWithExpansion(
                     uid=targetUID, xSS=SSbatch.propXSS[targetUID])
                 for (uidA, uidB) in SSbatch.mUIDPairs:
                     SSbatch.mergeComps(uidA=uidA, uidB=uidB)
+                '''
             else:
                 raise NotImplementedError("TODO")
             assert np.allclose(SSbatch.uids, afterUIDs)
@@ -1119,16 +1110,26 @@ class MemoVBMovesAlg(LearnAlg):
                 MLogger.pprint("%4d, %4d : skipped." % (
                     uidA, uidB), 'debug')
                 continue
-            nTrial += 1           
+            nTrial += 1
             # Update records for when each uid was last attempted
+            pairTuple = (uidA, uidB)
+            if pairTuple not in MoveRecordsByUID:
+                MoveRecordsByUID[pairTuple] = defaultdict(int)
+            MoveRecordsByUID[pairTuple]['m_nTrial'] += 1
+            MoveRecordsByUID[pairTuple]['m_latestLap'] = lapFrac
+            minPairCount = np.minimum(
+                SS.getCountForUID(uidA),
+                SS.getCountForUID(uidB))
+            MoveRecordsByUID[pairTuple]['m_latestMinCount'] = minPairCount
+            '''
             for u in [uidA, uidB]:
                 if u not in MoveRecordsByUID:
                     MoveRecordsByUID[u] = defaultdict(int)
-
                 targetCount = SS.getCountVec()[SS.uid2k(u)]
                 MoveRecordsByUID[u]['m_nTrial'] += 1
                 MoveRecordsByUID[u]['m_latestLap'] = lapFrac
                 MoveRecordsByUID[u]['m_latestCount'] = targetCount
+            '''
             propSS = SS.copy()
             propSS.mergeComps(uidA=uidA, uidB=uidB)
             propModel = hmodel.copy()
@@ -1139,7 +1140,7 @@ class MemoVBMovesAlg(LearnAlg):
             propSizeStr = count2str(propSS.getCountForUID(uidA))
             if propLscore > Lscore - ELBO_GAP_ACCEPT_TOL:
                 nAccept += 1
-                Ndiff += targetCount
+                Ndiff += minPairCount
                 MLogger.pprint(
                     "%4d, %4d : accepted." % (uidA, uidB) +
                     " gain %.3e  " % (propLscore - Lscore) +
@@ -1148,10 +1149,11 @@ class MemoVBMovesAlg(LearnAlg):
 
                 acceptedUIDs.add(uidA)
                 acceptedUIDs.add(uidB)
-                MoveRecordsByUID[uidA]['m_nSuccess'] += 1
-                MoveRecordsByUID[uidA]['m_nSuccessRecent'] += 1
-                MoveRecordsByUID[uidA]['m_nFailRecent'] = 0
+                if uidA not in MoveRecordsByUID:
+                    MoveRecordsByUID[uidA] = defaultdict(int)
                 MoveRecordsByUID[uidA]['m_latestLapAccept'] = lapFrac
+                del MoveRecordsByUID[pairTuple]
+
                 # Write necessary information to the log
                 MoveArgs = dict(uidA=uidA, uidB=uidB)
                 infoTuple = (lapFrac, 'merge', MoveArgs,
@@ -1167,11 +1169,8 @@ class MemoVBMovesAlg(LearnAlg):
                     " gain %.3f  " % (propLscore - Lscore) +
                     " size %s  " % (propSizeStr),
                     'debug')
+                MoveRecordsByUID[pairTuple]['m_nFailRecent'] += 1
 
-                for u in [uidA, uidB]:
-                    MoveRecordsByUID[u]['m_nFail'] += 1
-                    MoveRecordsByUID[u]['m_nFailRecent'] += 1
-                    MoveRecordsByUID[u]['m_nSuccessRecent'] = 0
         if nTrial > 0:
             msg = "MERGE @ lap %.2f : %d/%d accepted." + \
                 " Ndiff %.2f. %d skipped."
@@ -1283,10 +1282,17 @@ class MemoVBMovesAlg(LearnAlg):
             MoveRecordsByUID[targetUID]['d_latestCount'] = targetCount
             # Construct proposed stats
             propSS = SS.copy()
+            replaceUIDs = MovePlans['d_absorbingUIDs']
+            propSS.replaceCompsWithContraction(
+                replaceUIDs=replaceUIDs,
+                removeUIDs=[targetUID],
+                replaceSS=SS.propXSS[targetUID])
+            '''
             propSS.replaceCompWithExpansion(uid=targetUID,
                                             xSS=SS.propXSS[targetUID])
             for (uidA, uidB) in propSS.mUIDPairs:
                 propSS.mergeComps(uidA=uidA, uidB=uidB)
+            '''
             # Construct proposed model and its ELBO score
             propModel = hmodel.copy()
             propModel.update_global_params(propSS)

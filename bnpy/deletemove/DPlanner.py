@@ -29,12 +29,12 @@ def selectCandidateDeleteComps(
     # b) "absorbing" deleted comps.
     eligibleUIDs = set(SS.uids)
 
-    if len(eligibleUIDs) < 3:
+    if len(eligibleUIDs) < 2:
         DLogger.pprint(
-            "Delete proposal requires at least 3 eligible UIDs.\n" + \
-            "   Need 1 uid to target, and at least 2 to absorb." + \
+            "Delete proposal requires at least 2 eligible UIDs.\n" + \
+            "   Need 1 uid to target, and at least 1 to absorb." + \
             "   Only have %d total uids in the model." % (len(eligibleUIDs)))
-        failMsg = "Ineligible. Did not find >= 3 eligible UIDs to absorb."
+        failMsg = "Ineligible. Did not find >= 2 eligible UIDs to absorb."
         return dict(failMsg=failMsg)
 
     uidsBusyWithOtherMoves = set()
@@ -49,10 +49,10 @@ def selectCandidateDeleteComps(
             eligibleUIDs.discard(uid)
             uidsBusyWithOtherMoves.add(uid)
 
-    if len(eligibleUIDs) < 3:
-        DLogger.pprint("Delete requires at least 3 UIDs" + \
+    if len(eligibleUIDs) < 2:
+        DLogger.pprint("Delete requires at least 2 UIDs" + \
             " not occupied by merge or birth.\n" + \
-            "   Need 1 uid to target, and at least 2 to absorb.\n" + \
+            "   Need 1 uid to target, and at least 1 to absorb.\n" + \
             "   Only have %d total uids eligible." % (len(eligibleUIDs)))
         failMsg = "Ineligible. Too many uids occupied by merge or shortlisted for birth."
         return dict(failMsg=failMsg)
@@ -133,5 +133,4 @@ def selectCandidateDeleteComps(
     DLogger.pprint('Selecting one single state to target.')
     DLogger.pprint('targetUID ' + str(targetUID))
     DLogger.pprint('absorbingUIDs: ' + vec2str(eligibleUIDs))
-
     return MovePlans

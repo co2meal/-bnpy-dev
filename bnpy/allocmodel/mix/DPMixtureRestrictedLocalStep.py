@@ -15,6 +15,7 @@ def summarizeRestrictedLocalStep_DPMixtureModel(
         mUIDPairs=None,
         xObsModel=None,
         xInitSS=None,
+        doBuildOnInit=False,
         **kwargs):
     ''' Perform one restricted local step and summarize it.
 
@@ -31,6 +32,7 @@ def summarizeRestrictedLocalStep_DPMixtureModel(
         assert ktarget is not None
         targetUID = curSSwhole.uids[ktarget]
     assert targetUID == curSSwhole.uids[ktarget]
+
     # Determine how many new uids to make
     assert xUIDs is not None
     Kfresh = len(xUIDs)
@@ -52,14 +54,23 @@ def summarizeRestrictedLocalStep_DPMixtureModel(
         curModel=curModel, xInitSS=xInitSS,
         ktarget=ktarget, Kfresh=Kfresh, **kwargs)
     
+    sumRespVec = curLPslice['resp'][:,ktarget]
+    isExpansion = True
+    if np.intersect1d(xUIDs, curSSwhole.uids).size > 0:
+        isExpansion = False
+        for uid in xUIDs:
+            kk = curSSwhole.uid2k(uid)
+            sumRespVec += curLPslice['resp'][:, kk]
+
     # Perform restricted inference!
     # xLPslice contains local params for all Kfresh expansion clusters
     xLPslice = restrictedLocalStep_DPMixtureModel(
         Dslice=Dslice,
-        curLPslice=curLPslice,
-        ktarget=ktarget,
+        sumRespVec=sumRespVec,
         xObsModel=xObsModel,
         xPiVec=xPiVec,
+        doBuildOnInit=doBuildOnInit,
+        xInitSS=xInitSS,
         **kwargs)
     
     # Summarize this expanded local parameter pack
@@ -69,14 +80,15 @@ def summarizeRestrictedLocalStep_DPMixtureModel(
     xSSslice.setUIDs(xUIDs)
 
     # Handle bookkeeping for original entropy term
-    if 'resp' in curLPslice:
-        HrespOrigComp = -1 * NumericUtil.calcRlogR(
-            curLPslice['resp'][:, ktarget])
-    else:
-        target_resp = curLPslice['spR'][:, ktarget].toarray()
-        np.maximum(target_resp, 1e-100, out=target_resp)
-        HrespOrigComp = -1 * NumericUtil.calcRlogR(target_resp)
-    xSSslice.setELBOTerm('HrespEmptyComp', -1 * HrespOrigComp, dims=None)
+    if isExpansion:
+        if 'resp' in curLPslice:
+            HrespOrigComp = -1 * NumericUtil.calcRlogR(
+                curLPslice['resp'][:, ktarget])
+        else:
+            target_resp = curLPslice['spR'][:, ktarget].toarray()
+            np.maximum(target_resp, 1e-100, out=target_resp)
+            HrespOrigComp = -1 * NumericUtil.calcRlogR(target_resp)
+        xSSslice.setELBOTerm('HrespEmptyComp', -1 * HrespOrigComp, dims=None)
 
     # If desired, add merge terms into the expanded summaries,
     if mUIDPairs is not None and len(mUIDPairs) > 0:
@@ -103,7 +115,71 @@ def summarizeRestrictedLocalStep_DPMixtureModel(
 
 
 
+def restrictedLocalStep_DPMixtureModel(
+        Dslice=None,
+        sumRespVec=None,
+        LPkwargs=dict(),
+        xObsModel=None,
+        xPiVec=None,
+        xInitSS=None,
+        doBuildOnInit=False,
+        nUpdateSteps=50,
+        convThr=0.1,
+        xPiPrior=1.0,
+        **kwargs):
+    ''' Perform restricted local step on provided dataset.
 
+    Returns
+    -------
+    xLPslice : dict with updated local parameters
+        Obeys restriction that sum(resp, axis=1) equals sumRespVec
+    '''
+    if xInitSS is None:
+        xWholeSS = None
+    else:
+        xWholeSS = xInitSS.copy()
+    for step in range(nUpdateSteps):
+        # Compute conditional likelihoods for every data atom
+        xLPslice = xObsModel.calc_local_params(Dslice, **LPkwargs)
+        assert 'E_log_soft_ev' in xLPslice
+        xresp = xLPslice['E_log_soft_ev']
+        xresp += np.log(xPiVec)[np.newaxis,:]
+        # Calculate exp in numerically stable manner (first subtract the max)
+        #  perform this in-place so no new allocations occur
+        NumericUtil.inplaceExpAndNormalizeRows(xresp)
+        # Enforce sum restriction
+        xresp *= sumRespVec[:,np.newaxis]
+        np.maximum(xresp, 1e-100, out=xresp)
+
+        isLastStep = step == nUpdateSteps - 1
+        if not isLastStep:
+            xSS = xObsModel.calcSummaryStats(Dslice, None, dict(resp=xresp))
+            # Increment
+            if doBuildOnInit:
+                xSS.setUIDs(xWholeSS.uids)
+                xWholeSS += xSS
+            else:
+                xWholeSS = xSS
+            # Global step
+            xObsModel.update_global_params(xWholeSS)
+            Nvec = xWholeSS.getCountVec()
+            xPiVec = Nvec + xPiPrior
+            # Decrement stats
+            if doBuildOnInit:
+                xWholeSS -= xSS
+            # Assess early stopping
+            if step > 0:
+                thr = np.sum(np.abs(prevCountVec - xSS.getCountVec()))
+                if thr < convThr:
+                    break
+            prevCountVec = xSS.getCountVec()
+    print "DONE: iter %3d/%d thr=%.4f" % (
+        step, nUpdateSteps, thr)
+    xLPslice['resp'] = xresp
+    del xLPslice['E_log_soft_ev'] # delete since we did inplace ops on it
+    return xLPslice
+
+"""
 def restrictedLocalStep_DPMixtureModel(
         Dslice=None,
         curLPslice=None,
@@ -114,6 +190,8 @@ def restrictedLocalStep_DPMixtureModel(
         LPkwargs=dict(),
         xObsModel=None,
         xPiVec=None,
+        nUpdateSteps=50,
+        xInitSS=None,
         **kwargs):
     ''' Perform restricted local step for dataset.
 
@@ -124,24 +202,42 @@ def restrictedLocalStep_DPMixtureModel(
         * DocTopicCount
         * theta
     '''
-    # Compute conditional likelihoods for every data atom
-    xLPslice = xObsModel.calc_local_params(Dslice, **LPkwargs)
-    assert 'E_log_soft_ev' in xLPslice
-    xresp = xLPslice['E_log_soft_ev']
-    xresp += np.log(xPiVec)[np.newaxis,:]
-    # Calculate exp in numerically stable manner (first subtract the max)
-    #  perform this in-place so no new allocations occur
-    NumericUtil.inplaceExpAndNormalizeRows(xresp)
-    if 'resp' in curLPslice:
-        # Make each row sum to ktarget value
-        xresp *= curLPslice['resp'][:, ktarget][:,np.newaxis]
+    if xInitSS is None:
+        xWholeSS = None
     else:
-        xresp *= curLPslice['spR'][:, ktarget].toarray()
-    np.maximum(xresp, 1e-100, out=xresp)
+        xWholeSS = xInitSS.copy()
+    for step in range(nUpdateSteps):
+        # Compute conditional likelihoods for every data atom
+        xLPslice = xObsModel.calc_local_params(Dslice, **LPkwargs)
+        assert 'E_log_soft_ev' in xLPslice
+        xresp = xLPslice['E_log_soft_ev']
+        xresp += np.log(xPiVec)[np.newaxis,:]
+        # Calculate exp in numerically stable manner (first subtract the max)
+        #  perform this in-place so no new allocations occur
+        NumericUtil.inplaceExpAndNormalizeRows(xresp)
+        if 'resp' in curLPslice:
+            # Make each row sum to ktarget value
+            xresp *= curLPslice['resp'][:, ktarget][:,np.newaxis]
+        else:
+            xresp *= curLPslice['spR'][:, ktarget].toarray()
+        np.maximum(xresp, 1e-100, out=xresp)
+
+        isLastStep = step == nUpdateSteps - 1
+        if not isLastStep:
+            xSS = xObsModel.calcSummaryStats(Dslice, None, dict(resp=xresp))
+
+            if xInitSS is not None:
+                xSS.setUIDs(xWholeSS.uids)
+                xWholeSS += xSS
+            else:
+                xWholeSS = xSS
+            xObsModel.update_global_params(xWholeSS)
+            if xInitSS is not None:
+                xWholeSS -= xSS
     xLPslice['resp'] = xresp
     del xLPslice['E_log_soft_ev'] # delete since we did inplace ops on it
     return xLPslice
-
+"""
 
 def makeExpansionSSFromZ_DPMixtureModel(
         Dslice=None, curModel=None, curLPslice=None,

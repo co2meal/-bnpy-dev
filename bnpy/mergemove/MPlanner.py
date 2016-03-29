@@ -6,7 +6,7 @@ Functions for deciding which merge pairs to track.
 import numpy as np
 import sys
 import os
-
+import itertools
 import MLogger
 from collections import defaultdict
 from bnpy.viz.PrintTopics import vec2str, count2str
@@ -47,14 +47,110 @@ def selectCandidateMergePairs(hmodel, SS,
                 vec2str(uidUsageCount.keys()),
             'debug')
 
+    uid2k = dict()
+    uid2count = dict()
+    for uid in SS.uids:
+        uid2k[uid] = SS.uid2k(uid)
+        uid2count[uid] = SS.getCountForUID(uid)
+
+    EligibleUIDPairs = list()
+    EligibleAIDPairs = list()
+    nPairTotal = 0
+    nPairDQ = 0
+    nPairBusy = 0
+    for kA, uidA in enumerate(SS.uids):
+        for b, uidB in enumerate(SS.uids[kA+1:]):
+            kB = kA + b + 1
+            assert kA < kB
+            nPairTotal += 1
+            if uidUsageCount[uidA] > 0 or uidUsageCount[uidB] > 0:
+                nPairBusy += 1
+                continue
+            if uidA < uidB:
+                uidTuple = (uidA, uidB)
+            else:
+                uidTuple = (uidB, uidA)
+            aidTuple = (kA, kB)
+
+            if uidTuple not in MoveRecordsByUID:
+                EligibleUIDPairs.append(uidTuple)
+                EligibleAIDPairs.append(aidTuple)
+            else:
+                pairRecord = MoveRecordsByUID[uidTuple]
+                latestMinCount = pairRecord['m_latestMinCount']
+                newMinCount = np.minimum(uid2count[uidA], uid2count[uidB])
+                percDiff = np.abs(latestMinCount - newMinCount) / latestMinCount
+                if percDiff * 100 > 5:
+                    EligibleUIDPairs.append(uidTuple)
+                    EligibleAIDPairs.append(aidTuple)
+                else:
+                    nPairDQ += 1
+    MLogger.pprint(
+        "   %d/%d pairs eligible. %d disqualified by past failures." % (
+            len(EligibleAIDPairs), nPairTotal, nPairDQ),
+        'debug')
     # Compute Ldata gain for each possible pair of comps
-    oGainMat = hmodel.obsModel.calcHardMergeGap_AllPairs(SS)
+    oGainMat = hmodel.obsModel.calcHardMergeGap_SpecificPairs(
+        SS, EligibleAIDPairs)
     if hmodel.getAllocModelName().count('Mixture'):
-        GainMat = oGainMat + hmodel.allocModel.calcHardMergeGap_AllPairs(SS)
+        GainMat = oGainMat + hmodel.allocModel.calcHardMergeGap_SpecificPairs(
+            SS, EligibleAIDPairs)
     elif hmodel.getAllocModelName().count('HMM'):
-        GainMat = oGainMat + hmodel.allocModel.calcHardMergeGap_AllPairs(SS)
+        GainMat = oGainMat + hmodel.allocModel.calcHardMergeGap_SpecificPairs(
+            SS, EligibleAIDPairs)
     else:
         GainMat = oGainMat
+
+    # Find pairs with positive gains
+    posLocs = np.flatnonzero(GainMat > - ELBO_GAP_ACCEPT_TOL)
+    sortIDs = np.argsort(-1 * GainMat[posLocs])
+    posLocs = posLocs[sortIDs]
+    nKeep = 0
+    mUIDPairs = list()
+    mAIDPairs = list()
+    mGainVals = list()
+    for loc in posLocs:
+        uidA, uidB = EligibleUIDPairs[loc]
+        kA, kB = EligibleAIDPairs[loc]
+        if uidUsageCount[uidA] >= m_maxNumPairsContainingComp or \
+                uidUsageCount[uidB] >= m_maxNumPairsContainingComp:
+            continue
+        uidUsageCount[uidA] += 1
+        uidUsageCount[uidB] += 1
+
+        mAIDPairs.append((kA, kB))
+        mUIDPairs.append((uidA, uidB))
+        mGainVals.append(GainMat[loc])
+        if nKeep == 0:
+            MLogger.pprint("Chosen pairs:", 'debug')
+        MLogger.pprint(
+            "%4d, %4d : gain %.3e, size %s %s" % (
+                uidA, uidB, 
+                GainMat[loc],
+                count2str(uid2count[uidA]),
+                count2str(uid2count[uidB]),
+                ),
+            'debug')
+    Info = dict()
+    Info['m_UIDPairs'] = mUIDPairs
+    Info['m_GainVals'] = mGainVals 
+    Info['mPairIDs'] = mAIDPairs
+    targetUIDs = set()
+    for uidA, uidB in mUIDPairs:
+        targetUIDs.add(uidA)
+        targetUIDs.add(uidB)
+        if 'b_shortlistUIDs' in MovePlans:
+            for uid in MovePlans['b_shortlistUIDs']:
+                assert uid != uidA
+                assert uid != uidB
+    Info['m_targetUIDSet'] = targetUIDs
+    return Info
+
+
+
+
+    '''
+    from IPython import embed; embed()
     # Mask out the upper triangle of entries here (other entries are zeros)
     triuIDs = np.triu_indices(SS.K, 1)
     # Identify only the positive gains
@@ -129,3 +225,4 @@ def selectCandidateMergePairs(hmodel, SS,
                 assert uid != uidB
     Info['m_targetUIDSet'] = targetUIDs
     return Info
+    '''
