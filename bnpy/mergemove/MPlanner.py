@@ -18,6 +18,8 @@ def selectCandidateMergePairs(hmodel, SS,
         MovePlans=dict(),
         MoveRecordsByUID=dict(),
         lapFrac=None,
+        m_minPercChangeInNumAtomsToReactivate=0.01,
+        m_nLapToReactivate=10,
         **kwargs):
     ''' Select candidate pairs to consider for merge move.
     
@@ -77,12 +79,19 @@ def selectCandidateMergePairs(hmodel, SS,
                 EligibleAIDPairs.append(aidTuple)
             else:
                 pairRecord = MoveRecordsByUID[uidTuple]
+                assert pairRecord['m_nFailRecent'] >= 1
                 latestMinCount = pairRecord['m_latestMinCount']
                 newMinCount = np.minimum(uid2count[uidA], uid2count[uidB])
-                percDiff = np.abs(latestMinCount - newMinCount) / latestMinCount
-                if percDiff * 100 > 5:
+                percDiff = np.abs(latestMinCount - newMinCount) / \
+                    latestMinCount
+                if (lapFrac - pairRecord['m_latestLap']) >= m_nLapToReactivate:
                     EligibleUIDPairs.append(uidTuple)
                     EligibleAIDPairs.append(aidTuple)
+                    del MoveRecordsByUID[uidTuple]
+                elif percDiff >= m_minPercChangeInNumAtomsToReactivate:
+                    EligibleUIDPairs.append(uidTuple)
+                    EligibleAIDPairs.append(aidTuple)
+                    del MoveRecordsByUID[uidTuple]
                 else:
                     nPairDQ += 1
     MLogger.pprint(

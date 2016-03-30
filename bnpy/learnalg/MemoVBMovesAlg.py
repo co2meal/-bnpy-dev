@@ -392,7 +392,7 @@ class MemoVBMovesAlg(LearnAlg):
                 doBuildOnInit=doBuildOnInit,
                 xUIDs=xInitSS.uids,
                 targetUID=targetUID,
-                nUpdateSteps=25,
+                nUpdateSteps=self.algParams['delete']['d_nRefineSteps'],
                 LPkwargs=LPkwargs,
                 emptyPiFrac=0,
                 lapFrac=lapFrac)
