@@ -270,6 +270,7 @@ def makeSummaryForBirthProposal(
             xInitSS=xSSslice,
             xInitLPslice=xInitLPslice,
             LPkwargs=LPkwargs,
+            nUpdateSteps=1,
             **kwargs)
         Info.update(refineInfo)
         # Get most recent xLPslice for initialization

@@ -126,6 +126,7 @@ def restrictedLocalStep_DPMixtureModel(
         nUpdateSteps=50,
         convThr=0.1,
         xPiPrior=1.0,
+        logFunc=None,
         **kwargs):
     ''' Perform restricted local step on provided dataset.
 
@@ -173,8 +174,11 @@ def restrictedLocalStep_DPMixtureModel(
                 if thr < convThr:
                     break
             prevCountVec = xSS.getCountVec()
-    print "DONE: iter %3d/%d thr=%.4f" % (
-        step, nUpdateSteps, thr)
+    if logFunc:
+        msg = "restrictedLocalStep_DPMixtureModel"
+        msg += " stopped after %3d of %d iters. thr=%.4f" % (
+            step, nUpdateSteps, thr)
+        logFunc(msg)
     xLPslice['resp'] = xresp
     del xLPslice['E_log_soft_ev'] # delete since we did inplace ops on it
     return xLPslice
