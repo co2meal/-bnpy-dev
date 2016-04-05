@@ -124,12 +124,26 @@ def restrictedLocalStep_HDPTopicModel(
     Kfresh = xObsModel.K
     assert Kfresh == xalphaPi.size
 
-    # Initialize values
     xLPslice = dict()
-    xLPslice['resp'] = \
-        curLPslice['resp'][:, kabsorbList].copy()
+    # Initialize DocTopicCount for local iterations
+    # by copying the previous counts at all absorbing states
     xLPslice['DocTopicCount'] = \
         curLPslice['DocTopicCount'][:, kabsorbList].copy()
+    # Encourage any documents which heavily use the target
+    # to try and use some other topics which may be unused now
+    # usageFracByDoc = curLPslice['DocTopicCount'][:, ktarget] \
+    #     / curLPslice['DocTopicCount'].sum(axis=1)
+    # heavyDocIDs = np.flatnonzero(usageFracByDoc > 0.05)
+    # if heavyDocIDs.size > 0:
+    #     xLPslice['DocTopicCount'][heavyDocIDs, :] += \
+    #         curLPslice['DocTopicCount'][heavyDocIDs, ktarget][:,np.newaxis]
+    
+    # Initialize resp by copying existing resp for absorbing states
+    # Note: this is NOT consistent with some docs in DocTopicCount
+    # but that will get fixed by restricted step
+    xLPslice['resp'] = \
+        curLPslice['resp'][:, kabsorbList].copy()
+
     xLPslice['theta'] = \
         xLPslice['DocTopicCount'] + xalphaPi[np.newaxis,:]
 
@@ -270,65 +284,97 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
     else:
         wc_d = constrained_sumResp_d
 
-    # Allocate temporary memory for this document
-    xsumResp_d = np.zeros(xCLik_d.shape[0])      
-    xDocTopicCount_d = np.zeros(Kfresh)
-
-    # Initialize
-    xDocTopicProb_d = xalphaPi.copy()
+    # Initialize doc-topic counts
     xDocTopicCount_d = xLPslice['DocTopicCount'][d, :].copy()
-
     prevxDocTopicCount_d = -1 * np.ones(Kfresh)
+
+    # Initialize xDocTopicProb_d
+    xDocTopicProb_d = xDocTopicCount_d + xalphaPi
+    digamma(xDocTopicProb_d, out=xDocTopicProb_d)
+    #???Protect against underflow
+    #np.maximum(xDocTopicProb_d, -300, out=xDocTopicProb_d)
+    np.exp(xDocTopicProb_d, out=xDocTopicProb_d)
+    assert np.min(xDocTopicProb_d) > 0.0
+
+    # Initialize xsumResp_d
+    xsumResp_d = np.zeros(xCLik_d.shape[0])      
+    np.dot(xCLik_d, xDocTopicProb_d, out=xsumResp_d)
+
     maxDiff_d = -1
     for riter in range(LPkwargs['nCoordAscentItersLP']):
-        np.add(xDocTopicCount_d, xalphaPi, 
-            out=xDocTopicProb_d)
-        digamma(xDocTopicProb_d, out=xDocTopicProb_d)
-        # Protect against underflow
-        np.maximum(xDocTopicProb_d, -300, out=xDocTopicProb_d)
-        np.exp(xDocTopicProb_d, out=xDocTopicProb_d)
-        assert np.min(xDocTopicProb_d) > 0.0
-
-        # Update sumResp for active tokens in document
-        np.dot(xCLik_d, xDocTopicProb_d, out=xsumResp_d)
-        # Update DocTopicCount_d: 1D array, shape K
+        # Update DocTopicCount_d
         np.dot(wc_d / xsumResp_d, xCLik_d, 
                out=xDocTopicCount_d)
         xDocTopicCount_d *= xDocTopicProb_d
 
+        # Update xDocTopicProb_d
+        np.add(xDocTopicCount_d, xalphaPi, 
+            out=xDocTopicProb_d)
+        digamma(xDocTopicProb_d, out=xDocTopicProb_d)
+        #???Protect against underflow
+        #np.maximum(xDocTopicProb_d, -300, out=xDocTopicProb_d)
+        np.exp(xDocTopicProb_d, out=xDocTopicProb_d)
+        assert np.min(xDocTopicProb_d) > 0.0
+
+        # Update xsumResp_d
+        np.dot(xCLik_d, xDocTopicProb_d, out=xsumResp_d)
+
+        # Check for convergence
         if riter % 5 == 0:
             maxDiff_d = np.max(np.abs(
                 prevxDocTopicCount_d - xDocTopicCount_d))
             if maxDiff_d < LPkwargs['convThrLP']:
                 break
+        # Track previous DocTopicCount
         prevxDocTopicCount_d[:] = xDocTopicCount_d
 
+    # Update xResp_d
     assert np.all(np.isfinite(xDocTopicCount_d))
     xResp_d = xCLik_d
     xResp_d *= xDocTopicProb_d[np.newaxis, :]
     xResp_d /= xsumResp_d[:, np.newaxis]
     # Here, sum of each row of xResp_d is equal to 1.0
-
     # Need to make sum of each row equal mass on target cluster
     xResp_d *= constrained_sumResp_d[:,np.newaxis]
     np.maximum(xResp_d, 1e-100, out=xResp_d)
 
+    # Right here, xResp_d and xDocTopicProb_d 
+    # are exactly equal to one fwd step from the current xDocTopicCount_d
+    # So, we can use our short-cut ELBO calculation.
+    if False:
+        #curLPslice['DocTopicCount'][d, ktarget] > 10.0
+        L_doc_theta = np.sum(gammaln(xDocTopicCount_d + xalphaPi)) \
+            - np.inner(xDocTopicCount_d, np.log(xDocTopicProb_d))
+        L_doc_resp = np.inner(wc_d, np.log(xsumResp_d))
+        L_doc = L_doc_resp + L_doc_theta
+        #print "d=%3d  L_d=% .4e" % (d, L_doc)
+        #print " ".join(["%6.1f" % (x) for x in xDocTopicCount_d])
+        #xLPslice['L_doc'] = L_doc
+
     # Pack up into final LP dict
+    # Taking one forward step so xDocTopicCount_d is consistent with xResp_d
     xLPslice['resp'][start+mask_d] = xResp_d
+    if hasattr(Dslice, 'word_count') and obsModelName.count('Mult'):
+        xDocTopicCount_d = np.dot(Dslice.word_count[start+mask_d], xResp_d)
+    else:
+        xDocTopicCount_d = np.sum(xResp_d, axis=1)
     xLPslice['DocTopicCount'][d, :] = xDocTopicCount_d
     xLPslice['theta'][d, :] = xalphaPi + xDocTopicCount_d
+    xLPslice['_nIters'][d] = riter
+    xLPslice['_maxDiff'][d] = maxDiff_d
+
     # Final verifcation that output meets required constraints
     respOK = np.allclose(
         xLPslice['resp'][start:stop].sum(axis=1),
         curLPslice['resp'][start:stop, ktarget] +
         curLPslice['resp'][start:stop, kabsorbList].sum(axis=1),
-        atol=1e-5,
+        atol=0.0001,
         rtol=0)
     assert respOK
     thetaOK = np.allclose(
         xLPslice['theta'][d, :].sum(),
         constrained_sumTheta_d,
-        atol=0.01,
+        atol=0.0001,
         rtol=0)
     assert thetaOK
     # That's all folks
