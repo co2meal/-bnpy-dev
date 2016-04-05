@@ -146,7 +146,8 @@ def restrictedLocalStep_HDPTopicModel(
     # Fill in these fields, one doc at a time
     for d in xrange(Dslice.nDoc):
         xLPslice = restrictedLocalStepForSingleDoc_Func(
-            d=d, Dslice=Dslice,
+            d=d,
+            Dslice=Dslice,
             curLPslice=curLPslice,
             xLPslice=xLPslice,
             xInitLPslice=xInitLPslice,
@@ -172,24 +173,25 @@ def restrictedLocalStep_HDPTopicModel(
         xLPslice['thetaEmptyComp'] = thetaEmptyComp
         xLPslice['ElogPiEmptyComp'] = ElogPiEmptyComp
 
-    # Compute quantities related to OrigComp, the original target cluster.
-    # These need to be tracked and turned into relevant summaries
-    # so that they can be used to created a valid proposal state "propSS"
-    xLPslice['ElogPiOrigComp'] = curLPslice['ElogPi'][:, ktarget]
-    xLPslice['gammalnThetaOrigComp'] = \
-        np.sum(gammaln(curLPslice['theta'][:, ktarget]))
-    slack = curLPslice['DocTopicCount'][:, ktarget] - \
-        curLPslice['theta'][:, ktarget]
-    xLPslice['slackThetaOrigComp'] = np.sum(
-        slack * curLPslice['ElogPi'][:, ktarget])
+    if isExpansion:
+        # Compute quantities related to OrigComp, the original target cluster.
+        # These need to be tracked and turned into relevant summaries
+        # so that they can be used to created a valid proposal state "propSS"
+        xLPslice['ElogPiOrigComp'] = curLPslice['ElogPi'][:, ktarget]
+        xLPslice['gammalnThetaOrigComp'] = \
+            np.sum(gammaln(curLPslice['theta'][:, ktarget]))
+        slack = curLPslice['DocTopicCount'][:, ktarget] - \
+            curLPslice['theta'][:, ktarget]
+        xLPslice['slackThetaOrigComp'] = np.sum(
+            slack * curLPslice['ElogPi'][:, ktarget])
 
-    if hasattr(Dslice, 'word_count') and \
-            xLPslice['resp'].shape[0] == Dslice.word_count.size:
-        xLPslice['HrespOrigComp'] = -1 * NumericUtil.calcRlogRdotv(
-            curLPslice['resp'][:, ktarget], Dslice.word_count)
-    else:
-        xLPslice['HrespOrigComp'] = -1 * NumericUtil.calcRlogR(
-            curLPslice['resp'][:, ktarget])
+        if hasattr(Dslice, 'word_count') and \
+                xLPslice['resp'].shape[0] == Dslice.word_count.size:
+            xLPslice['HrespOrigComp'] = -1 * NumericUtil.calcRlogRdotv(
+                curLPslice['resp'][:, ktarget], Dslice.word_count)
+        else:
+            xLPslice['HrespOrigComp'] = -1 * NumericUtil.calcRlogR(
+                curLPslice['resp'][:, ktarget])
     return xLPslice
 
 def restrictedLocalStepForSingleDoc_HDPTopicModel(

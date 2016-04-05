@@ -8,7 +8,7 @@ def calcLocalParams_SingleDoc(
         DocTopicCount_d=None, sumResp_d=None,
         nCoordAscentItersLP=10, convThrLP=0.001,
         restartLP=0,
-        initDocTopicCountLP='alphaEbeta',
+        initDocTopicCountLP='setDocProbsToEGlobalProbs',
         **kwargs):
     ''' Infer local parameters for a single document.
 

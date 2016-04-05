@@ -5,9 +5,12 @@ from bnpy.allocmodel.mix.DPMixtureRestrictedLocalStep import \
     summarizeRestrictedLocalStep_DPMixtureModel, \
     makeExpansionSSFromZ_DPMixtureModel
 
+from bnpy.allocmodel.topics.HDPTopicRestrictedLocalStep2 import \
+    summarizeRestrictedLocalStep_HDPTopicModel
+
 from bnpy.allocmodel.topics.HDPTopicRestrictedLocalStep import \
-    summarizeRestrictedLocalStep_HDPTopicModel, \
     makeExpansionSSFromZ_HDPTopicModel
+    #summarizeRestrictedLocalStep_HDPTopicModel
 
 # Load custom function for each possible allocation model
 RestrictedLocalStepFuncMap = dict(
