@@ -5,6 +5,33 @@ from bnpy.util import NumericUtil
 from bnpy.allocmodel import make_xPiVec_and_emptyPi
 
 
+def calcDocTopicCountCorrelationFromTargetToAbsorbingSet(
+        DocTopicMat, ktarget, kabsorbList, MINVAL=1.0e-8):
+    ''' Find correlation in DocTopicCount between target and absorbing states.
+
+    Returns
+    -------
+    CorrVec : 1D array, size nAbsorbing
+        CorrVec[j] : correlation value (-1 < corr < 1)
+            from kabsorbList[j] to the target
+    '''
+    D = DocTopicMat.shape[0]
+    Smat = np.dot(DocTopicMat.T, DocTopicMat)
+    svec = np.sum(DocTopicMat, axis=0)
+
+    nanIDs = np.isnan(Smat)
+    Smat[nanIDs] = 0
+    svec[np.isnan(svec)] = 0
+    offlimitcompIDs = np.logical_or(np.isnan(svec), svec < MINVAL)
+    CovMat = Smat / D - np.outer(svec / D, svec / D)
+    varc = np.diag(CovMat)
+    sqrtc = np.sqrt(varc)
+    sqrtc[offlimitcompIDs] = MINVAL
+    assert sqrtc.min() >= MINVAL
+    CorrMat = CovMat / np.outer(sqrtc, sqrtc)
+    return CorrMat[kabsorbList, ktarget].copy()
+
+
 def summarizeRestrictedLocalStep_HDPTopicModel(
         Dslice=None, 
         curModel=None,
@@ -20,6 +47,7 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         xPiVec=None,
         emptyPi=0.0,
         nUpdateSteps=5,
+        d_initWordCounts='bycorr',
         **kwargs):
     ''' Perform restricted local step and summarize it.
 
@@ -52,6 +80,16 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
     # Create expansion observation model, if necessary
     if xObsModel is None:
         assert xInitSS is not None
+        isMult = curModel.getObsModelName().count('Mult')
+        if not doBuildOnInit and isMult and d_initWordCounts.count('corr'):
+            corrVec = calcDocTopicCountCorrelationFromTargetToAbsorbingSet(
+                curLPslice['DocTopicCount'], ktarget, kabsorbList)
+            bestAbsorbIDs = np.flatnonzero(corrVec >= .001)
+            #print "absorbIDs with best correlation:"
+            #print bestAbsorbIDs
+            for k in bestAbsorbIDs:
+                xInitSS.WordCounts[k,:] += curSSwhole.WordCounts[ktarget,:]
+        # Create expanded observation model
         xObsModel = curModel.obsModel.copy()
         xObsModel.update_global_params(xInitSS)
         assert xObsModel.K == len(kabsorbList)
@@ -91,7 +129,7 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
     return xSSslice, Info
 
 def restrictedLocalStep_HDPTopicModel(
-        Dslice=None, 
+        Dslice=None,
         curLPslice=None,
         ktarget=0,
         kabsorbList=None,
@@ -125,18 +163,10 @@ def restrictedLocalStep_HDPTopicModel(
     assert Kfresh == xalphaPi.size
 
     xLPslice = dict()
-    # Initialize DocTopicCount for local iterations
+    # Default warm_start initialization for DocTopicCount
     # by copying the previous counts at all absorbing states
     xLPslice['DocTopicCount'] = \
         curLPslice['DocTopicCount'][:, kabsorbList].copy()
-    # Encourage any documents which heavily use the target
-    # to try and use some other topics which may be unused now
-    # usageFracByDoc = curLPslice['DocTopicCount'][:, ktarget] \
-    #     / curLPslice['DocTopicCount'].sum(axis=1)
-    # heavyDocIDs = np.flatnonzero(usageFracByDoc > 0.05)
-    # if heavyDocIDs.size > 0:
-    #     xLPslice['DocTopicCount'][heavyDocIDs, :] += \
-    #         curLPslice['DocTopicCount'][heavyDocIDs, ktarget][:,np.newaxis]
     
     # Initialize resp by copying existing resp for absorbing states
     # Note: this is NOT consistent with some docs in DocTopicCount
@@ -234,6 +264,7 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
         xalphaPi=None,
         xLPslice=None,
         LPkwargs=dict(),
+        d_initDocTopicCount="warm_start",
         **kwargs):
     ''' Perform restricted local step on one document.
 
@@ -285,15 +316,22 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
         wc_d = constrained_sumResp_d
 
     # Initialize doc-topic counts
-    xDocTopicCount_d = xLPslice['DocTopicCount'][d, :].copy()
     prevxDocTopicCount_d = -1 * np.ones(Kfresh)
+    xDocTopicCount_d = xLPslice['DocTopicCount'][d, :].copy()
 
-    # Initialize xDocTopicProb_d
-    xDocTopicProb_d = xDocTopicCount_d + xalphaPi
-    digamma(xDocTopicProb_d, out=xDocTopicProb_d)
-    #???Protect against underflow
-    #np.maximum(xDocTopicProb_d, -300, out=xDocTopicProb_d)
-    np.exp(xDocTopicProb_d, out=xDocTopicProb_d)
+
+    fracTargetMass_d = curLPslice['DocTopicCount'][d,ktarget] \
+        / curLPslice['DocTopicCount'][d,:].sum()
+
+    if d_initDocTopicCount.count("warm_start") or fracTargetMass_d < 0.05:
+        # Initialize xDocTopicProb_d
+        xDocTopicProb_d = xDocTopicCount_d + xalphaPi
+        digamma(xDocTopicProb_d, out=xDocTopicProb_d)
+        #???Protect against underflow
+        #np.maximum(xDocTopicProb_d, -300, out=xDocTopicProb_d)
+        np.exp(xDocTopicProb_d, out=xDocTopicProb_d)
+    else:
+        xDocTopicProb_d = xalphaPi.copy()
     assert np.min(xDocTopicProb_d) > 0.0
 
     # Initialize xsumResp_d

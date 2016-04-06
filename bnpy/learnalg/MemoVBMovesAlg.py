@@ -385,6 +385,7 @@ class MemoVBMovesAlg(LearnAlg):
                         xInitSS.removeComp(uid=uid)
                 MovePlans['d_absorbingUIDs'] = xInitSS.uids
             # Run restricted local step
+            DKwargs = self.algParams['delete']
             SSbatch.propXSS[targetUID], rInfo = summarizeRestrictedLocalStep(
                 Dbatch, curModel, LPbatch, 
                 curSSwhole=curSSwhole,
@@ -392,10 +393,13 @@ class MemoVBMovesAlg(LearnAlg):
                 doBuildOnInit=doBuildOnInit,
                 xUIDs=xInitSS.uids,
                 targetUID=targetUID,
-                nUpdateSteps=self.algParams['delete']['d_nRefineSteps'],
                 LPkwargs=LPkwargs,
                 emptyPiFrac=0,
-                lapFrac=lapFrac)
+                lapFrac=lapFrac,
+                nUpdateSteps=DKwargs['d_nRefineSteps'],
+                d_initDocTopicCount=DKwargs['d_initDocTopicCount'],
+                d_initWordCounts=DKwargs['d_initWordCounts'],
+                )
             ElapsedTimeLogger.stopEvent('delete', 'localexpansion')
         return SSbatch
 

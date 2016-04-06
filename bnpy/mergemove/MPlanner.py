@@ -159,7 +159,6 @@ def selectCandidateMergePairs(hmodel, SS,
 
 
     '''
-    from IPython import embed; embed()
     # Mask out the upper triangle of entries here (other entries are zeros)
     triuIDs = np.triu_indices(SS.K, 1)
     # Identify only the positive gains

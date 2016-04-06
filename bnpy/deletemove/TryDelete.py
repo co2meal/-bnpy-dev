@@ -94,8 +94,11 @@ def tryDeleteProposalForSpecificTarget_HDPTopicModel(
         verbose=True,
         doPlotComps=True,
         doPlotELBO=True,
+        doPlotDocTopicCount=False,
         nELBOSteps=3,
         nUpdateSteps=5,
+        d_initDocTopicCount='warm_start',
+        d_initWordCounts='none',
         **kwargs):
     ''' Execute merge for specific whole dataset
 
@@ -127,10 +130,19 @@ def tryDeleteProposalForSpecificTarget_HDPTopicModel(
 
     # Create init observation model for absorbing states
     xObsModel = propModel.obsModel.copy()
-    xinitSS = curSS.copy()
+    xinitSS = curSS.copy(includeELBOTerms=False, includeMergeTerms=False)
     for k in reversed(np.arange(xObsModel.K)):
         if k not in kabsorbList:
             xinitSS.removeComp(k)
+    # Find clusters correlated in appearance with the target
+    if curModel.getObsModelName().count('Mult') and d_initWordCounts.count('bycorr'):
+        corrVec = calcCorrelationFromTargetToAbsorbingSet(
+            curLP['DocTopicCount'], ktarget, kabsorbList)
+        bestAbsorbIDs = np.flatnonzero(corrVec >= .001)
+        print "absorbIDs with best correlation:"
+        print bestAbsorbIDs
+        for k in bestAbsorbIDs:
+            xinitSS.WordCounts[k,:] += curSS.WordCounts[ktarget,:]
     xObsModel.update_global_params(xinitSS)
 
     # Create init pi vector for absorbing states
@@ -151,6 +163,7 @@ def tryDeleteProposalForSpecificTarget_HDPTopicModel(
             xPiVec=xPiVec,
             xObsModel=xObsModel,
             nUpdateSteps=nUpdateSteps,
+            d_initDocTopicCount=d_initDocTopicCount,
             LPkwargs=LPkwargs)
 
         if ELBOstep < nELBOSteps - 1:
@@ -172,8 +185,15 @@ def tryDeleteProposalForSpecificTarget_HDPTopicModel(
         propLdict = propModel.calc_evidence(SS=propSS, todict=1)
         propLscore = propModel.calc_evidence(SS=propSS)
         propLscoreList.append(propLscore)
+    docIDs = np.flatnonzero(curLP['DocTopicCount'][:, ktarget] > .01)
+    sort_mask = np.argsort(-1*curLP['DocTopicCount'][docIDs, ktarget]) 
+    docIDs = docIDs[sort_mask]
+    print docIDs, '<<<'
+    docIDs = docIDs[:5]
+
     if verbose:
         print "Deleting cluster %d" % (ktarget)
+        print " which has mass > 0.01 in %d documents" % (docIDs.size)
         print "Absorbing into clusters %s" % (str(kabsorbList))
         if propLscore - curLscore > 0:
             print "  ACCEPTED"
@@ -181,13 +201,28 @@ def tryDeleteProposalForSpecificTarget_HDPTopicModel(
             print "  REJECTED"
         print "%.4e  cur ELBO score" % (curLscore)
         print "%.4e prop ELBO score" % (propLscore)
-        print "Change in ELBO score: %.4e" % (propLscore - curLscore)
+        print "% .4e change in ELBO score" % (propLscore - curLscore)
         print ""
         for key in sorted(curLdict.keys()):
             if key.count('_') or key.count('total'):
                 continue
             print "  gain %8s % .3e" % (
                 key, propLdict[key] - curLdict[key])
+        print ""
+        if docIDs.size > 0:
+            np.set_printoptions(suppress=1, precision=2, linewidth=120)
+            xLPslice = Info['xLPslice']
+
+            print "BEFORE"
+            print "-----"
+            print np.hstack([
+                curLP['DocTopicCount'][docIDs,:][:,kabsorbList],
+                curLP['DocTopicCount'][docIDs,:][:,ktarget][:,np.newaxis]
+                ])
+            print "AFTER"
+            print "-----"
+            print xLPslice['DocTopicCount'][docIDs,:]
+
     if doPlotELBO:
         import bnpy.viz
         from bnpy.viz.PlotUtil import pylab
@@ -196,18 +231,89 @@ def tryDeleteProposalForSpecificTarget_HDPTopicModel(
         pylab.plot(iters, propLscoreList, 'b-')
         pylab.plot(iters, curLscore*np.ones_like(iters), 'k--')
         pylab.show()
+
+    if doPlotDocTopicCount:
+        import bnpy.viz
+        from bnpy.viz.PlotUtil import pylab
+        bnpy.viz.PlotUtil.ConfigPylabDefaults(pylab)
+
+        kplotList = [x for x in kabsorbList]
+        kplotList.append(ktarget)
+        for d in docIDs:
+            curDTClabels = ['%.1f' % (x) for x in 
+                curLP['DocTopicCount'][d, kplotList]]
+            bnpy.viz.PlotComps.plotCompsFromHModel(
+                curModel,
+                compListToPlot=kplotList,
+                compsToHighlight=[ktarget],
+                xlabels=curDTClabels,
+                vmin=0,
+                vmax=.01)
+            fig = pylab.gcf()
+            fig.canvas.set_window_title('doc %d BEFORE' % (d))
+
+            propLP = Info['xLPslice']
+            propDTClabels = ['%.1f' % (x) for x in 
+                propLP['DocTopicCount'][d, :]]
+            bnpy.viz.PlotComps.plotCompsFromHModel(
+                propModel,
+                xlabels=propDTClabels,
+                vmin=0,
+                vmax=.01)
+            fig = pylab.gcf()
+            fig.canvas.set_window_title('doc %d AFTER' % (d))
+            pylab.show(block=False)
+
+        # Plot docs        
+        dIm = np.zeros((docIDs.size*2, 900))
+        dImLabels = list()
+        tImLabels = list()
+        row = 0
+        for ii,d in enumerate(docIDs):
+            start = Data.doc_range[d]
+            stop = Data.doc_range[d+1]
+            wid = Data.word_id[start:stop]
+            wct = Data.word_count[start:stop]
+            dIm[row, wid] = wct
+            dImLabels.append('doc %d' % (d))
+
+            tmask = np.flatnonzero(curLP['resp'][start:stop, ktarget] > .01)
+            targetDoc = np.zeros(900)
+            dIm[row+docIDs.size, wid[tmask]] = wct[tmask] \
+                * curLP['resp'][start + 1*tmask, ktarget]
+            tImLabels.append('trgt doc %d' % (d))
+            row += 1
+
+        bnpy.viz.BarsViz.showTopicsAsSquareImages(
+            dIm,
+            ncols=2,
+            vmin=0,
+            vmax=1,
+            xlabels=dImLabels.extend(tImLabels),
+            cmap='jet')
+        pylab.show()
+
     if doPlotComps:
         import bnpy.viz
         from bnpy.viz.PlotUtil import pylab
         bnpy.viz.PlotUtil.ConfigPylabDefaults(pylab)
-        bnpy.viz.PlotComps.plotCompsFromHModel(
-            curModel,
-            vmin=0,
-            vmax=.01)
-        bnpy.viz.PlotComps.plotCompsFromHModel(
-            propModel,
-            vmin=0,
-            vmax=.01)
+
+        bnpy.viz.PlotComps.plotCompsFromSS(
+                curModel,
+                curSS,
+                compsToHighlight=[ktarget],
+                vmin=0,
+                vmax=.01)
+        fig = pylab.gcf()
+        fig.canvas.set_window_title('BEFORE')
+
+        bnpy.viz.PlotComps.plotCompsFromSS(
+                propModel,
+                propSS,
+                vmin=0,
+                vmax=.01)
+        fig = pylab.gcf()
+        fig.canvas.set_window_title('AFTER')
         pylab.show()
     return (
         propModel,
@@ -246,15 +352,18 @@ if __name__ == '__main__':
     parser.add_argument('--lap', type=float, default=None)
     parser.add_argument('--lapFrac', type=float, default=None)
     parser.add_argument('--batchID', type=int, default=None)
-    parser.add_argument('--doPlotELBO', type=int, default=1)
-    parser.add_argument('--doPlotComps', type=int, default=0)
+    parser.add_argument('--doPlotELBO', type=int, default=0)
+    parser.add_argument('--doPlotComps', type=int, default=1)
     parser.add_argument('--ktarget', type=int, default=10)
     parser.add_argument('--kabsorbList', type=str, default='all')
     parser.add_argument('--verbose', type=int, default=True)
     parser.add_argument('--outputdir', type=str, default='/tmp/')
-    parser.add_argument('--nUpdateSteps', type=int, default=10)
-    parser.add_argument('--nELBOSteps', type=int, default=10)
-    
+    parser.add_argument('--nUpdateSteps', type=int, default=25)
+    parser.add_argument('--nELBOSteps', type=int, default=1)
+    parser.add_argument('--d_initWordCounts',
+        type=str, default='none')
+    parser.add_argument('--d_initDocTopicCount',
+        type=str, default="warm_start")
     args = parser.parse_args()
 
     DLogger.configure(args.outputdir,

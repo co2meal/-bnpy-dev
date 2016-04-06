@@ -674,6 +674,44 @@ class HDPTopicModel(AllocModel):
                         rho=self.rho, omega=self.omega,
                         **kwargs)
 
+    def calcHardMergeGap(self, SS, kA=0, kB=1):
+        ''' Compute gain in ELBO from merger of cluster pair (kA, kB)
+
+        Returns
+        -------
+        gainL : float
+        '''
+        omBefore = self.omega
+        omAfter = self.omega[1:]
+
+        rhoBefore = self.rho
+        EbetaAfter = rho2beta_active(self.rho)
+        EbetaAfter[kA] += EbetaAfter[kB]
+        EbetaAfter = np.delete(EbetaAfter, kB)
+        rhoAfter = beta2rho(EbetaAfter, EbetaAfter.size)
+
+        curEta1 = rhoBefore * omBefore
+        curEta0 = (1.0-rhoBefore) * omBefore
+        propEta1 = rhoAfter * omAfter
+        propEta0 = (1.0-rhoAfter) * omAfter
+
+        gainLtop_alpha = -1 * SS.nDoc * np.log(self.alpha)
+
+        def cBeta(a, b):
+            return gammaln(a+b) - gammaln(a) - gammaln(b)
+
+        gainLtop_cBeta = 0.0
+        gamma = self.gamma
+        for k in range(kA, kB+1): # kA, kA+1, ... kB-1, kB
+            gainLtop_cBeta -= cBeta(1, gamma) - cBeta(curEta1[k], curEta0[k]) \
+                + (D + 1.0 - curEta1[k]) \
+                    * (digamma(curEta1[k]) - digamma(curOm[k])) \
+                + (D * kvec(curK) + gamma - curEta0[k]) \
+                    * (digamma(curEta1[k]) - digamma(curOm[k]))
+
+        for k in range(kA, kB): # kA, kA+1, ... kB-1
+            gainLtop_cBeta += cBeta(1, gamma) - cBeta(propEta1[k], propEta0[k])
+
     def calcELBO_LinearTerms(self, **kwargs):
         ''' Compute sum of ELBO terms that are linear/const wrt suff stats
 
