@@ -65,11 +65,11 @@ class MixGaussObsModel(AbstractObsModel):
     def _logdetB(self, kc=None):
         if kc is None:
             B = self.Prior.B
-            return 2 * np.sum(np.log(np.diag(scipy.linalg.cholesky(B, lower=True))))
+            cholB = scipy.linalg.cholesky(B, lower=True)
         else:
             k, c = kc
             cholB = self.GetCached('cholB', (k, c))
-            return 2 * np.sum(np.log(np.diag(cholB)))
+        return 2 * np.sum(np.log(np.diag(cholB)))
 
     def _E_logdetL(self, kc='all'):
         dvec = np.arange(1, self.D + 1, dtype=np.float)
@@ -225,6 +225,7 @@ class MixGaussObsModel(AbstractObsModel):
         # E_log_soft_ev_full : N x K x C array
         # gives posterior log weight for cluster k,c for data item n
         E_log_soft_ev_full = self.calcLogSoftEvMatrix_FromPost_Full(Data, **kwargs)
+
         # substate_condresp : N x K x C array
         # also called "vartheta" in some notation
         # Gives the conditional prob of each substate given the state
@@ -236,7 +237,8 @@ class MixGaussObsModel(AbstractObsModel):
         vartheta /= np.sum(vartheta, axis=2)[:,:,np.newaxis]
         LP['substate_condresp'] = vartheta
         assert np.allclose(1.0, np.sum(vartheta,axis=2).flatten())
-        # Modify E_log_soft_ev_full IN PLACE
+
+        # Modify E_log_soft_ev_full in place
         # By multiplication with the conditional probabilities
         # Summing over substate clusters gives the proper message for each k
         # that is provided as input to the forward-backward algorithm
@@ -259,7 +261,7 @@ class MixGaussObsModel(AbstractObsModel):
                 L[:, k, c] = - 0.5 * Data.dim * LOGTWOPI \
                     + 0.5 * self.GetCached('E_logdetL', (k,c)) \
                     - 0.5 * self._mahalDist_Post(Data.X,k=k,c=c) 
-        return L + self.GetCached('E_logpsi') # NxKxC + KxC 
+        return L + self.GetCached('E_logpsi') 
 
     def _mahalDist_Post(self, X, k, c): 
         ''' Calc expected mahalonobis distance from comp k to each data atom
@@ -274,7 +276,7 @@ class MixGaussObsModel(AbstractObsModel):
         Q *= Q
         return self.Post.nu[k,c] * np.sum(Q, axis=0) + self.D / self.Post.kappa[k,c]
 
-    def calcSummaryStats(self, Data, SS, LP, doPrecompEntropy=False, **kwargs):
+    def calcSummaryStats(self, Data, SS, LP, doPrecompEntropy=True, **kwargs):
         ''' Calculate summary statistics for given dataset and local parameters
 
         Returns
@@ -286,13 +288,7 @@ class MixGaussObsModel(AbstractObsModel):
                 LP = self.calcSubstateLocalParams(Data, LP, **kwargs)
             else:
                 substate_resp = self.calcInitSubstateResp(Data, SS, LP, **kwargs)
-                LP['substate_resp'] = substate_resp
-            # should check if post is around and if not, calculate heuristic init (init should be called at most once)
-            #print '\n no substate resp in LP\n'
-            #LP['substate_resp'] = self.calcInitSubstateResp(Data, SS, LP['resp'], **kwargs)
-            
-        else:
-            print '\n yes substate resp in LP \n'
+                LP['substate_resp'] = substate_resp            
         return self.calcSSGivenSubstateResp(Data, SS, LP, doPrecompEntropy=doPrecompEntropy, **kwargs)
 
     def calcInitSubstateResp(self, Data, SS, LP, **kwargs): 
@@ -300,51 +296,31 @@ class MixGaussObsModel(AbstractObsModel):
         N,K,C = Data.nObs,SS.K,self.C
         substate_resp = np.zeros((N,K,C))
 
-        # better alternative -- k-means?
-        #for c in xrange(C):
-        #    substate_resp[:,:,c] = resp/C
-        
         """
         from sklearn.cluster import KMeans
-        print 'kmeans'
-        kmeans = KMeans(init='random', n_clusters=K*C, n_init=10,max_iter=10000)
-        kmeans.fit(Data.X)
-        labels = kmeans.labels_
-        for n in xrange(N):
-            cc = labels[n] // K
-            kk = labels[n] %  K
-            substate_resp[n,kk,cc] = 1.0
-        """
         
-        
-        #print np.nonzero(resp)
-        #print LP.keys()
-        from sklearn.cluster import KMeans
-        max_resp = np.argmax(resp,axis=1)
         for kk in xrange(K):
-            inds = [n for n in list(np.nonzero(max_resp==kk)[0]) if resp[n,kk] > 0]
-            print len(inds)
-            #inds = range(int(kk*N/float(K)),int((kk+1)*N/float(K)))
-            kmeans = KMeans(init='random', n_clusters=C, n_init=3)#,max_iter=1000)
-            kmeans.fit(Data.X[inds]) #[inds]
+            inds = list(np.nonzero(resp[:,kk])[0])
+            kmeans = KMeans(init='k-means++', n_clusters=C, n_init=10, max_iter=100000) 
+            kmeans.fit(Data.X[inds])
             labels = kmeans.labels_
-            for j,n in enumerate(inds):
-                cc = labels[j]
-                substate_resp[n,kk,cc] = 1.0 #resp[n,kk]#
-        
-
-        #v = 1e-3
-        #substate_resp = np.random.dirichlet(np.ones(K*C)*v, N).reshape((N,K,C))
-        #substate_resp *= resp[:,:,np.newaxis]
-
+            for jj,nn in enumerate(inds):
+                cc = labels[jj]
+                substate_resp[nn,kk,cc] = resp[nn,kk]
         """
+        """
+        for kk in xrange(K):
+            inds = list(np.nonzero(resp[:,kk])[0])
+            for nn in inds:
+                substate_resp[nn,kk] = resp[nn,kk]*np.random.dirichlet(0.25*np.ones(C), 1)
+        """
+        
         for n in xrange(N):
             cc = np.random.randint(C)
-            #kk = random.randint(K)
             for kk in xrange(K):
                 substate_resp[n,kk,cc] = resp[n,kk]
-        """
-
+        
+        
         return substate_resp
 
     # input  : LP dict computed by alloc model, 
@@ -360,40 +336,17 @@ class MixGaussObsModel(AbstractObsModel):
         return LP
 
     def calcSubstateMarginalProbabilities(self, Data, LP, **kwargs):
-
-        """
-        print LP.keys()
-
-        resp = LP['resp'] # N x K
-        E_log_soft_ev = self.calcLogSoftEvMatrix_FromPost_Full(Data, **kwargs) # N x K x C
-        Z = np.sum(E_log_soft_ev, axis=2)
-        E_log_soft_ev /= Z[:,:,np.newaxis]
-        L = resp[:,:,np.newaxis] * E_log_soft_ev
-        """
-        
-        """
-        vartheta = self.calcLogSoftEvMatrix_FromPost_Full(Data, **kwargs) # N x K x C
-        fwdbwd   = LP['E_log_soft_ev'][:,:,np.newaxis]
-        L = vartheta * fwdbwd # elementwise product
-        Z = np.sum(np.sum(L,axis=2),axis=1)
-        L = L / Z[:,np.newaxis,np.newaxis]
-        """
         resp = LP['resp']
-        '''
-        vartheta = LP['E_log_soft_ev_full']
-        varthetaMax = np.max(vartheta, axis=2)
-        vartheta -= varthetaMax[:, :, np.newaxis]
-        np.exp(vartheta, out=vartheta)
-        vartheta /= np.sum(vartheta, axis=2)[:,:,np.newaxis]
-        '''
+        if 'substate_resp' not in LP:
+            LP = self.calc_local_params(Data, LP=LP, **kwargs)
         substate_resp = LP['substate_condresp']
         substate_resp *= resp[:,:,np.newaxis]
         assert np.allclose(substate_resp.sum(axis=2), resp)
         return substate_resp
 
-    def calcSSGivenSubstateResp(self, Data, SS, LP, doPrecompEntropy=False, **kwargs):
+    def calcSSGivenSubstateResp(self, Data, SS, LP, doPrecompEntropy=True, **kwargs):
         substate_resp = LP['substate_resp']
-        X = Data.X # N x D
+        X = Data.X 
         D = Data.dim
         N, K, C = substate_resp.shape
         self.K = K
@@ -409,28 +362,26 @@ class MixGaussObsModel(AbstractObsModel):
             SS.setField('N', np.sum(substate_resp, axis=0), dims=('K','C'))
         SS.setField('N_full', np.sum(substate_resp, axis=0), dims=('K','C'))
         # Expected mean for each k
-        SS.setField('x', np.dot(substate_resp.transpose(1,2,0), X), dims=('K','C','D')) # NOT OPTIMIZED USING BLAS ROUTINES
+        SS.setField('x', np.dot(substate_resp.transpose(1,2,0), X), dims=('K','C','D')) 
         
         # Expected outer-product for each k, c
-        sqrtSResp = np.sqrt(substate_resp) # N x K x C
+        sqrtSResp = np.sqrt(substate_resp) 
         xxT = np.zeros((K, C, D, D))
         for k in xrange(K):
             for c in xrange(C):
                 xxT[k,c] = dotATA(sqrtSResp[:, k, c][:, np.newaxis] * Data.X)
         SS.setField('xxT', xxT, dims=('K', 'C', 'D', 'D'))
 
-        if doPrecompEntropy or True:
+        if doPrecompEntropy:
             resp = LP['resp']
-
             eps = 1e-100
 
             T = substate_resp + eps 
             T /= (resp[:,:,np.newaxis] + eps)
             np.log(T, out=T)
-            T *= substate_resp
+            T *= (substate_resp + eps)
             
-            Hsubstate = np.sum(T, axis=0)
-            #np.sum(substate_resp * np.log(substate_resp / resp[:,:,np.newaxis]), axis=0)
+            Hsubstate = -np.sum(T, axis=0)
             SS.setField('Hsubstate', Hsubstate, dims=('K','C'))
 
         return SS
@@ -486,15 +437,15 @@ class MixGaussObsModel(AbstractObsModel):
     def _E_log_ppsi_qpsi(self, kc=None):
         eta = self.Post.eta
         K,C = eta.shape
-        elogpq = 0 
+        elogpq = K * (gammaln(C*self.Prior.eta) - C*gammaln(self.Prior.eta))
         for k in xrange(K):
             for c in xrange(C):
-                elogpq -= (eta[k,c] - self.Prior.eta)*self.GetCached('E_logpsi',(k,c)) - gammaln(eta[k,c])
+                elogpq += (self.Prior.eta - eta[k,c])*self.GetCached('E_logpsi',(k,c)) + gammaln(eta[k,c])
             elogpq -= gammaln(np.sum(eta[k]))
-        return elogpq + K * gammaln(C*self.Prior.eta) - K*C*gammaln(self.Prior.eta)
+        return elogpq 
 
 
-    def calcELBO_Memoized(self, SS, afterMStep=False):
+    def calcELBO_Memoized(self, SS): # , afterMStep=False
         """ Calculate obsModel's objective using suff stats SS and Post.
 
         Args
@@ -505,14 +456,10 @@ class MixGaussObsModel(AbstractObsModel):
 
         Returns
         -------
-        obsELBO : scalar float
-            Equal to E[ log p(x) + log p(phi) - log q(phi)]
-            want     E[ log p(x | z,y,phi) + log p(phi) - log q(phi) 
-                        + log p(y | z,psi) - log q(y | z,psi) 
-                        + log p(psi) - log q(psi)]
-            need to calc E[ log p(y | z,psi) - log q(y | z,psi) 
-                        + log p(psi) - log q(psi)]
-
+        obsELBO : scalar float            
+            E[ log p(x | z,y,phi) + log p(phi) - log q(phi)]
+                + E[log p(y | z,psi)] + E[-log q(y | z,psi)]
+                + E[log p(psi)/q(psi)]
         """
         K = SS.K
         C = SS.C
@@ -526,26 +473,28 @@ class MixGaussObsModel(AbstractObsModel):
                                  Prior.m, Prior.kappa,
                                  Post.nu[k,c],
                                  self.GetCached('logdetB', (k,c)),
-                                Post.m[k,c], Post.kappa[k,c],
-                                ) \
-                             + SS.N_full[k,c] * self.GetCached('E_logpsi', (k,c)) \
-                            # E[p(y | z, psi)]
-            if not afterMStep:
+                                Post.m[k,c], Post.kappa[k,c])
+
+
                 aDiff = SS.N_full[k,c] + Prior.nu - Post.nu[k,c]
                 bDiff = SS.xxT[k,c] + Prior.B \
-                                  + Prior.kappa * np.outer(Prior.m, Prior.m) \
-                    - Post.B[k,c] \
-                    - Post.kappa[k,c] * np.outer(Post.m[k,c], Post.m[k,c])
+                                    + Prior.kappa * np.outer(Prior.m, Prior.m) \
+                        - Post.B[k,c] \
+                        - Post.kappa[k,c] * np.outer(Post.m[k,c], Post.m[k,c])
                 cDiff = SS.x[k,c] + Prior.kappa * Prior.m \
-                    - Post.kappa[k,c] * Post.m[k,c]
+                        - Post.kappa[k,c] * Post.m[k,c]
                 dDiff = SS.N_full[k,c] + Prior.kappa - Post.kappa[k,c]
                 elbo[k,c] += 0.5 * aDiff * self.GetCached('E_logdetL', (k,c)) \
-                    - 0.5 * self._trace__E_L(bDiff, (k,c)) \
-                    + np.inner(cDiff, self.GetCached('E_Lmu', (k,c))) \
-                    - 0.5 * dDiff * self.GetCached('E_muLmu', (k,c))
+                        - 0.5 * self._trace__E_L(bDiff, (k,c)) \
+                        + np.inner(cDiff, self.GetCached('E_Lmu', (k,c))) \
+                        - 0.5 * dDiff * self.GetCached('E_muLmu', (k,c))
+
+                elbo[k,c] += SS.N_full[k,c] * self.GetCached('E_logpsi', (k,c)) 
+                # E[p(y | z, psi)]
         H = SS.Hsubstate 
         return elbo.sum() - 0.5 * np.sum(SS.N_full) * SS.D * LOGTWOPI \
-               + self.GetCached('E_log_ppsi_qpsi') +  np.sum(H[np.nonzero(H<np.float('inf'))])
+               + self.GetCached('E_log_ppsi_qpsi') +  np.sum(H[np.nonzero(H<np.float('inf'))]) 
+               # E[log p(psi) - log q(psi)]]       +  E[- log q(y | z,psi)]
 
     def setPostFactors(self, obsModel=None, SS=None, LP=None, Data=None,
                        nu=0, B=0, m=0, kappa=0,
@@ -589,9 +538,6 @@ class MixGaussObsModel(AbstractObsModel):
             return self.Prior.B / self.Prior.nu
         else:
             return self.Post.B[k,c] / self.Post.nu[k,c]
-
-
-
 
 
 def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):
