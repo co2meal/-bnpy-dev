@@ -167,6 +167,7 @@ def showTopicsAsSquareImages(topics,
                              compListToPlot=None,
                              xlabels=[],
                              Kmax=50,
+                             ncols=5,
                              W=1, H=1, figH=None,
                              **kwargs):
     global imshowArgs    
@@ -191,7 +192,7 @@ def showTopicsAsSquareImages(topics,
 
     # Create Figure
     Kplot = np.minimum(len(compListToPlot), Kmax)
-    ncols = 5  # int(np.ceil(Kplot / float(nrows)))
+    #ncols = 5  # int(np.ceil(Kplot / float(nrows)))
     nrows = int(np.ceil(Kplot / float(ncols)))
     if figH is None:
         # Make a new figure
