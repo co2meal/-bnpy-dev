@@ -79,7 +79,8 @@ def lossFunc(pi_d=None,
         cts_d[i] : count of i-th unique-word in doc d
     topics_d : 2D array, K x U_d
         topics_d[k,i]: probability of i-th unique-word in d under topic k
-    alpha : scalar float > 0
+    alpha : scalar float >= 0
+        alpha=0.0 : Uniform prior        
 
     Returns
     -------

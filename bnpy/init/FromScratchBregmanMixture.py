@@ -231,34 +231,53 @@ def initKMeans_BregmanMixture(Data, K, obsModel, seed=0,
     return Z, Mu, minDiv, np.sum(DivDataVec), scoreVsK
 
 
-def estimatePiAndDiv_ManyDocs(Data, obsModel, Mu, Pi, k, alpha=0.0,
+def estimatePiAndDiv_ManyDocs(Data, obsModel, Mu,
+        Pi=None,
+        k=None,
+        alpha=0.0,
         optim_method='frankwolfe',
         DivDataVec=None,
+        smoothVec='lam',
         minDiv=None):
+    ''' Estimate doc-topic probs for many docs, with corresponding divergence
+
+    Returns
+    -------
+    Pi : 2D array, size D x K
+    minDiv : 1D array, size D
+        minDiv[d] : divergence from closest convex combination of topics in Mu
     '''
-    '''
-    if minDiv is None:
-        minDiv = np.zeros(Data.nDoc)
+    K = len(Mu)
+    if k is None:
+        k = K
     if isinstance(Mu, list):
         topics = np.vstack(Mu[:k])    
     else:
         topics = Mu[:k]
+    
+    if Pi is None:
+        Pi = np.zeros((Data.nDoc, K))
+    if minDiv is None:
+        minDiv = np.zeros(Data.nDoc)
     for d in range(Data.nDoc):
         start_d = Data.doc_range[d]
         stop_d = Data.doc_range[d+1]
         wids_d = Data.word_id[start_d:stop_d]
         wcts_d = Data.word_count[start_d:stop_d]
-        # Todo: smart initialization of pi??
-        piInit = Pi[d, :k].copy()
-        piInit[-1] = 0.1
-        piInit[:-1] *= 0.9
-        assert np.allclose(piInit.sum(), 1.0)
+        # TODO use piInit better
+        #piInit = Pi[d, :k].copy()
+        #piInit[-1] = 0.1
+        #piInit[:-1] *= 0.9
+        #piInit /= piInit.sum()
+        #assert np.allclose(piInit.sum(), 1.0)
+        
         if optim_method == 'frankwolfe':
             Pi[d, :k], minDiv[d], _ = estimatePiForDoc_frankwolfe(
                 ids_d=wids_d, 
                 cts_d=wcts_d,
                 topics=topics,
-                alpha=alpha)
+                alpha=alpha,
+                seed=d)
         else:
             Pi[d, :k], minDiv[d], _ = estimatePi2(
                 ids_d=wids_d, 
@@ -267,10 +286,11 @@ def estimatePiAndDiv_ManyDocs(Data, obsModel, Mu, Pi, k, alpha=0.0,
                 alpha=alpha,
                 scale=1.0,
                 piInit=None)
-                #piInit=piInit)
-        if d == 0:
-            print pi2str(Pi[d,:k])
-    minDiv -= np.dot(np.log(np.dot(Pi[:, :k], topics)), obsModel.Prior.lam)
+    if isinstance(smoothVec, str) and smoothVec.count('lam'):
+        minDiv -= np.dot(np.log(np.dot(Pi[:, :k], topics)), obsModel.Prior.lam)
+    elif isinstance(smoothVec, np.ndarray):
+        minDiv -= np.dot(np.log(np.dot(Pi[:, :k], topics)), smoothVec)
+    
     if DivDataVec is not None:
         minDiv += DivDataVec
     assert np.min(minDiv) > -1e-6
