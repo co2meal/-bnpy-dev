@@ -41,13 +41,14 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         ktarget=None,
         kabsorbList=None,
         xUIDs=None,
+        absorbUIDs=None,
         xObsModel=None,
         xInitSS=None,
         doBuildOnInit=False,
         xPiVec=None,
         emptyPi=0.0,
         nUpdateSteps=5,
-        d_initWordCounts='bycorr',
+        d_initWordCounts='none',
         **kwargs):
     ''' Perform restricted local step and summarize it.
 
@@ -59,26 +60,30 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
     # Translate specififed unique-IDs (UID) into current order IDs
     if targetUID is not None:
         ktarget = curSSwhole.uid2k(targetUID)
-    if xUIDs is not None:
+    if absorbUIDs is not None:
         kabsorbList = list()
-        for uid in xUIDs:
+        for uid in absorbUIDs:
             kabsorbList.append(curSSwhole.uid2k(uid))
         kabsorbList.sort()
+        Kfresh = len(kabsorbList)
+    else:
+        Kfresh = xInitSS.K
 
     # Create probabilities for each of the Kfresh new clusters
     # by subdividing the target comp's original probabilities
-    if xPiVec is None:
+    if xPiVec is None and kabsorbList is not None:
         piVec = curModel.allocModel.get_active_comp_probs()
         xPiVec = piVec[kabsorbList].copy()
         xPiVec /= xPiVec.sum()
         xPiVec *= (piVec[kabsorbList].sum() +  piVec[ktarget])
         assert np.allclose(np.sum(xPiVec),
             piVec[ktarget] + np.sum(piVec[kabsorbList]))
+    else:
+        piVec = curModel.allocModel.get_active_comp_probs()
+        xPiVec = (piVec[ktarget] - emptyPi) / Kfresh * np.ones(Kfresh)
 
-    xalphaPi = curModel.allocModel.alpha * xPiVec
-    thetaEmptyComp = curModel.allocModel.alpha * emptyPi
     # Create expansion observation model, if necessary
-    if xObsModel is None:
+    if xObsModel is None and kabsorbList is not None:
         assert xInitSS is not None
         isMult = curModel.getObsModelName().count('Mult')
         if not doBuildOnInit and isMult and d_initWordCounts.count('corr'):
@@ -92,9 +97,14 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         # Create expanded observation model
         xObsModel = curModel.obsModel.copy()
         xObsModel.update_global_params(xInitSS)
-        assert xObsModel.K == len(kabsorbList)
+    if kabsorbList is None:
+        xObsModel.update_global_params(xInitSS)
+    assert xObsModel.K == Kfresh
+
     # Perform restricted inference!
     # xLPslice contains local params for all Kfresh expansion clusters
+    xalphaPi = curModel.allocModel.alpha * xPiVec
+    thetaEmptyComp = curModel.allocModel.alpha * emptyPi
     xLPslice = restrictedLocalStep_HDPTopicModel(
         Dslice=Dslice,
         curLPslice=curLPslice,
@@ -140,7 +150,7 @@ def restrictedLocalStep_HDPTopicModel(
         convThr=0.5,
         thetaEmptyComp=None,
         **kwargs):
-    '''
+    ''' Compute local parameters for HDPTopicModel via restricted local step.
 
     Returns
     -------
@@ -158,8 +168,10 @@ def restrictedLocalStep_HDPTopicModel(
     '''
     if doBuildOnInit:
         xWholeSS = xInitSS.copy()
-
     Kfresh = xObsModel.K
+    print Kfresh
+    print xalphaPi
+    print xalphaPi.size
     assert Kfresh == xalphaPi.size
 
     xLPslice = dict()

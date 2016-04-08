@@ -684,16 +684,17 @@ class MultObsModel(AbstractObsModel):
             Mu = (Mu,)
         K = len(Mu)
 
-        if smoothFrac == 0:
-            smoothVec = 1e-20
-        else:
-            smoothVec = smoothFrac * self.Prior.lam
 
         # Compute Div array up to a per-row additive constant indep. of k
         Div = np.zeros((N, K))
         for k in xrange(K):
-            Div[:,k] = -1 * np.dot(X, np.log(Mu[k])) \
-                - np.sum(smoothVec * np.log(Mu[k]))
+            Div[:,k] = -1 * np.dot(X, np.log(Mu[k]))
+
+        # Compute contribution of prior smoothing
+        if smoothFrac > 0:
+            smoothVec = smoothFrac * self.Prior.lam
+            for k in xrange(K):
+                Div[:,k] -= np.sum(smoothVec * np.log(Mu[k]))
             # Equivalent to -1 * np.dot(MuX, np.log(Mu[k])),
             # but without allocating a new matrix MuX
 
@@ -702,8 +703,14 @@ class MultObsModel(AbstractObsModel):
                 # Compute DivDataVec : 1D array of size N
                 # This is the per-row additive constant indep. of k. 
                 # We do lots of steps in-place, to save memory.
-                MuX = X + smoothVec
+                if smoothFrac > 0:
+                    MuX = X + smoothVec
+                else:
+                    # Add small pos constant so that we never compute np.log(0)
+                    MuX = X + 1e-100
                 NX = MuX.sum(axis=1)
+                # First block equivalent to
+                # DivDataVec = -1 * NX * np.log(NX)
                 DivDataVec = np.log(NX)
                 DivDataVec *= -1 * NX
 
@@ -712,7 +719,8 @@ class MultObsModel(AbstractObsModel):
                 # but uses in-place operations with faster numexpr library.
                 NumericUtil.inplaceLog(MuX)
                 logMuX = MuX
-                DivDataVec += np.dot(logMuX, smoothVec)
+                if smoothFrac > 0:
+                    DivDataVec += np.dot(logMuX, smoothVec)
                 logMuX *= X
                 XlogMuX = logMuX
                 DivDataVec += np.sum(XlogMuX, axis=1)             

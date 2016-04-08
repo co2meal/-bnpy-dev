@@ -13,8 +13,9 @@ def estimatePiForDoc_frankwolfe(ids_d, cts_d, topics, alpha,
     K = topics.shape[0]
     topics_d = topics[:, ids_d]
     # Initialize theta randomly
-    piVec = PRNG.rand(K) + 1.
-    piVec /= sum(piVec)
+    initpiVec = PRNG.rand(K) + 1.
+    initpiVec /= sum(initpiVec)
+    piVec = initpiVec.copy()
     # x = sum_(k=2)^K theta_k * beta_{kj}
     x = np.dot(piVec, topics_d)       
     # Loop
@@ -36,7 +37,7 @@ def estimatePiForDoc_frankwolfe(ids_d, cts_d, topics, alpha,
     fscore = -1 * np.inner(cts_d, np.log(np.dot(piVec, topics_d)))
     return (piVec,
         fscore,
-        dict())
+        dict(initpiVec=initpiVec))
 
 
 def lossFuncAndGrad(pi_d=None,
