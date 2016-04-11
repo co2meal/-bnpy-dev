@@ -140,7 +140,7 @@ def makeSummaryForBirthProposal(
             vocabList=vocabList,
             compsToHighlight=[ktarget])
 
-    # Determine exactly how many states we can make...
+    # Determine exactly how many new states we can make...
     xK = len(newUIDs)
     if xK + curSSwhole.K > kwargs['Kmax']:
         xK = kwargs['Kmax'] - curSSwhole.K
@@ -237,6 +237,7 @@ def makeSummaryForBirthProposal(
 
     # Create initial observation model
     xObsModel = curModel.obsModel.copy()
+    xObsModel.update_global_params(xInitSS)
     if b_method_initCoordAscent == 'fromprevious' and 'xLPslice' in Info:
         xInitLPslice = Info['xLPslice']
     else:

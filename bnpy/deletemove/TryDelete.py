@@ -23,7 +23,8 @@ def parse_list_of_absorbing_comps(kabsorbList, ktarget, K):
     return kabsorbList
 
 def tryDeleteProposalForSpecificTarget_DPMixtureModel(
-        Data, hmodel,
+        Data,
+        hmodel,
         LPkwargs=dict(),
         ktarget=0,
         verbose=True,
@@ -87,7 +88,8 @@ def tryDeleteProposalForSpecificTarget_DPMixtureModel(
 
 
 def tryDeleteProposalForSpecificTarget_HDPTopicModel(
-        Data, hmodel,
+        Data,
+        hmodel,
         LPkwargs=dict(),
         ktarget=0,
         kabsorbList=[1],
@@ -97,7 +99,7 @@ def tryDeleteProposalForSpecificTarget_HDPTopicModel(
         doPlotDocTopicCount=False,
         nELBOSteps=3,
         nUpdateSteps=5,
-        d_initDocTopicCount='warm_start',
+        d_initTargetDocTopicCount='warm_start',
         d_initWordCounts='none',
         **kwargs):
     ''' Execute merge for specific whole dataset
@@ -163,7 +165,7 @@ def tryDeleteProposalForSpecificTarget_HDPTopicModel(
             xPiVec=xPiVec,
             xObsModel=xObsModel,
             nUpdateSteps=nUpdateSteps,
-            d_initDocTopicCount=d_initDocTopicCount,
+            d_initTargetDocTopicCount=d_initTargetDocTopicCount,
             LPkwargs=LPkwargs)
 
         if ELBOstep < nELBOSteps - 1:
@@ -362,7 +364,7 @@ if __name__ == '__main__':
     parser.add_argument('--nELBOSteps', type=int, default=1)
     parser.add_argument('--d_initWordCounts',
         type=str, default='none')
-    parser.add_argument('--d_initDocTopicCount',
+    parser.add_argument('--d_initTargetDocTopicCount',
         type=str, default="warm_start")
     args = parser.parse_args()
 

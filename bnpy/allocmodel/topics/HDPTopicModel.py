@@ -18,6 +18,7 @@ from bnpy.util.StickBreakUtil import rho2beta, rho2beta_active, beta2rho
 
 from bnpy.util import sharedMemToNumpyArray, numpyToSharedMemArray
 
+kvec = OptimizerRhoOmegaBetter.kvec
 Log = logging.getLogger('bnpy')
 
 
@@ -674,43 +675,81 @@ class HDPTopicModel(AllocModel):
                         rho=self.rho, omega=self.omega,
                         **kwargs)
 
-    def calcHardMergeGap(self, SS, kA=0, kB=1):
+    def calcHardMergeGap_SpecificPairs(self, SS, mPairList=[]):
+        ''' Compute gain in ELBO from merger of specific list of pairs
+
+        Returns
+        -------
+        L : list
+        '''
+        gainLvec = np.zeros(len(mPairList))
+        for ii, (kA, kB) in enumerate(mPairList):
+            gainLvec[ii] = self.calcHardMergeGap(SS, kA, kB)
+        return gainLvec
+
+    def calcHardMergeGap(self, SS, kA=0, kB=1, returnRhoOmega=False):
         ''' Compute gain in ELBO from merger of cluster pair (kA, kB)
 
         Returns
         -------
         gainL : float
         '''
-        omBefore = self.omega
-        omAfter = self.omega[1:]
+        gamma = self.gamma
+        alpha = self.alpha
+        D = SS.nDoc
 
-        rhoBefore = self.rho
-        EbetaAfter = rho2beta_active(self.rho)
-        EbetaAfter[kA] += EbetaAfter[kB]
-        EbetaAfter = np.delete(EbetaAfter, kB)
-        rhoAfter = beta2rho(EbetaAfter, EbetaAfter.size)
+        curOmega = self.omega
+        propOmega = self.omega[1:]
 
-        curEta1 = rhoBefore * omBefore
-        curEta0 = (1.0-rhoBefore) * omBefore
-        propEta1 = rhoAfter * omAfter
-        propEta0 = (1.0-rhoAfter) * omAfter
+        curRho = self.rho
+        propEbeta = rho2beta_active(self.rho)
+        propEbeta[kA] += propEbeta[kB]
+        propEbeta = np.delete(propEbeta, kB)
+        propRho = beta2rho(propEbeta, propEbeta.size)
 
-        gainLtop_alpha = -1 * SS.nDoc * np.log(self.alpha)
+        curEta1 = curRho * curOmega
+        curEta0 = (1.0-curRho) * curOmega
+        propEta1 = propRho * propOmega
+        propEta0 = (1.0-propRho) * propOmega
+
+        gainLtop_alpha = -1 * SS.nDoc * np.log(alpha)
 
         def cBeta(a, b):
             return gammaln(a+b) - gammaln(a) - gammaln(b)
 
         gainLtop_cBeta = 0.0
-        gamma = self.gamma
-        for k in range(kA, kB+1): # kA, kA+1, ... kB-1, kB
-            gainLtop_cBeta -= cBeta(1, gamma) - cBeta(curEta1[k], curEta0[k]) \
+        curKvec = kvec(SS.K)
+        for k in range(0, SS.K): # kA, kA+1, ... kB-1, kB
+            curLtop_beta_k = \
+                cBeta(1, gamma) - cBeta(curEta1[k], curEta0[k]) \
                 + (D + 1.0 - curEta1[k]) \
-                    * (digamma(curEta1[k]) - digamma(curOm[k])) \
-                + (D * kvec(curK) + gamma - curEta0[k]) \
-                    * (digamma(curEta1[k]) - digamma(curOm[k]))
+                    * (digamma(curEta1[k]) - digamma(curOmega[k])) \
+                + (D * curKvec[k] + gamma - curEta0[k]) \
+                    * (digamma(curEta0[k]) - digamma(curOmega[k]))
+            gainLtop_cBeta -= curLtop_beta_k
 
-        for k in range(kA, kB): # kA, kA+1, ... kB-1
-            gainLtop_cBeta += cBeta(1, gamma) - cBeta(propEta1[k], propEta0[k])
+        for k in range(0, SS.K-1): # kA, kA+1, ... kB-1
+            propLtop_beta_k = \
+                cBeta(1, gamma) - cBeta(propEta1[k], propEta0[k]) \
+                + (D + 1.0 - propEta1[k]) \
+                    * (digamma(propEta1[k]) - digamma(propOmega[k])) \
+                + (D * curKvec[k+1] + gamma - propEta0[k]) \
+                    * (digamma(propEta0[k]) - digamma(propOmega[k]))
+            gainLtop_cBeta += propLtop_beta_k
+
+        from bnpy.allocmodel.topics.HDPTopicUtil import L_alloc
+        curLalloc = L_alloc(alpha=alpha, gamma=gamma,
+            nDoc=SS.nDoc, rho=curRho, omega=curOmega, todict=0)
+        propLalloc = L_alloc(alpha=alpha, gamma=gamma,
+            nDoc=SS.nDoc, rho=propRho, omega=propOmega, todict=0)
+
+        gainLalloc = gainLtop_alpha + gainLtop_cBeta
+        gainLalloc2 = propLalloc - curLalloc
+        assert np.allclose(gainLalloc, gainLalloc2)
+
+        if returnRhoOmega:
+            return gainLalloc, propRho, propOmega
+        return gainLalloc
 
     def calcELBO_LinearTerms(self, **kwargs):
         ''' Compute sum of ELBO terms that are linear/const wrt suff stats

@@ -683,8 +683,6 @@ class MultObsModel(AbstractObsModel):
         if not isinstance(Mu, list):
             Mu = (Mu,)
         K = len(Mu)
-
-
         # Compute Div array up to a per-row additive constant indep. of k
         Div = np.zeros((N, K))
         for k in xrange(K):
@@ -744,7 +742,6 @@ class MultObsModel(AbstractObsModel):
                 np.maximum(Div, 0, out=Div)
                 minDiv = Div.min()
             assert minDiv >= 0
-
         if return1D:
             Div = Div[:,0]
         if returnDivDataVec:

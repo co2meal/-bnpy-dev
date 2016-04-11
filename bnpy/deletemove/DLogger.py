@@ -44,7 +44,8 @@ def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
         Log.addHandler(fh)
 
     # Config logger that can write to stdout
-    if doWriteStdOut:
+    #if doWriteStdOut:
+    if True:
         ch = logging.StreamHandler(sys.stdout)
         ch.setLevel(logging.INFO)
         ch.setFormatter(formatter)

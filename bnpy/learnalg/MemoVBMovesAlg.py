@@ -397,7 +397,7 @@ class MemoVBMovesAlg(LearnAlg):
                 emptyPiFrac=0,
                 lapFrac=lapFrac,
                 nUpdateSteps=DKwargs['d_nRefineSteps'],
-                d_initDocTopicCount=DKwargs['d_initDocTopicCount'],
+                d_initTargetDocTopicCount=DKwargs['d_initTargetDocTopicCount'],
                 d_initWordCounts=DKwargs['d_initWordCounts'],
                 )
             ElapsedTimeLogger.stopEvent('delete', 'localexpansion')
@@ -1392,7 +1392,8 @@ class MemoVBMovesAlg(LearnAlg):
             True means further iterations likely see births/merges accepted.
             False means all possible moves likely to be rejected.
         '''
-        if lapFrac - self.algParams['startLap'] >= self.algParams['nLap']:
+        nLapsCompleted = lapFrac - self.algParams['startLap']
+        if nLapsCompleted >= self.algParams['nLap']:
             # Time's up, so doesn't matter what other moves are possible.
             return False
 
@@ -1402,7 +1403,11 @@ class MemoVBMovesAlg(LearnAlg):
             stopLap = self.algParams['birth']['b_stopLap']
             if stopLap < 0:
                 stopLap = np.inf
+
             if lapFrac > stopLap:
+                hasMovesLeft_Birth = False
+            elif startLap > self.algParams['nLap']:
+                # Birth will never occur. User has effectively disabled it.
                 hasMovesLeft_Birth = False
             elif (lapFrac > startLap + nStuck):
                 # If tried for at least nStuck laps without accepting,
@@ -1431,6 +1436,9 @@ class MemoVBMovesAlg(LearnAlg):
                 stopLap = np.inf
             if lapFrac > stopLap:
                 hasMovesLeft_Merge = False
+            elif startLap > self.algParams['nLap']:
+                # Merge will never occur. User has effectively disabled it.
+                hasMovesLeft_Merge = False
             elif (lapFrac > startLap + nStuck):
                 # If tried for at least nStuck laps without accepting,
                 # we consider the method exhausted and exit early.
@@ -1457,6 +1465,9 @@ class MemoVBMovesAlg(LearnAlg):
             if stopLap < 0:
                 stopLap = np.inf
             if lapFrac > stopLap:
+                hasMovesLeft_Delete = False
+            elif startLap > self.algParams['nLap']:
+                # Delete will never occur. User has effectively disabled it.
                 hasMovesLeft_Delete = False
             elif lapFrac > startLap + nStuck:
                 # If tried for at least nStuck laps without accepting,

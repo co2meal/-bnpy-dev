@@ -14,12 +14,13 @@ from bnpy.viz.PrintTopics import vec2str, count2str
 ELBO_GAP_ACCEPT_TOL = 1e-6
 
 def selectCandidateMergePairs(hmodel, SS,
-        m_maxNumPairsContainingComp=3,
         MovePlans=dict(),
         MoveRecordsByUID=dict(),
         lapFrac=None,
+        m_maxNumPairsContainingComp=3,
         m_minPercChangeInNumAtomsToReactivate=0.01,
         m_nLapToReactivate=10,
+        m_gainThrForPairSelection=0.0,
         **kwargs):
     ''' Select candidate pairs to consider for merge move.
     
@@ -101,19 +102,29 @@ def selectCandidateMergePairs(hmodel, SS,
     # Compute Ldata gain for each possible pair of comps
     oGainMat = hmodel.obsModel.calcHardMergeGap_SpecificPairs(
         SS, EligibleAIDPairs)
-    if hmodel.getAllocModelName().count('Mixture'):
-        GainMat = oGainMat + hmodel.allocModel.calcHardMergeGap_SpecificPairs(
-            SS, EligibleAIDPairs)
-    elif hmodel.getAllocModelName().count('HMM'):
+    if hasattr(hmodel.allocModel, 'calcHardMergeGap_SpecificPairs'):
         GainMat = oGainMat + hmodel.allocModel.calcHardMergeGap_SpecificPairs(
             SS, EligibleAIDPairs)
     else:
         GainMat = oGainMat
+    GainMat /= hmodel.obsModel.getDatasetScale(SS)
+    #elif hmodel.getAllocModelName().count('HMM'):
+    #    GainMat = oGainMat + hmodel.allocModel.calcHardMergeGap_SpecificPairs(
+    #        SS, EligibleAIDPairs)
+    #else:
+    #    GainMat = oGainMat
 
     # Find pairs with positive gains
-    posLocs = np.flatnonzero(GainMat > - ELBO_GAP_ACCEPT_TOL)
-    sortIDs = np.argsort(-1 * GainMat[posLocs])
-    posLocs = posLocs[sortIDs]
+    if m_gainThrForPairSelection > 0.0:
+        posLocs = np.flatnonzero(GainMat > - ELBO_GAP_ACCEPT_TOL)
+        sortIDs = np.argsort(-1 * GainMat[posLocs])
+        posLocs = posLocs[sortIDs]
+    elif m_gainThrForPairSelection > -1:
+        posLocs = np.flatnonzero(GainMat > m_gainThrForPairSelection)
+        sortIDs = np.argsort(-1 * GainMat[posLocs])
+        posLocs = posLocs[sortIDs]
+    else:
+        posLocs = np.argsort(-1 * GainMat)
     nKeep = 0
     mUIDPairs = list()
     mAIDPairs = list()
@@ -131,15 +142,16 @@ def selectCandidateMergePairs(hmodel, SS,
         mUIDPairs.append((uidA, uidB))
         mGainVals.append(GainMat[loc])
         if nKeep == 0:
-            MLogger.pprint("Chosen pairs:", 'debug')
+            MLogger.pprint("Chosen uid pairs:", 'debug')
         MLogger.pprint(
-            "%4d, %4d : gain %.3e, size %s %s" % (
+            "%4d, %4d : possible-gain %.3e, size %s %s" % (
                 uidA, uidB, 
                 GainMat[loc],
                 count2str(uid2count[uidA]),
                 count2str(uid2count[uidB]),
                 ),
             'debug')
+        nKeep += 1
     Info = dict()
     Info['m_UIDPairs'] = mUIDPairs
     Info['m_GainVals'] = mGainVals 
