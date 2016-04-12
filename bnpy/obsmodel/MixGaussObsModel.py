@@ -296,30 +296,23 @@ class MixGaussObsModel(AbstractObsModel):
         N,K,C = Data.nObs,SS.K,self.C
         substate_resp = np.zeros((N,K,C))
 
-        """
-        from sklearn.cluster import KMeans
+        if np.random.randint(2) == 1:
+            from sklearn.cluster import KMeans
         
-        for kk in xrange(K):
-            inds = list(np.nonzero(resp[:,kk])[0])
-            kmeans = KMeans(init='k-means++', n_clusters=C, n_init=10, max_iter=100000) 
-            kmeans.fit(Data.X[inds])
-            labels = kmeans.labels_
-            for jj,nn in enumerate(inds):
-                cc = labels[jj]
-                substate_resp[nn,kk,cc] = resp[nn,kk]
-        """
-        """
-        for kk in xrange(K):
-            inds = list(np.nonzero(resp[:,kk])[0])
-            for nn in inds:
-                substate_resp[nn,kk] = resp[nn,kk]*np.random.dirichlet(0.25*np.ones(C), 1)
-        """
-        
-        for n in xrange(N):
-            cc = np.random.randint(C)
             for kk in xrange(K):
-                substate_resp[n,kk,cc] = resp[n,kk]
-        
+                inds = list(np.nonzero(resp[:,kk])[0])
+                kmeans = KMeans(init='k-means++', n_clusters=C, n_init=10, max_iter=100000) 
+                kmeans.fit(Data.X[inds])
+                labels = kmeans.labels_
+                for jj,nn in enumerate(inds):
+                    cc = labels[jj]
+                    substate_resp[nn,kk,cc] = resp[nn,kk]
+        else:
+            for n in xrange(N):
+                cc = np.random.randint(C)
+                for kk in xrange(K):
+                    substate_resp[n,kk,cc] = resp[n,kk]
+
         
         return substate_resp
 
