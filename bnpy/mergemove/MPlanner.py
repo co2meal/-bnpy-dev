@@ -108,6 +108,7 @@ def selectCandidateMergePairs(hmodel, SS,
     else:
         GainMat = oGainMat
     GainMat /= hmodel.obsModel.getDatasetScale(SS)
+
     #elif hmodel.getAllocModelName().count('HMM'):
     #    GainMat = oGainMat + hmodel.allocModel.calcHardMergeGap_SpecificPairs(
     #        SS, EligibleAIDPairs)
@@ -115,15 +116,26 @@ def selectCandidateMergePairs(hmodel, SS,
     #    GainMat = oGainMat
 
     # Find pairs with positive gains
-    if m_gainThrForPairSelection > 0.0:
+    if m_gainThrForPairSelection >= -ELBO_GAP_ACCEPT_TOL:
+        MLogger.pprint(
+            "Considering uid pairs with (scaled) Lgain > %.3e" % (
+                -ELBO_GAP_ACCEPT_TOL),
+            'debug')
         posLocs = np.flatnonzero(GainMat > - ELBO_GAP_ACCEPT_TOL)
         sortIDs = np.argsort(-1 * GainMat[posLocs])
         posLocs = posLocs[sortIDs]
     elif m_gainThrForPairSelection > -1:
+        MLogger.pprint(
+            "Considering uid pairs with (scaled) Lgain > %.3e" % (
+                m_gainThrForPairSelection),
+            'debug')
         posLocs = np.flatnonzero(GainMat > m_gainThrForPairSelection)
         sortIDs = np.argsort(-1 * GainMat[posLocs])
         posLocs = posLocs[sortIDs]
     else:
+        MLogger.pprint(
+            "Considering all uid pairs ranked by Lgain (but none eliminated)",
+            'debug')
         posLocs = np.argsort(-1 * GainMat)
     nKeep = 0
     mUIDPairs = list()

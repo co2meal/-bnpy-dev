@@ -237,7 +237,7 @@ def makeSummaryForBirthProposal(
 
     # Create initial observation model
     xObsModel = curModel.obsModel.copy()
-    xObsModel.update_global_params(xInitSS)
+    xObsModel.update_global_params(xSSslice)
     if b_method_initCoordAscent == 'fromprevious' and 'xLPslice' in Info:
         xInitLPslice = Info['xLPslice']
     else:

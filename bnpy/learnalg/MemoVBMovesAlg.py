@@ -629,10 +629,8 @@ class MemoVBMovesAlg(LearnAlg):
         if len(MPlan['m_UIDPairs']) < 1:
             del MPlan['m_UIDPairs']
             del MPlan['mPairIDs']
-            msg = "MERGE @ lap %.2f: Ineligible." + \
-                " No promising candidates."
+            msg = "MERGE @ lap %.2f: No promising candidates, so no attempts."
             MLogger.pprint(msg % (ceilLap), 'info')
-
         else:
             MPlan['doPrecompMergeEntropy'] = 1
         MovePlans.update(MPlan)
@@ -714,12 +712,14 @@ class MemoVBMovesAlg(LearnAlg):
         if ceilLap < startLap:
             msg = "BIRTH @ lap %.2f: Disabled." + \
                 " Waiting for lap >= %d (--b_startLap)."
-            BLogger.pprint(msg % (ceilLap, startLap), 'info')
+            MovePlans['b_statusMsg'] = msg % (ceilLap, startLap)
+            BLogger.pprint(MovePlans['b_statusMsg'], 'info')
             return MovePlans
         if stopLap > 0 and ceilLap >= stopLap:
             msg = "BIRTH @ lap %.2f: Disabled." + \
                 " Beyond lap %d (--b_stopLap)."
-            BLogger.pprint(msg % (ceilLap, stopLap), 'info')
+            MovePlans['b_statusMsg'] = msg % (ceilLap, stopLap)
+            BLogger.pprint(MovePlans['b_statusMsg'], 'info')
             return MovePlans
 
         BArgs = self.algParams['birth']
@@ -1017,7 +1017,11 @@ class MemoVBMovesAlg(LearnAlg):
         MovePlans['b_nAccept'] = nAccept
         MovePlans['b_nTrial'] = nTrial
         MovePlans['b_nFailedEval'] = nFailedEval
-        if self.isLastBatch(lapFrac):
+        if self.isLastBatch(lapFrac) and 'b_statusMsg' not in MovePlans:
+            usedNonEmptyShortList = \
+                self.algParams['birth']['b_useShortList'] \
+                    and len(MovePlans['b_shortlistUIDs']) > 0
+
             if nTrial > 0:
                 msg = "BIRTH @ lap %.2f : Added %d states." + \
                     " %d/%d succeeded. %d/%d failed eval phase. " + \
@@ -1030,31 +1034,24 @@ class MemoVBMovesAlg(LearnAlg):
                 if nRetainedForNextLap > 0:
                     msg += " %d retained!" % (nRetainedForNextLap)
                 BLogger.pprint(msg, 'info')
-            elif 'b_shortlistUIDs' in MovePlans:
+            elif usedNonEmptyShortList:
                 # Birth was eligible, but did not make it to eval stage.
-                if len(MovePlans['b_shortlistUIDs']) > 0:
-                    msg = "BIRTH @ lap %.3f : None attempted." + \
-                        " Shortlist had %d possible clusters," + \
-                        " but none met minimum requirements."
-                    msg = msg % (
-                        lapFrac, len(MovePlans['b_shortlistUIDs']))
-                    BLogger.pprint(msg, 'info')
-                elif self.algParams['birth']['b_useShortList']:
-                    msg = "BIRTH @ lap %.3f : None attempted."
-                    msg +=  " Empty shortlist."
-                    msg +=  " %d too small. %d had past rejections."
-                    msg = msg % (
-                        lapFrac,
-                        MovePlans['b_nDQ_toosmall'],
-                        MovePlans['b_nDQ_pastfail'])
-                else:
-                    msg = "BIRTH @ lap %.3f : None attempted."
-                    msg += " No shortlist (--b_useShortList=%d)."
-                    msg = msg % (
-                        lapFrac, self.algParams['birth']['b_useShortList'])
-                    BLogger.pprint(msg, 'info')
+                msg = "BIRTH @ lap %.3f : None attempted." + \
+                    " Shortlist had %d possible clusters," + \
+                    " but none met minimum requirements."
+                msg = msg % (
+                    lapFrac, len(MovePlans['b_shortlistUIDs']))
+                BLogger.pprint(msg, 'info')
             else:
-                pass
+                msg = "BIRTH @ lap %.3f : None attempted."
+                msg +=  " %d past failures. %d too small. %d too busy."
+                msg = msg % (
+                    lapFrac,
+                    MovePlans['b_nDQ_pastfail'],
+                    MovePlans['b_nDQ_toosmall'],
+                    MovePlans['b_nDQ_toobusy'],
+                    )
+                BLogger.pprint(msg, 'info')
 
             # If any short-listed uids did not get tried in this lap
             # there are two possible reasons:
@@ -1062,7 +1059,7 @@ class MemoVBMovesAlg(LearnAlg):
             # 2) Other uids were prioritized due to budget constraints.
             # We need to mark uids that failed for reason 1,
             # so that we don't avoid deleting/merging them in the future.
-            if 'b_shortlistUIDs' in MovePlans:
+            if usedNonEmptyShortList:
                 for uid in MovePlans['b_shortlistUIDs']:
                     if uid not in MoveRecordsByUID:
                         MoveRecordsByUID[uid] = defaultdict(int)

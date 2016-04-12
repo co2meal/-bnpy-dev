@@ -37,9 +37,7 @@ def selectCompsForBirthAtCurrentBatch(
         doPrintLotsOfDetails = False
     statusStr = ' lap %7.3f lapCeil %5d batchPos %3d/%d batchID %3d ' % (
         lapFrac, np.ceil(lapFrac), batchPos, nBatch, batchID)
-
     BLogger.pprint('PLAN at ' + statusStr)
-
 
     if BArgs['Kmax'] - SS.K <= 0:
         BLogger.pprint(
@@ -233,6 +231,10 @@ def selectCompsForBirthAtCurrentBatch(
     if nDQ_pastfail > 0 and doPrintLotsOfDetails:
         lineUID = vec2str(uidsWithFailRecord)
         BLogger.pprint(lineUID)
+    # Store nDQ counts for reporting.
+    MovePlans['b_nDQ_toosmall'] = nDQ_toosmall
+    MovePlans['b_nDQ_toobusy'] = nDQ_toobusy
+    MovePlans['b_nDQ_pastfail'] = nDQ_pastfail
     # Finalize list of eligible UIDs
     eligibleUIDs = SS.uids[eligible_mask]
     BLogger.pprint('%d/%d UIDs eligible for new proposal' % (
@@ -311,7 +313,6 @@ def selectCompsForBirthAtCurrentBatch(
     for uid in chosenUIDs:
         uidRec = MoveRecordsByUID[uid]
         uidRec['b_proposalBatchID'] = batchID
-        
         uidRec_b = MoveRecordsByUID[uid]['byBatch'][batchID]
         uidRec_b['proposalBatchSize'] = SSbatch.getCountForUID(uid)
         uidRec_b['proposalTotalSize'] = SSbatch.getCountForUID(uid)
@@ -348,6 +349,7 @@ def selectShortListForBirthAtLapStart(
     MovePlans['b_shortlistUIDs'] = list()
     MovePlans['b_nDQ_toosmall'] = 0
     MovePlans['b_nDQ_pastfail'] = 0
+    MovePlans['b_nDQ_toobusy'] = 0
     MovePlans['b_roomToGrow'] = 0
     MovePlans['b_maxLenShortlist'] = 0
     if not canBirthHappenAtLap(lapFrac, **BArgs):

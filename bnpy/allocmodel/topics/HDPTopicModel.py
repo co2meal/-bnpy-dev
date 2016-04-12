@@ -8,6 +8,7 @@ from HDPTopicUtil import calcELBO
 from HDPTopicUtil import calcELBO_LinearTerms, calcELBO_NonlinearTerms
 from HDPTopicUtil import calcHrespForMergePairs, calcHrespForSpecificMergePairs
 from HDPTopicUtil import calcMergeTermsFromSeparateLP
+from HDPTopicUtil import L_alloc
 
 from bnpy.allocmodel.AllocModel import AllocModel
 from bnpy.allocmodel.mix.DPMixtureModel import convertToN0
@@ -682,12 +683,19 @@ class HDPTopicModel(AllocModel):
         -------
         L : list
         '''
+        curLalloc = L_alloc(alpha=self.alpha, gamma=self.gamma,
+                nDoc=SS.nDoc, rho=self.rho, omega=self.omega, todict=0)
+
         gainLvec = np.zeros(len(mPairList))
         for ii, (kA, kB) in enumerate(mPairList):
-            gainLvec[ii] = self.calcHardMergeGap(SS, kA, kB)
+            gainLvec[ii] = self.calcHardMergeGap(
+                SS, kA, kB, curLalloc=curLalloc)
         return gainLvec
 
-    def calcHardMergeGap(self, SS, kA=0, kB=1, returnRhoOmega=False):
+    def calcHardMergeGap(self, SS,
+            kA=0, kB=1,
+            curLalloc=None,
+            returnRhoOmega=False):
         ''' Compute gain in ELBO from merger of cluster pair (kA, kB)
 
         Returns
@@ -707,6 +715,14 @@ class HDPTopicModel(AllocModel):
         propEbeta = np.delete(propEbeta, kB)
         propRho = beta2rho(propEbeta, propEbeta.size)
 
+        if curLalloc is None:
+            curLalloc = L_alloc(alpha=alpha, gamma=gamma,
+                nDoc=SS.nDoc, rho=curRho, omega=curOmega, todict=0)
+        propLalloc = L_alloc(alpha=alpha, gamma=gamma,
+            nDoc=SS.nDoc, rho=propRho, omega=propOmega, todict=0)
+        gainLalloc = propLalloc - curLalloc
+
+        '''
         curEta1 = curRho * curOmega
         curEta0 = (1.0-curRho) * curOmega
         propEta1 = propRho * propOmega
@@ -736,16 +752,9 @@ class HDPTopicModel(AllocModel):
                 + (D * curKvec[k+1] + gamma - propEta0[k]) \
                     * (digamma(propEta0[k]) - digamma(propOmega[k]))
             gainLtop_cBeta += propLtop_beta_k
-
-        from bnpy.allocmodel.topics.HDPTopicUtil import L_alloc
-        curLalloc = L_alloc(alpha=alpha, gamma=gamma,
-            nDoc=SS.nDoc, rho=curRho, omega=curOmega, todict=0)
-        propLalloc = L_alloc(alpha=alpha, gamma=gamma,
-            nDoc=SS.nDoc, rho=propRho, omega=propOmega, todict=0)
-
-        gainLalloc = gainLtop_alpha + gainLtop_cBeta
-        gainLalloc2 = propLalloc - curLalloc
-        assert np.allclose(gainLalloc, gainLalloc2)
+        gainLalloc_direct = gainLtop_alpha + gainLtop_cBeta
+        assert np.allclose(gainLalloc, gainLalloc_direct)
+        '''
 
         if returnRhoOmega:
             return gainLalloc, propRho, propOmega
