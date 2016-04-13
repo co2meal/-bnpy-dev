@@ -148,12 +148,12 @@ def tryDeleteProposalForSpecificTarget_HDPTopicModel(
     xObsModel.update_global_params(xinitSS)
 
     # Create init pi vector for absorbing states
-    piVec = propModel.allocModel.get_active_comp_probs()
-    xPiVec = piVec[kabsorbList].copy()
+    curPiVec = propModel.allocModel.get_active_comp_probs()
+    xPiVec = curPiVec[kabsorbList].copy()
     xPiVec /= xPiVec.sum()
-    xPiVec *= (piVec[kabsorbList].sum() +  piVec[ktarget])
+    xPiVec *= (curPiVec[kabsorbList].sum() +  curPiVec[ktarget])
     assert np.allclose(np.sum(xPiVec),
-        piVec[ktarget] + np.sum(piVec[kabsorbList]))
+        curPiVec[ktarget] + np.sum(curPiVec[kabsorbList]))
     propLscoreList = list()
     for ELBOstep in range(nELBOSteps):
         xSS, Info = summarizeRestrictedLocalStep_HDPTopicModel(
@@ -162,6 +162,7 @@ def tryDeleteProposalForSpecificTarget_HDPTopicModel(
             curLPslice=curLP,
             ktarget=ktarget,
             kabsorbList=kabsorbList,
+            curPiVec=curPiVec,
             xPiVec=xPiVec,
             xObsModel=xObsModel,
             nUpdateSteps=nUpdateSteps,

@@ -5,39 +5,54 @@ from ShapeUtil import as1D, as2D
 
 
 def estimatePiForDoc_frankwolfe(ids_d, cts_d, topics, alpha,
-        maxiter=500, seed=0,
-        returnDist=False,
+        maxiter=500,
+        seed=0,
+        initpiVec=None,
+        verbose=False,
+        returnFuncValAndInfo=False,
         **kwargs):
     PRNG = np.random.RandomState(seed)
 
     K = topics.shape[0]
-    topics_d = topics[:, ids_d]
-    # Initialize theta randomly
-    initpiVec = PRNG.rand(K) + 1.
-    initpiVec /= sum(initpiVec)
-    piVec = initpiVec.copy()
-    # x = sum_(k=2)^K theta_k * beta_{kj}
+    # Create contiguous matrix for active vocab ids in this doc
+    # Using .copy() here will produce 10x speed gains for each call to np.dot
+    topics_d = topics[:, ids_d].copy()
+
+    # Initialize doc-topic prob randomly, if needed
+    if initpiVec is None:
+        initpiVec = PRNG.rand(K) + 1.
+        initpiVec /= sum(initpiVec)
+    piVec = initpiVec
+    if verbose:
+        print '  0 ' + ' '.join(['%.4f' % (x) for x in piVec])
+
     x = np.dot(piVec, topics_d)       
     # Loop
     T = [1, 0]
     for t in xrange(1, maxiter):
-        # Pick fi uniformly
+        # Pick a term uniformly at random
         T[PRNG.randint(2)] += 1
         # Select a vertex with the largest value of  
-        # derivative of the function F
+        # derivative of the objective function
         df = T[0] * np.dot(topics_d, cts_d / x) + T[1] * (alpha - 1) / piVec
         index = np.argmax(df)
         lrate = 1.0 / (t + 1)
-        # Update theta
+        # Update probabilities
         piVec *= 1 - lrate
         piVec[index] += lrate
         # Update x
         x += lrate * (topics_d[index,:] - x)
+        # Print status        
+        if verbose and (t < 10 or t % 5 == 0):
+            print '%3d ' % (t) + ' '.join(['%.4f' % (x) for x in piVec])
 
-    fscore = -1 * np.inner(cts_d, np.log(np.dot(piVec, topics_d)))
-    return (piVec,
-        fscore,
-        dict(initpiVec=initpiVec))
+    if returnFuncValAndInfo:
+        fval = -1 * np.inner(cts_d, np.log(np.dot(piVec, topics_d)))
+        return (piVec, fval, dict(
+            niter=t,
+            initpiVec=initpiVec))
+    else:
+        return piVec   
 
 
 def lossFuncAndGrad(pi_d=None,
