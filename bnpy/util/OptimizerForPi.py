@@ -4,187 +4,124 @@ import warnings
 from ShapeUtil import as1D, as2D
 
 
-def estimatePiForDoc_frankwolfe(ids_d, cts_d, topics, alpha,
+def estimatePiForDoc_frankwolfe(
+        ids_U=None,
+        cts_U=None,
+        topics_KV=None,
+        topics_KU=None,
+        initpi_K=None,
+        alpha=1.0,
         maxiter=500,
         seed=0,
-        initpiVec=None,
         verbose=False,
-        returnFuncValAndInfo=False,
+        returnFuncValAndInfo=True,
         **kwargs):
+    ''' Estimate topic-prob vector for doc using Frank-Wolke algorithm.
+
+    Solves optimization problem
+        piVec = min f(piVec)
+    where
+        f = -1 * \sum_{v=1}^V cts_d[v] \log \sum_{k=1}^K piVec[k] topics[k,v]
+    which is equivalent to (up to additive constants indep. of piVec)
+        piVec = min KL( cts_d[:] || \sum_k piVec[k] * topics[k,:] )
+
+    Returns
+    -------
+    pi_K : 1D array, size K
+    fval : optional, value of optimization objective function
+    Info : optional, dict of information about optimization execution
+
+    Resources
+    ---------
+    Dual online inference for latent Dirichlet allocation    
+    Than and Doan
+    ACML 2014    
+    http://is.hust.edu.vn/~khoattq/papers/Than36.pdf    
+    '''
     PRNG = np.random.RandomState(seed)
 
-    K = topics.shape[0]
-    # Create contiguous matrix for active vocab ids in this doc
-    # Using .copy() here will produce 10x speed gains for each call to np.dot
-    topics_d = topics[:, ids_d].copy()
-
+    if topics_KU is None:
+        # Create contiguous matrix for active vocab ids in this doc
+        # Using .copy() here will produce 10x speed gains for each call to np.dot
+        assert ids_U is not None
+        assert topics_KV is not None
+        topics_KU = topics_KV[:, np.asarray(ids_U, dtype=np.int32)].copy()
+    assert topics_KU.ndim == 2
+    K = topics_KU.shape[0]
+    
     # Initialize doc-topic prob randomly, if needed
-    if initpiVec is None:
-        initpiVec = PRNG.rand(K) + 1.
-        initpiVec /= sum(initpiVec)
-    piVec = initpiVec
+    if initpi_K is None:
+        initpi_K = make_random_pi_K(K=K, PRNG=PRNG)
+    pi_K = initpi_K
     if verbose:
-        print '  0 ' + ' '.join(['%.4f' % (x) for x in piVec])
+        print '  0 ' + ' '.join(['%.4f' % (p) for p in pi_K])
 
-    x = np.dot(piVec, topics_d)       
+    x_U = np.dot(pi_K, topics_KU)       
     # Loop
-    T = [1, 0]
+    T_2 = [1, 0]
     for t in xrange(1, maxiter):
         # Pick a term uniformly at random
-        T[PRNG.randint(2)] += 1
+        T_2[PRNG.randint(2)] += 1
         # Select a vertex with the largest value of  
         # derivative of the objective function
-        df = T[0] * np.dot(topics_d, cts_d / x) + T[1] * (alpha - 1) / piVec
-        index = np.argmax(df)
+        df_K = T_2[0] * np.dot(topics_KU, cts_U / x_U) + \
+             T_2[1] * (alpha - 1) / pi_K
+        kmax = np.argmax(df_K)
         lrate = 1.0 / (t + 1)
         # Update probabilities
-        piVec *= 1 - lrate
-        piVec[index] += lrate
+        pi_K *= 1 - lrate
+        pi_K[kmax] += lrate
         # Update x
-        x += lrate * (topics_d[index,:] - x)
+        x_U += lrate * (topics_KU[kmax,:] - x_U)
         # Print status        
         if verbose and (t < 10 or t % 5 == 0):
-            print '%3d ' % (t) + ' '.join(['%.4f' % (x) for x in piVec])
+            print '%3d ' % (t) + ' '.join(['%.4f' % (p) for p in pi_K])
 
     if returnFuncValAndInfo:
-        fval = -1 * np.inner(cts_d, np.log(np.dot(piVec, topics_d)))
-        return (piVec, fval, dict(
+        fval = -1 * np.inner(cts_U, np.log(np.dot(pi_K, topics_KU)))
+        return (pi_K, fval, dict(
             niter=t,
-            initpiVec=initpiVec))
+            initpi_K=initpi_K))
     else:
-        return piVec   
-
-
-def lossFuncAndGrad(pi_d=None,
-        cts_d=None, topics_d=None, alpha=0.0, scale=1.0,
-        **kwargs):
-    ''' Compute objective and gradient together.
-
-    Returns
-    -------
-    f : scalar real
-        value of negative log joint probability
-    grad : 1D array, size K
-        grad[k] : derivative of f w.r.t. pi_d[k]
-    '''
-    avgWordFreq_d = np.dot(pi_d, topics_d)
-    f_lik = np.inner(cts_d, np.log(avgWordFreq_d))
-    grad_lik = np.dot(topics_d, cts_d / avgWordFreq_d)
-
-    if alpha > 0:
-        np.maximum(pi_d, 1e-100, out=pi_d)
-        f_prior = alpha * np.sum(np.log(pi_d))
-        grad_prior = alpha / pi_d
-    else:
-        f_prior = 0
-        grad_prior = 0
-    return (-1.0 * scale * (f_lik + f_prior),
-            -1.0 * scale * (grad_lik + grad_prior))
-
-def lossFunc(pi_d=None, 
-        cts_d=None, topics_d=None, alpha=0.0, scale=1.0,
-        **kwargs):
-    ''' Compute objective function for document-topic probabilities.
-
-    Args
-    ----
-    pi_d : 1D array, size K
-        pi_d[k] : probability of k-th topic in doc d
-    cts_d : 1D array, size U_d
-        cts_d[i] : count of i-th unique-word in doc d
-    topics_d : 2D array, K x U_d
-        topics_d[k,i]: probability of i-th unique-word in d under topic k
-    alpha : scalar float >= 0
-        alpha=0.0 : Uniform prior        
-
-    Returns
-    -------
-    f : scalar real
-        value of negative log joint probability
-        suitable for minimization algorithms
-    '''
-    f_lik = np.inner(cts_d, np.log(np.dot(pi_d, topics_d)))
-    f_prior = alpha * np.sum(np.log(pi_d))
-    return -1.0 * scale * (f_lik + f_prior)
-
-def gradOfLoss(pi_d=None, cts_d=None, topics_d=None, alpha=0.0, scale=1.0,
-        **kwargs):
-    ''' Compute gradient of objective function
-
-    Returns
-    -------
-    grad : 1D array, size K
-        grad[k] gives the derivative w.r.t. pi_d[k] of F(...)
-    '''
-    # avgWordFreq_d : 1D array, size U_d
-    #   avgWordFreq_d[i] = probability of word i using pi_d mixture of topics
-    avgWordFreq_d = np.dot(pi_d, topics_d)
-    grad_lik = np.sum(cts_d / avgWordFreq_d, topics_d)
-    if alpha > 0:
-        grad_prior = alpha / pi_d
-    else:
-        grad_prior = 0.0
-    return -1 * scale * (grad_lik + grad_prior)
-
-def pi2eta(pi_d):
-    ''' Transform vector on simplex to unconstrained real vector
-
-    Returns
-    -------
-    eta : 1D array, size K-1
-
-    Examples
-    --------
-    >>> print float(pi2eta(eta2pi(0.42)))
-    0.42
-
-    >>> print float(pi2eta(eta2pi(-1.337)))
-    -1.337
-
-    >>> print pi2eta(eta2pi([-1, 0, 1]))
-    [-1.  0.  1.]
-    '''
-    pi_d = as1D(np.asarray(pi_d))
-    eta_d = pi_d[:-1] / pi_d[-1]
-    np.log(eta_d, out=eta_d)
-    return eta_d
-
-def eta2pi(eta_d):
-    eta_d = as1D(np.asarray(eta_d))
-    pi_d = np.ones(eta_d.size+1)
-    pi_d[:-1] = np.exp(eta_d)
-    pi_d[:-1] += 1e-100
-    pi_d /= (1.0 + np.sum(pi_d[:-1]))
-    return pi_d
-
-def eta2piJacobian(eta_d=None, pi_d=None):
-    ''' Compute Jacobian matrix of transformation of eta_d to pi_d
-
-    Returns
-    -------
-    J : 2D array, size K-1 x K
-        J[a, b] = deriv of pi_{b}(eta_d) w.r.t. eta_d[a]
-    '''
-    if pi_d is None:
-        pi_d = eta2pi(eta_d)
-    J = -1.0 * np.outer(pi_d[:-1], pi_d)
-    J[:, :-1] += np.diag(pi_d[:-1])
-    return J
+        return pi_K   
 
 
 def estimatePiForDoc_graddescent(
-        ids_d=None, cts_d=None, topics=None, alpha=0.0,
-        gtol=1e-7, maxiter=1000,
-        method='l-bfgs-b', **kwargs):
+        ids_U=None,
+        cts_U=None,
+        topics_KV=None,
+        topics_KU=None,
+        initpi_K=None,
+        alpha=1.0,
+        gtol=1e-7,
+        maxiter=1000,
+        method='l-bfgs-b',
+        **kwargs):
+    ''' Estimate topic-prob vector for doc using natural-parameter grad descent.
+
+    Solves the optimization problem
+        piVec = min f(piVec)
+    where
+        f = 
+
+    Returns
+    -------
+    piVec : 1D array, size K
+    fval : scalar real
+    Info : dict
+    '''
+    if topics_KU is None:
+        assert topics_KV is not None
+        assert ids_U is not None
+        topics_KU = topics_KV[:, ids_U].copy()
+    assert topics_KU.ndim == 2
+    assert topics_KU.shape[1] == cts_U.shape[0]
+    # Package up all local vars into kwargs dict
     kwargs.update(locals())
-    if ids_d is not None:
-        kwargs['topics_d'] = topics[:, ids_d]
-    else:
-        kwargs['topics_d'] = topics
     with warnings.catch_warnings():
         warnings.filterwarnings('error', '', RuntimeWarning)
         try:
-            pi, f, Info = _estimatePiForDoc(**kwargs)
+            pi_K, f, Info = _estimatePiForDoc(**kwargs)
         except RuntimeWarning as e:
             # Handle errors related to numerical overflow
             raise ValueError(e)
@@ -192,15 +129,17 @@ def estimatePiForDoc_graddescent(
     if not Info.success:
         if 'approx_grad' in kwargs and not kwargs['approx_grad']:
             raise ValueError(Info.message)
-    return pi, f, Info
+    return pi_K, f, Info
 
 
 def _estimatePiForDoc(
-        ids_d=None, cts_d=None, topics=None, alpha=0.0, scale=1.0,
-        method='bfgs',
-        piInit=None,
+        cts_U=None,
+        topics_KU=None,
+        initpi_K=None,
+        alpha=1.0,
+        scale=1.0,
+        method='l-bfgs-b',
         approx_grad=False,
-        numRestarts=0,
         gtol=1e-9, # Values > 1e-6 can be bad for simplex
         maxiter=10000,
         options=None,
@@ -215,144 +154,196 @@ def _estimatePiForDoc(
     if options is None:
         options = dict(gtol=gtol, maxiter=maxiter)
     
-    K = topics.shape[0]
-    topics_d = topics[:, ids_d]
-    if piInit is None:
-        piInit = 1.0/K * np.ones(K)
+    K = topics_KU.shape[0]
+    if initpi_K is None:
+        initpi_K = 1.0 / K * np.ones(K)
     if approx_grad:
-        def naturalLossFunc(eta_d):
-            pi_d = eta2pi(eta_d)
+        def naturalLossFunc(eta_Km1):
+            pi_K = eta2pi(eta_Km1)
             f = lossFunc(
-                pi_d, cts_d=cts_d, topics_d=topics_d, alpha=alpha, scale=scale)
+                pi_K=pi_K,
+                cts_U=cts_U,
+                topics_KU=topics_KU, alpha=alpha, scale=scale)
             return f
         Result = scipy.optimize.minimize(
             naturalLossFunc,
-            x0=pi2eta(piInit),
+            x0=pi2eta(initpi_K),
             jac=False,
             options=options,
             method=method,
-            )    
+            )
     else:
-        def naturalLossFuncAndGrad(eta_d):
-            pi_d = eta2pi(eta_d)
-            f, gradPi = lossFuncAndGrad(
-                pi_d,
-                cts_d=cts_d,
-                topics_d=topics_d, alpha=alpha, scale=scale)
-            gradEta = np.dot(eta2piJacobian(pi_d=pi_d), gradPi)
-            return f, gradEta
+        def naturalLossFuncAndGrad(eta_Km1):
+            pi_K = eta2pi(eta_Km1)
+            f, grad_K = lossFuncAndGrad(
+                pi_K=pi_K,
+                cts_U=cts_U,
+                topics_KU=topics_KU, alpha=alpha, scale=scale)
+            grad_Km1 = np.dot(eta2piJacobian(pi_K=pi_K), grad_K)
+            return f, grad_Km1
         Result = scipy.optimize.minimize(
             naturalLossFuncAndGrad,
-            x0=pi2eta(piInit),
+            x0=pi2eta(initpi_K),
             jac=True,
             options=options,
             method=method,
             )
     f = Result.fun
-    piEst = eta2pi(Result.x)
-    return piEst, f, Result
+    pi_K = eta2pi(Result.x)
+    return pi_K, f, Result
 
-def estimatePi(*args, **kwargs):
-    with warnings.catch_warnings():
-        warnings.filterwarnings('error', '', RuntimeWarning)
-        try:
-            pi, f, Info = _estimatePi(*args, **kwargs)
-        except RuntimeWarning as e:
-            # Handle errors related to numerical overflow
-            # by restarting from slightly different initialization
-            piInit = kwargs['piInit']
-            if piInit is not None:
-                K = piInit.size
-                piInit = 0.9 * piInit + 0.1 * (1.0/ K * np.ones(K))
-            kwargs['piInit'] = piInit
-            kwargs['scale'] /= 2
-            pi, f, Info = estimatePi(*args, **kwargs)
-            f /= kwargs['scale']
-    return pi, f, Info
+def lossFuncAndGrad(
+        pi_K=None,
+        cts_U=None,
+        topics_KU=None,
+        alpha=1.0,
+        scale=1.0,
+        **kwargs):
+    ''' Compute objective and gradient together.
 
+    This uses the *natural* parameterization, where the random variable is
+    a vector of real numbers whose corresponding mean parameter is pi_K.
 
-def _estimatePi(ids_d, cts_d, topics, alpha, scale=1.0,
-        factr=2.0, # Set L1 convergence tol to 2x machine precision
-        pgtol=10 * np.finfo(float).eps,
-        piInit=None,
-        numRestarts=0,
-        approx_grad=False):
-    '''
+    Minimization objective function:
+        min f(pi_K)
+    where
+        f = - log MultPDF(cts_U | np.dot(pi_K, topics_KU)) \
+            - log NaturalDirPDF( pi2eta(pi_K) | alpha)
 
     Returns
     -------
-    pi : 1D array, size K
-    f : scalar
-    Info : dict
+    f : scalar real
+        value of negative log joint probability
+    grad_K : 1D array, size K
+        grad_K[k] : derivative of f w.r.t. pi_K[k]
     '''
-    K = topics.shape[0]
-    topics_d = topics[:, ids_d]
-    if piInit is None:
-        piInit = 1.0/K * np.ones(K)
-    if approx_grad:
-        def naturalLossFunc(eta_d):
-            pi_d = eta2pi(eta_d)
-            f = lossFunc(pi_d, cts_d, topics_d, alpha, scale=scale)
-            return f
-        etaHat, f, Info = scipy.optimize.fmin_l_bfgs_b(
-            naturalLossFunc, x0=pi2eta(piInit), approx_grad=True)
-        piHat = eta2pi(etaHat)
-        Info['piInit'] = piInit
-        return piHat, f, Info
+    assert alpha > 0.0
+    avgWordFreq_U = np.dot(pi_K, topics_KU)
+    f_lik = np.inner(cts_U, np.log(avgWordFreq_U))
+    grad_lik_K = np.dot(topics_KU, cts_U / avgWordFreq_U)
 
-    else:
-        def naturalLossFuncAndGrad(eta_d):
-            pi_d = eta2pi(eta_d)
-            f, gradPi = lossFuncAndGrad(
-                pi_d, cts_d, topics_d, alpha, scale=scale)
-            gradEta = np.dot(eta2piJacobian(pi_d=pi_d), gradPi)
-            return f, gradEta
-        etaEst, f, Info = scipy.optimize.fmin_l_bfgs_b(
-            naturalLossFuncAndGrad,
-            x0=pi2eta(piInit),
-            factr=factr,
-            pgtol=pgtol,
-            )
-        Info['piInit'] = piInit
-        Info['numRestartsTried'] = 0
-        Info['fList'] = [f]
-        for r in range(numRestarts):
-            bumpFrac = 0.1 * 2**(-r)
-            piUnif = 1.0 / K * np.ones(K)
-            piPrev = eta2pi(etaEst)
-            eta2, f2, restartInfo = scipy.optimize.fmin_l_bfgs_b(
-                naturalLossFuncAndGrad,
-                x0=pi2eta((1-bumpFrac) * piPrev + bumpFrac * piUnif),
-                factr=factr,
-                pgtol=pgtol,
-                )
-            if f2 > f:
-                continue
-            etaEst = eta2
-            piEst = eta2pi(etaEst)
-            f = f2
-            Info['fList'].append(f)
-            Info['numRestartsTried'] += 1
-            if np.sum(np.abs(piEst - piPrev)) < .0001:
-                break
-        piEst = eta2pi(etaEst)
-        return piEst, f, Info
+    f_prior = alpha * np.sum(np.log(pi_K + 1e-100))
+    grad_prior_K = alpha / pi_K
+    return (-1.0 * scale * (f_lik + f_prior),
+            -1.0 * scale * (grad_lik_K + grad_prior_K))
+
+def lossFunc(
+        pi_K=None, 
+        cts_U=None,
+        topics_KU=None,
+        alpha=1.0,
+        scale=1.0,
+        **kwargs):
+    ''' Compute objective function for document-topic probabilities.
+
+    Args
+    ----
+    pi_K : 1D array, size K
+        pi_K[k] : probability of k-th topic in doc d
+    cts_U : 1D array, size U
+        cts_U[i] : count of i-th unique-word in doc d
+    topics_KU : 2D array, K x U
+        topics_KU[k,i]: probability of i-th unique-word in doc d under topic k
+    alpha : scalar float >= 0
+
+    Returns
+    -------
+    f : scalar real
+        value of negative log joint probability
+        suitable for minimization algorithms
+    '''
+    f_lik = np.inner(cts_U, np.log(np.dot(pi_K, topics_KU)))
+    f_prior = alpha * np.sum(np.log(pi_K + 1e-100))
+    return -1.0 * scale * (f_lik + f_prior)
+
+def gradOfLoss(
+        pi_K=None,
+        cts_U=None,
+        topics_KU=None,
+        alpha=0.0,
+        scale=1.0,
+        **kwargs):
+    ''' Compute gradient of objective function
+
+    Returns
+    -------
+    grad : 1D array, size K
+        grad[k] gives the derivative w.r.t. pi_K[k] of f
+    '''
+    # avgWordFreq_U : 1D array, size U_d
+    #   avgWordFreq_U[i] = probability of word i using mixture of topics
+    avgWordFreq_U = np.dot(pi_K, topics_KU)
+    grad_lik_K = np.dot(topics_KU, cts_U / avgWordFreq_U)
+    grad_prior_K = alpha / pi_K
+    return -1 * scale * (grad_lik_K + grad_prior_K)
+
+def pi2eta(pi_K):
+    ''' Transform vector on simplex to unconstrained real vector
+
+    Returns
+    -------
+    eta_Km1 : 1D array, size K-1
+
+    Examples
+    --------
+    >>> print float(pi2eta(eta2pi(0.42)))
+    0.42
+
+    >>> print float(pi2eta(eta2pi(-1.337)))
+    -1.337
+
+    >>> print pi2eta(eta2pi([-1, 0, 1]))
+    [-1.  0.  1.]
+    '''
+    pi_K = as1D(np.asarray(pi_K))
+    eta_Km1 = pi_K[:-1] / pi_K[-1]
+    np.log(eta_Km1, out=eta_Km1)
+    return eta_Km1
+
+def eta2pi(eta_Km1):
+    eta_Km1 = as1D(np.asarray(eta_Km1))
+    pi_K = np.ones(eta_Km1.size+1)
+    pi_K[:-1] = np.exp(eta_Km1)
+    pi_K[:-1] += 1e-100
+    pi_K /= (1.0 + np.sum(pi_K[:-1]))
+    return pi_K
+
+def eta2piJacobian(eta_Km1=None, pi_K=None):
+    ''' Compute Jacobian matrix of transformation of eta to pi
+
+    Returns
+    -------
+    J_Km1K : 2D array, size K-1 x K
+        J[a, b] = deriv of pi_K{b}(eta_Km1) w.r.t. eta_Km1[a]
+    '''
+    if pi_K is None:
+        pi_K = eta2pi(eta_Km1)
+    J_Km1K = -1.0 * np.outer(pi_K[:-1], pi_K)
+    J_Km1K[:, :-1] += np.diag(pi_K[:-1])
+    return J_Km1K
 
 def pi2str(arr):
     pistr = np.array_str(arr,
         max_line_width=80, precision=4, suppress_small=1)
     return pistr.replace('[','').replace(']','')
 
-def calcLossFuncForInterpolatedPi(piA, piB, lossFunc, nGrid=100):        
+def calcLossFuncForInterpolatedPi(piA_K, piB_K, lossFunc, nGrid=100):        
     wgrid = np.linspace(0, 1.0, nGrid)
     fgrid = np.zeros(nGrid)
     for ii in range(nGrid):
-        pi_ii = wgrid[ii] * piA + (1.0 - wgrid[ii]) * piB
-        f = lossFunc(pi_ii)
+        pi_K = wgrid[ii] * piA_K + (1.0 - wgrid[ii]) * piB_K
+        f = lossFunc(pi_K)
         if isinstance(f, tuple):
             f = f[0]
         fgrid[ii] = f        
     return fgrid, wgrid
+
+def make_random_pi_K(K=2, seed=0, PRNG=None):
+    if PRNG is None:
+        PRNG = np.random.RandomState(seed)
+    initpi_K = PRNG.rand(K) + 1.
+    initpi_K /= sum(initpi_K)
+    return initpi_K
 
 if __name__ == '__main__':
     import bnpy
@@ -372,76 +363,80 @@ if __name__ == '__main__':
     # Select function
     estimatePiForDoc = locals()['estimatePiForDoc_' + args.optim_method]
     
-    '''
-    import CleanBarsK10
-    Data = CleanBarsK10.get_data(nDocTotal=100, nWordsPerDoc=500)
-    #import nips
-    #Data = nips.get_data()
-    '''
-
     if hasattr(Data, 'TrueParams'):
-        topics = Data.TrueParams['topics']
-        nudgePi = PRNG.dirichlet(0.1 * np.ones(topics.shape[1]),
-            size=topics.shape[0])
-        nudgedTopics = 0.98 * topics + 0.02 * nudgePi
-        repeatTopics = np.vstack([topics, nudgedTopics])
-        topics = repeatTopics
+        topics_KV = Data.TrueParams['topics']
+        K, V = topics_KV.shape
+        nudgeVals_KV = PRNG.dirichlet(
+            0.1 * np.ones(V),
+            size=K)
+        nudgedTopics_KV = 0.98 * topics_KV + 0.02 * nudgeVals_KV
+        topics_KV = np.vstack([topics_KV, nudgedTopics_KV])
     else:
         K = np.minimum(50, Data.nDoc)
         chosenDocIDs = PRNG.choice(Data.nDoc, K, replace=False)
-        topics = Data.getSparseDocTypeCountMatrix()[chosenDocIDs].toarray()
-        topics += 0.1
-        topics /= topics.sum(axis=1)[:,np.newaxis]
+        topics_KV = Data.getSparseDocTypeCountMatrix()[chosenDocIDs].toarray()
+        topics_KV += 0.1
+        topics_KV /= topics_KV.sum(axis=1)[:,np.newaxis]
 
-    assert np.allclose(topics.sum(axis=1), 1.0)
+    assert np.allclose(topics_KV.sum(axis=1), 1.0)
 
     atol = 1e-3
-    K = topics.shape[0]
-    alpha = 0.0 #1.0 / K
+    K, V = topics_KV.shape
+    alpha = 1.0 / K
     
     for d in range(Data.nDoc):
-        start_d = Data.doc_range[d]
-        stop_d = Data.doc_range[d+1]
-        ids_d = Data.word_id[start_d:stop_d]
-        cts_d = Data.word_count[start_d:stop_d]
+        start = Data.doc_range[d]
+        stop = Data.doc_range[d+1]
+        ids_U = Data.word_id[start:stop]
+        cts_U = Data.word_count[start:stop]
+        scale = 1.0
 
         if hasattr(Data, 'TrueParams'):
-            trueN_d = np.dot(cts_d, Data.TrueParams['resp'][start_d:stop_d])
-            truePi_d = (trueN_d + alpha)
-            truePi_d /= truePi_d.sum()
+            trueDTC_K = np.dot(cts_U, Data.TrueParams['resp'][start:stop])
+            truePi_K = (trueDTC_K + alpha)
+            truePi_K /= truePi_K.sum()
             print ''
-            print "     True Pi[%d]:\n %s" % (d, pi2str(truePi_d))
+            print "     True Pi[%d]:\n %s" % (d, pi2str(truePi_K))
 
-        numPi_d, numf, numInfo = estimatePiForDoc(
-            ids_d, cts_d, topics, alpha,
-            scale=1.0, #/np.sum(cts_d),
-            approx_grad=True)
-        print "Numerical Pi[%d]:\n %s" % (d, pi2str(numPi_d))
+        if not args.optim_method.count("frankwolfe"):
+            numPi_K, numf, numInfo = estimatePiForDoc(
+                ids_U=ids_U,
+                cts_U=cts_U,
+                topics_KV=topics_KV,
+                alpha=alpha,
+                scale=scale,
+                approx_grad=True)
+            print "Numerical Pi[%d]:\n %s" % (d, pi2str(numPi_K))
 
-        estPi_d, f, Info = estimatePiForDoc(
-            ids_d, cts_d, topics, alpha,
-            scale=1.0, #/np.sum(cts_d))
-            approx_grad=False,
+        estPi_K, estf, estInfo = estimatePiForDoc(
+            ids_U=ids_U,
+            cts_U=cts_U,
+            topics_KV=topics_KV,
+            alpha=alpha,
+            scale=scale,
             )
-        print "Estimated Pi[%d]:\n %s" % (d, pi2str(estPi_d))
+        print "Estimated Pi[%d]:\n %s" % (d, pi2str(estPi_K))
 
-        
+
+        # Generate random initializations,
+        # and look at convergence properties
         PRNG = np.random.RandomState(d)
         nMatch = 0
         nRep = 10
         for rep in range(nRep):
-            initPi_d = as1D(PRNG.dirichlet(K*np.ones(K), size=1))
-            estPiFromRand, f2, I2 = estimatePiForDoc(
-                ids_d, cts_d, topics, alpha,
-                scale=1.0, #/np.sum(cts_d),
-                piInit=initPi_d,
-                approx_grad=False)
-            if np.allclose(estPi_d, estPiFromRand, rtol=0, atol=atol):
+            initpi_K = make_random_pi_K(PRNG=PRNG, K=K)
+            pi_K, f, Info = estimatePiForDoc(
+                ids_U=ids_U,
+                cts_U=cts_U,
+                topics_KV=topics_KV,
+                alpha=alpha,
+                scale=scale,
+                initpi_K=initpi_K)
+            if np.allclose(estPi_K, pi_K, rtol=0, atol=atol):
                 nMatch += 1
             else:
                 print "initrandom Pi[%d]:\n %s" % (
-                    d, pi2str(estPiFromRand))
+                    d, pi2str(pi_K))
+                print estf
                 print f
-                print f2
         print "%d/%d random inits within %s" % (nMatch, nRep, atol)
-        

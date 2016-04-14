@@ -343,12 +343,12 @@ def estimatePiAndDiv_ManyDocs(Data, obsModel, Mu,
         
         if optim_method == 'frankwolfe':
             piVec_d = estimatePiForDoc_frankwolfe(
-                ids_d=wids_d, 
-                cts_d=wcts_d,
-                topics=topics_d,
+                ids_U=wids_d, 
+                cts_U=wcts_d,
+                topics_KV=topics_d,
+                initpiVec_K=initpiVec_d,
                 alpha=alpha,
                 seed=(k*101 + d),
-                initpiVec=initpiVec_d,
                 maxiter=maxiter,
                 returnFuncValAndInfo=False,
                 verbose=False)
@@ -381,10 +381,8 @@ if __name__ == '__main__':
     Data = CleanBarsK10.get_data(nDocTotal=100, nWordsPerDoc=500)
     K = 3
 
-    #import nips
-    #Data = nips.get_data()
     hmodel, Info = bnpy.run(Data, 'DPMixtureModel', 'Mult', 'memoVB', 
-        initname='bregmankmeans+0',
+        initname='bregmankmeans+iter0',
         K=K,
         nLap=0)
 
@@ -393,10 +391,11 @@ if __name__ == '__main__':
     bestScore = np.inf
     nTrial = 1
     for trial in range(nTrial):
-        chosenZ, Mu, minDiv, sumDataTerm, scoreVsK = initMu_BregmanMixture(
+        chosenZ, Mu, minDiv, sumDataTerm, scoreVsK = initKMeans_BregmanMixture(
             Data, K, obsModel, seed=trial)
         score = np.sum(minDiv)
-        print "init %d/%d : sum(minDiv) %8.2f" % (trial, nTrial, np.sum(minDiv))
+        print "init %d/%d : sum(minDiv) %8.2f" % (
+            trial+1, nTrial, np.sum(minDiv))
         if score < bestScore:
             bestScore = score
             bestMu = Mu

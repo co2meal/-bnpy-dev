@@ -21,6 +21,10 @@ def init_global_params(hmodel, Data, **kwargs):
     --------------
     hmodel internal parameters updated to reflect sufficient statistics.
     '''
+    if 'initObsModelScale' in kwargs:
+        initObsModelScale = kwargs['initObsModelScale']
+    else:
+        initObsModelScale = 0
     #if kwargs['initname'].lower().count('priormean'):
     #    kwargs['init_setOneToPriorMean'] = 1
 
