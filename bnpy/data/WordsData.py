@@ -50,6 +50,8 @@ class WordsData(DataObj):
         will differ from nDoc when this dataset represents a
         small minibatch of some larger corpus.
     TrueParams : None [default], or dict of true parameters.
+    response: 1D array, size nDoc
+    	response parameter for each document (see supervised LDA)
 
     """
 
@@ -238,7 +240,8 @@ class WordsData(DataObj):
     def __init__(self, word_id=None, word_count=None, doc_range=None,
                  vocab_size=0, vocabList=None, vocabfile=None,
                  summary=None,
-                 nDocTotal=None, TrueParams=None, **kwargs):
+                 nDocTotal=None, TrueParams=None, 
+                 response=None, **kwargs):
         ''' Constructor for WordsData object.
 
         Represents bag-of-words dataset via several 1D vectors,
@@ -270,11 +273,14 @@ class WordsData(DataObj):
             will differ from nDoc when this dataset represents a
             small minibatch of some larger corpus.
         TrueParams : None [default], or dict of true parameters.
+    	response: 1D array, size nDoc
+    		response parameter for each document (see supervised LDA)
         '''
         self.word_id = as1D(toCArray(word_id, dtype=np.int32))
         self.word_count = as1D(toCArray(word_count, dtype=np.float64))
         self.doc_range = as1D(toCArray(doc_range, dtype=np.int32))
         self.vocab_size = int(vocab_size)
+        self.response = as1D(toCArray(response, dtype=np.float64))
 
         if summary is not None:
             self.summary = summary
@@ -328,6 +334,9 @@ class WordsData(DataObj):
         if hasattr(self, 'vocabList') and self.vocabList is not None:
             if len(self.vocabList) != self.vocab_size:
                 self.vocabList = None
+                
+        if hasattr(self, 'response'):
+        	assert self.response.ndim == 1
 
     def get_size(self):
         return self.nDoc
