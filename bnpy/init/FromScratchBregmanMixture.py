@@ -30,11 +30,12 @@ def init_global_params(hmodel, Data, **kwargs):
             kwargs['logFunc'] = logFunc
     # Obtain initial suff statistics
     SS, Info = initSS_BregmanMixture(
-        Data, hmodel, includeAllocSummary=True, **kwargs)
+        Data, hmodel, includeAllocSummary=False, **kwargs)
     # Execute global step from these stats
     hmodel.obsModel.update_global_params(SS)
     Info['targetSS'] = SS
-    if kwargs['init_NiterForBregmanKMeans'] > 0:
+    if 'init_NiterForBregmanKMeans' in kwargs and \
+            kwargs['init_NiterForBregmanKMeans'] > 0:
         hmodel.allocModel.update_global_params(SS)
     else:
         hmodel.allocModel.init_global_params(Data, **kwargs)    
@@ -55,10 +56,6 @@ def initSS_BregmanMixture(
         **kwargs):
     ''' Create observation model statistics via Breg. distance sampling.
 
-    Args
-    ------
-    Data
-
     Returns
     -------
     xSS : SuffStatBag
@@ -66,7 +63,8 @@ def initSS_BregmanMixture(
         contains info about provenance of this initialization.
     '''
     # Reformat any keyword argument to drop 
-    # prefix of 'b_' or 'init_'
+    # prefix of 'b_' or 'init_',
+    # storing the result back into the kwargs dict
     for key, val in kwargs.items():
         if key.startswith('b_'):
             newkey = key[2:]
@@ -104,14 +102,18 @@ def initSS_BregmanMixture(
         logFunc(msg)
 
     # Perform plusplus initialization + Kmeans clustering
-    targetZ, Mu, minDiv, sumDataTerm, Lscores = initKMeans_BregmanMixture(
+    targetZ, Mu, minDiv, DivDataVec, Lscores = initKMeans_BregmanMixture(
         targetData, K, curModel.obsModel,
         seed=seed)
     # Convert labels in Z to compactly use all ints from 0, 1, ... Kused
     # Then translate these into a proper 'resp' 2D array,
     # where resp[n,k] = w[k] if z[n] = k, and 0 otherwise
-    xtargetLP, targetZ = convertLPFromHardToSoft(
+    xtargetLP, _ = convertLPFromHardToSoft(
         dict(Z=targetZ), targetData, initGarbageState=0, returnZ=1)
+    print targetZ, '<<<'
+    if K == 1:
+        xtargetLP['resp'] = np.zeros((xtargetLP['resp'].shape[0], 1))
+
     if isinstance(Dslice, bnpy.data.WordsData):
         if curModel.obsModel.DataAtomType.count('word'):
             if curModel.getObsModelName().count('Bern'):
@@ -128,32 +130,40 @@ def initSS_BregmanMixture(
     else:
         xSS = curModel.obsModel.get_global_suff_stats(
             targetData, None, xtargetLP)
-        if setOneToPriorMean:
-            neworder = np.hstack([xSS.K, np.arange(xSS.K)])
-            xSS.insertEmptyComps(1)
-            xSS.reorderComps(neworder)
-        else:
-            assert np.allclose(np.unique(targetZ), np.arange(xSS.K))
-        assert np.allclose(len(Mu), xSS.K)
+
+    if setOneToPriorMean:
+        assert len(Mu) == xSS.K - 1
+        # First cluster Mu0 needs to be initialized to prior mean
+        xSS.insertEmptyComps(1)
+        xSS.reorderComps(
+            np.hstack([xSS.K, np.arange(xSS.K)]))
+    else:
+        assert len(Mu) == xSS.K
+        assert np.allclose(
+            np.unique(targetZ[targetZ >= 0]),
+            np.arange(xSS.K))
+
     # Reorder the components from big to small
     oldids_bigtosmall = np.argsort(-1 * xSS.getCountVec())
     xSS.reorderComps(oldids_bigtosmall)
     # Be sure to account for the sorting that just happened.
     # By fixing up the cluster means Mu and assignments Z
     Mu = [Mu[k] for k in oldids_bigtosmall] 
-    neworder = np.arange(xSS.K)    
+    neworder = np.arange(xSS.K)
+    print neworder
+    print oldids_bigtosmall   
     old2newID=dict(zip(oldids_bigtosmall, neworder))
     targetZnew = -1 * np.ones_like(targetZ)
     for oldk in xrange(xSS.K):
         old_mask = targetZ == oldk
         targetZnew[old_mask] = old2newID[oldk]
-    assert np.all(targetZnew >= 0)
     assert np.allclose(len(Mu), xSS.K)
     if logFunc:
         logFunc('Bregman k-means DONE. Delivered %d non-empty clusters' % (
             xSS.K))
     # Package up algorithm final state and Lscore trace
     DebugInfo.update(dict(
+        minDiv=minDiv,
         targetZ=targetZnew,
         targetData=targetData,
         Mu=Mu,
@@ -228,13 +238,15 @@ def initKMeans_BregmanMixture(Data, K, obsModel, seed=0,
     uniqueZ = np.unique(Z)
     uniqueZ = uniqueZ[uniqueZ >= 0]
     assert len(Mu) == uniqueZ.size + 1 # prior
-    return Z, Mu, minDiv, np.sum(DivDataVec), scoreVsK
+    print '>>><<<'
+    print Z
+    return Z, Mu, minDiv, DivDataVec, scoreVsK
 
 
 def estimatePiAndDiv_ManyDocs(Data, obsModel, Mu,
         Pi=None,
         k=None,
-        alpha=0.0,
+        alpha=1.0,
         optim_method='frankwolfe',
         DivDataVec=None,
         smoothVec='lam',
@@ -286,6 +298,12 @@ def estimatePiAndDiv_ManyDocs(Data, obsModel, Mu,
                 alpha=alpha,
                 scale=1.0,
                 piInit=None)
+
+    minDiv_check = -1 * np.sum(
+        Data.getDocTypeCountMatrix() *
+        np.log(np.dot(Pi[:, :k], topics)), axis=1)
+    assert np.allclose(minDiv, minDiv_check)
+
     if isinstance(smoothVec, str) and smoothVec.count('lam'):
         minDiv -= np.dot(np.log(np.dot(Pi[:, :k], topics)), obsModel.Prior.lam)
     elif isinstance(smoothVec, np.ndarray):
