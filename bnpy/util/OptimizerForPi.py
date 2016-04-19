@@ -51,7 +51,10 @@ def estimatePiForDoc_frankwolfe(
     
     # Initialize doc-topic prob randomly, if needed
     if initpi_K is None:
-        initpi_K = make_random_pi_K(K=K, PRNG=PRNG)
+        if PRNG is None:
+            initpi_K = 1.0 / K * np.ones(K)
+        else:
+            initpi_K = make_random_pi_K(K=K, PRNG=PRNG)
     pi_K = initpi_K
     if verbose:
         print '  0 ' + ' '.join(['%.4f' % (p) for p in pi_K])
@@ -143,6 +146,7 @@ def _estimatePiForDoc(
         gtol=1e-9, # Values > 1e-6 can be bad for simplex
         maxiter=10000,
         options=None,
+        PRNG=None,
         **kwargs):
     '''
     Returns
@@ -156,7 +160,10 @@ def _estimatePiForDoc(
     
     K = topics_KU.shape[0]
     if initpi_K is None:
-        initpi_K = 1.0 / K * np.ones(K)
+        if PRNG is None:
+            initpi_K = 1.0 / K * np.ones(K)
+        else:
+            initpi_K = make_random_pi_K(K=K, PRNG=PRNG)
     if approx_grad:
         def naturalLossFunc(eta_Km1):
             pi_K = eta2pi(eta_Km1)

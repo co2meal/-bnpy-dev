@@ -395,8 +395,10 @@ if __name__ == "__main__":
     parser.add_argument('--doCounts', type=int, default=1)
     parser.add_argument('--doHTML', type=int, default=1)
     args = parser.parse_args()
-    print showTopWordsForTask(args.taskpath, args.vocabfilepath,
+    htmlstr = showTopWordsForTask(args.taskpath, args.vocabfilepath,
                               sortTopics=args.sortTopics,
                               doCounts=args.doCounts,
                               doHTML=args.doHTML,
                               maxKToDisplay=args.maxKToDisplay)
+    if htmlstr is not None:
+        print htmlstr

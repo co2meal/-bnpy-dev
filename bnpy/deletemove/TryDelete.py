@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+import time
 
 import bnpy.deletemove.DLogger as DLogger
 from bnpy.ioutil.DataReader import loadDataFromSavedTask, loadLPKwargsFromDisk
@@ -123,12 +124,34 @@ def tryDeleteProposalForSpecificTarget_HDPTopicModel(
     curModel = hmodel.copy()
     propModel = hmodel.copy()
 
-    # Update current
+    # Update current model
+    if verbose:
+        print ""
+        print "Loading model from disk and performing local step..."
+    starttime = time.time()
     curLP = curModel.calc_local_params(Data, **LPkwargs)
     curSS = curModel.get_global_suff_stats(Data, curLP, doPrecompEntropy=1)
     curModel.update_global_params(curSS)
     curLdict = curModel.calc_evidence(SS=curSS, todict=1)
     curLscore = curLdict['Ltotal']
+    if verbose:
+        print "%5.1f sec to obtain current model, LP, and SS" % (
+            time.time() - starttime)
+
+    nontrivialdocIDs = np.flatnonzero(curLP['DocTopicCount'][:, ktarget] > .01)
+    sort_mask = np.argsort(-1*curLP['DocTopicCount'][nontrivialdocIDs, ktarget]) 
+    nontrivialdocIDs = nontrivialdocIDs[sort_mask]
+    docIDs = nontrivialdocIDs[:5]
+    if verbose:
+        print ""
+        print "Proposing deletion of cluster %d" % (ktarget)
+        print "    total mass N_k = %.1f" % (curSS.getCountVec()[ktarget])
+        print "    %d docs with non-trivial mass" % (nontrivialdocIDs.size)
+        print ""
+        print "Absorbing into %d/%d remaining clusters" % (
+            len(kabsorbList), curSS.K-1)
+        print " ".join(['%3d' % (kk) for kk in kabsorbList])
+        print ""
 
     # Create init observation model for absorbing states
     xObsModel = propModel.obsModel.copy()
@@ -154,6 +177,10 @@ def tryDeleteProposalForSpecificTarget_HDPTopicModel(
     xPiVec *= (curPiVec[kabsorbList].sum() +  curPiVec[ktarget])
     assert np.allclose(np.sum(xPiVec),
         curPiVec[ktarget] + np.sum(curPiVec[kabsorbList]))
+
+    if verbose:
+        print "Reassigning target mass among absorbing set..."
+    starttime = time.time()
     propLscoreList = list()
     for ELBOstep in range(nELBOSteps):
         xSS, Info = summarizeRestrictedLocalStep_HDPTopicModel(
@@ -174,6 +201,9 @@ def tryDeleteProposalForSpecificTarget_HDPTopicModel(
             xObsModel.update_global_params(xSS)
             # TODO: update xPiVec???
 
+        print " completed step %d/%d after %5.1f sec" % (
+            ELBOstep+1, nELBOSteps, time.time() - starttime)
+
         propSS = curSS.copy()
         propSS.replaceCompsWithContraction(
             replaceSS=xSS,
@@ -188,16 +218,10 @@ def tryDeleteProposalForSpecificTarget_HDPTopicModel(
         propLdict = propModel.calc_evidence(SS=propSS, todict=1)
         propLscore = propModel.calc_evidence(SS=propSS)
         propLscoreList.append(propLscore)
-    docIDs = np.flatnonzero(curLP['DocTopicCount'][:, ktarget] > .01)
-    sort_mask = np.argsort(-1*curLP['DocTopicCount'][docIDs, ktarget]) 
-    docIDs = docIDs[sort_mask]
-    print docIDs, '<<<'
-    docIDs = docIDs[:5]
 
     if verbose:
-        print "Deleting cluster %d" % (ktarget)
-        print " which has mass > 0.01 in %d documents" % (docIDs.size)
-        print "Absorbing into clusters %s" % (str(kabsorbList))
+        print ""
+        print "Proposal result:"
         if propLscore - curLscore > 0:
             print "  ACCEPTED"
         else:
@@ -366,7 +390,7 @@ if __name__ == '__main__':
     parser.add_argument('--d_initWordCounts',
         type=str, default='none')
     parser.add_argument('--d_initTargetDocTopicCount',
-        type=str, default="warm_start")
+        type=str, default="cold_start")
     args = parser.parse_args()
 
     DLogger.configure(args.outputdir,
