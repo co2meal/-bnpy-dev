@@ -6,6 +6,7 @@ Initialize params of an HModel with multinomial observations from scratch.
 import numpy as np
 import time
 import os
+import re
 import warnings
 
 from scipy.special import digamma
@@ -94,11 +95,20 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
     '''
     topics = None
     lam = None
+
+    extrafields = initname.split("+")
+    initname = extrafields[0]
+    for key in extrafields[1:]:
+        m = re.match(
+            r"(?P<name>[a-zA-Z]+)(?P<value>.+)$", key)
+        name = m.group('name')
+        value = m.group('value')
+        if name.count("lam"):
+            initObsModelScale = float(value)
     
+    smoothParam = obsModel.Prior.lam[np.newaxis,:].copy()
     if initObsModelScale > 0.0:
-        smoothParam = initObsModelScale
-    else:
-        smoothParam = obsModel.Prior.lam[np.newaxis,:]
+        smoothParam += initObsModelScale
 
     if initname == 'randexamples':
         # Choose K documents at random, then
@@ -165,7 +175,7 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
         if np.any(np.isnan(lam.sum(axis=1))):
             raise ValueError("NaN")
         if initObsModelAddRandomNoise:
-            lam += 0.1 * smoothVal * PRNG.rand(lam.shape[0], lam.shape[1])
+            lam += 0.1 * smoothParam * PRNG.rand(lam.shape[0], lam.shape[1])
     
     if topics is None and obsModel.inferType.count('EM'):
         topics = lam / lam.sum(axis=1)[:, np.newaxis]

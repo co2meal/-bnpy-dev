@@ -232,7 +232,8 @@ def loadWordCountMatrixForLap(matfilepath, lapQuery, toDense=True):
     ''' Load word counts
     '''
     prefix, bestLap = getPrefixForLapQuery(matfilepath, lapQuery)
-    _, WordCounts = loadTopicModel(matfilepath, prefix, returnWordCounts=1)
+    _, WordCounts = loadTopicModel(matfilepath,
+        prefix=prefix, returnWordCounts=1)
     return WordCounts
 
 

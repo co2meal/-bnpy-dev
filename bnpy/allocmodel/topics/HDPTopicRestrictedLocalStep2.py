@@ -45,7 +45,9 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         xInitSS=None,
         doBuildOnInit=False,
         xPiVec=None,
-        emptyPi=0.0,
+        curPiVec=None,
+        emptyPiFrac=0.0,
+        b_emptyPiFrac=None,
         nUpdateSteps=5,
         d_initWordCounts='none',
         **kwargs):
@@ -56,6 +58,9 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
     xSSslice : SuffStatBag
     Info : dict with other information
     '''
+    if b_emptyPiFrac is not None:
+        emptyPiFrac = b_emptyPiFrac
+
     # Translate specififed unique-IDs (UID) into current order IDs
     if targetUID is not None:
         ktarget = curSSwhole.uid2k(targetUID)
@@ -86,21 +91,28 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         else:
             assert Kfresh == xObsModel.K
 
+    # Identify original cluster probabilities for all clusters involved
+    # And maintain sum constraints within these for proposed state
+    if curPiVec is None:
+        curPiVec = curModel.allocModel.get_active_comp_probs()
+    if kabsorbList is None:
+        availablePiMass = curPiVec[ktarget]
+        emptyPi = emptyPiFrac * availablePiMass
+    else:
+        availablePiMass = np.sum(curPiVec[kabsorbList]) + curPiVec[ktarget]
+        emptyPi = 0.0
 
     # Create probabilities for each of the Kfresh new clusters
-    # by subdividing the target comp's original probabilities
+    # by subdividing the involved clusters' original probabilities
     if xPiVec is None:
-        if kabsorbList is not None:
-            piVec = curModel.allocModel.get_active_comp_probs()
-            xPiVec = piVec[kabsorbList].copy()
-            xPiVec /= xPiVec.sum()
-            xPiVec *= (piVec[kabsorbList].sum() +  piVec[ktarget])
-            assert np.allclose(
-                np.sum(xPiVec),
-                piVec[ktarget] + np.sum(piVec[kabsorbList]))
+        if kabsorbList is None:
+            xPiVec = ((1-emptyPiFrac) * availablePiMass) / Kfresh * np.ones(Kfresh)
         else:
-            piVec = curModel.allocModel.get_active_comp_probs()
-            xPiVec = (piVec[ktarget] - emptyPi) / Kfresh * np.ones(Kfresh)
+            xPiVec = curPiVec[kabsorbList].copy()
+            xPiVec /= xPiVec.sum()
+            xPiVec *= availablePiMass
+
+    assert np.allclose(availablePiMass, emptyPi + np.sum(xPiVec))
     assert Kfresh == xPiVec.size
 
     # Create expansion observation model, if necessary
@@ -126,7 +138,6 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
     # Perform restricted inference!
     # xLPslice contains local params for all Kfresh expansion clusters
     xalphaPi = curModel.allocModel.alpha * xPiVec
-    thetaEmptyComp = curModel.allocModel.alpha * emptyPi
     xLPslice = restrictedLocalStep_HDPTopicModel(
         Dslice=Dslice,
         curLPslice=curLPslice,
@@ -134,12 +145,12 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         kabsorbList=kabsorbList,
         xObsModel=xObsModel,
         xalphaPi=xalphaPi,
-        thetaEmptyComp=thetaEmptyComp,
+        thetaEmptyComp=curModel.allocModel.alpha * emptyPi,
         nUpdateSteps=nUpdateSteps,
         doBuildOnInit=doBuildOnInit,
         xInitSS=xInitSS,
         **kwargs)
-    if emptyPi > 0:
+    if emptyPiFrac > 0:
         assert "HrespOrigComp" in xLPslice
 
     # Summarize this expanded local parameter pack
@@ -149,7 +160,7 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
     if xUIDs is not None:
         xSSslice.setUIDs(xUIDs)
     assert xSSslice.hasELBOTerm("Hresp")
-    if emptyPi > 0:
+    if emptyPiFrac > 0:
         assert xSSslice.hasELBOTerm("HrespEmptyComp")
 
     # Prepare dict of info for debugging/inspection
@@ -170,7 +181,7 @@ def restrictedLocalStep_HDPTopicModel(
         nUpdateSteps=3,
         doBuildOnInit=False,
         convThr=0.5,
-        thetaEmptyComp=None,
+        thetaEmptyComp=0.0,
         **kwargs):
     ''' Compute local parameters for HDPTopicModel via restricted local step.
 
@@ -196,14 +207,19 @@ def restrictedLocalStep_HDPTopicModel(
     xLPslice = dict()
     # Default warm_start initialization for DocTopicCount
     # by copying the previous counts at all absorbing states
-    xLPslice['DocTopicCount'] = \
-        curLPslice['DocTopicCount'][:, kabsorbList].copy()
-    
-    # Initialize resp by copying existing resp for absorbing states
-    # Note: this is NOT consistent with some docs in DocTopicCount
-    # but that will get fixed by restricted step
-    xLPslice['resp'] = \
-        curLPslice['resp'][:, kabsorbList].copy()
+    if kabsorbList is None:
+        xLPslice['DocTopicCount'] = np.zeros((Dslice.nDoc, Kfresh))
+        xLPslice['resp'] = np.zeros((
+            curLPslice['resp'].shape[0], Kfresh))   
+    else:
+        # Initialize DocTopicCounts by copying those from absorbing states    
+        xLPslice['DocTopicCount'] = \
+            curLPslice['DocTopicCount'][:, kabsorbList].copy()
+        # Initialize resp by copying existing resp for absorbing state
+        # Note: this is NOT consistent with some docs in DocTopicCount
+        # but that will get fixed by restricted step
+        xLPslice['resp'] = \
+            curLPslice['resp'][:, kabsorbList].copy()
 
     xLPslice['theta'] = \
         xLPslice['DocTopicCount'] + xalphaPi[np.newaxis,:]
@@ -227,6 +243,7 @@ def restrictedLocalStep_HDPTopicModel(
                 ktarget=ktarget,
                 kabsorbList=kabsorbList,
                 xalphaPi=xalphaPi,
+                thetaEmptyComp=thetaEmptyComp,
                 **kwargs)
 
         isLastStep = step == nUpdateSteps - 1
@@ -296,6 +313,7 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
         xLPslice=None,
         LPkwargs=dict(),
         d_initTargetDocTopicCount="warm_start",
+        thetaEmptyComp=0.0,
         **kwargs):
     ''' Perform restricted local step on one document.
 
@@ -319,13 +337,16 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
     start = Dslice.doc_range[d]
     stop = Dslice.doc_range[d+1]
 
-    constrained_sumTheta_d = curLPslice['theta'][d,ktarget] + \
-        np.sum(curLPslice['theta'][d, kabsorbList])
-
-    # Establish the total mass we must reallocate
-    constrained_sumResp_d = curLPslice['resp'][start:stop,ktarget] + \
-        np.sum(curLPslice['resp'][start:stop, kabsorbList], axis=1)
-    #mask_d = np.flatnonzero(constrained_sumResp_d > 1e-5)
+    if kabsorbList is None: 
+        constrained_sumTheta_d = curLPslice['theta'][d,ktarget]
+        # Establish the total mass we must reallocate
+        constrained_sumResp_d = curLPslice['resp'][start:stop,ktarget]
+    else:
+        constrained_sumTheta_d = curLPslice['theta'][d,ktarget] + \
+            np.sum(curLPslice['theta'][d, kabsorbList])
+        # Establish the total mass we must reallocate
+        constrained_sumResp_d = curLPslice['resp'][start:stop,ktarget] + \
+            np.sum(curLPslice['resp'][start:stop, kabsorbList], axis=1)
     mask_d = np.arange(stop-start)
 
     if mask_d.size == 0:
@@ -335,39 +356,39 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
     if mask_d.size > 0:
         xCLik_d = xLPslice['E_log_soft_ev'][start + mask_d].copy()
         xCLik_d -= np.max(xCLik_d, axis=1)[:,np.newaxis]
-        #???Protect against underflow
-        #np.maximum(xCLik_d, -300, out=xCLik_d)
+        # Protect against underflow
+        np.maximum(xCLik_d, -300, out=xCLik_d)
         np.exp(xCLik_d, out=xCLik_d)
 
-    constrained_sumResp_d = constrained_sumResp_d[mask_d].copy()
     if hasattr(Dslice, 'word_count') and obsModelName.count('Mult'):
         wc_d = Dslice.word_count[start + mask_d]
-        wc_d *= constrained_sumResp_d
+        wc_d *= constrained_sumResp_d[mask_d]
     else:
-        wc_d = constrained_sumResp_d
+        wc_d = constrained_sumResp_d[mask_d].copy()
 
     # Initialize doc-topic counts
     prevxDocTopicCount_d = -1 * np.ones(Kfresh)
     xDocTopicCount_d = xLPslice['DocTopicCount'][d, :].copy()
 
-    fracTargetMass_d = curLPslice['DocTopicCount'][d,ktarget] \
-        / curLPslice['DocTopicCount'][d,:].sum()
-
-    if fracTargetMass_d >= 0.05:
-        doWarmStart = d_initTargetDocTopicCount.count("warm_start")
+    if kabsorbList is None:
+        doWarmStart = False # always cold start for birth move
     else:
-        doWarmStart = True
+        fracTargetMass_d = curLPslice['DocTopicCount'][d,ktarget] \
+            / curLPslice['DocTopicCount'][d,:].sum()
+        if fracTargetMass_d >= 0.05:
+            doWarmStart = d_initTargetDocTopicCount.count("warm_start")
+        else:
+            doWarmStart = True
 
     if doWarmStart:
         # Initialize xDocTopicProb_d
         xDocTopicProb_d = xDocTopicCount_d + xalphaPi
         digamma(xDocTopicProb_d, out=xDocTopicProb_d)
-        #???Protect against underflow
-        #np.maximum(xDocTopicProb_d, -300, out=xDocTopicProb_d)
+        np.maximum(xDocTopicProb_d, -300, out=xDocTopicProb_d)
         np.exp(xDocTopicProb_d, out=xDocTopicProb_d)
     else:
+        # Cold start! xDocTopicProb_d[k] \approx alpha * Prob[k]
         xDocTopicProb_d = xalphaPi.copy()
-    assert np.min(xDocTopicProb_d) > 0.0
 
     # Initialize xsumResp_d
     xsumResp_d = np.zeros(xCLik_d.shape[0])      
@@ -384,8 +405,8 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
         np.add(xDocTopicCount_d, xalphaPi, 
             out=xDocTopicProb_d)
         digamma(xDocTopicProb_d, out=xDocTopicProb_d)
-        #???Protect against underflow
-        #np.maximum(xDocTopicProb_d, -300, out=xDocTopicProb_d)
+        # Protect against underflow
+        np.maximum(xDocTopicProb_d, -300, out=xDocTopicProb_d)
         np.exp(xDocTopicProb_d, out=xDocTopicProb_d)
         assert np.min(xDocTopicProb_d) > 0.0
 
@@ -408,7 +429,7 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
     xResp_d /= xsumResp_d[:, np.newaxis]
     # Here, sum of each row of xResp_d is equal to 1.0
     # Need to make sum of each row equal mass on target cluster
-    xResp_d *= constrained_sumResp_d[:,np.newaxis]
+    xResp_d *= constrained_sumResp_d[mask_d,np.newaxis]
     np.maximum(xResp_d, 1e-100, out=xResp_d)
 
     # Right here, xResp_d and xDocTopicProb_d 
@@ -440,13 +461,12 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
     # Final verifcation that output meets required constraints
     respOK = np.allclose(
         xLPslice['resp'][start:stop].sum(axis=1),
-        curLPslice['resp'][start:stop, ktarget] +
-        curLPslice['resp'][start:stop, kabsorbList].sum(axis=1),
+        constrained_sumResp_d,
         atol=0.0001,
         rtol=0)
     assert respOK
     thetaOK = np.allclose(
-        xLPslice['theta'][d, :].sum(),
+        xLPslice['theta'][d, :].sum() + thetaEmptyComp,
         constrained_sumTheta_d,
         atol=0.0001,
         rtol=0)

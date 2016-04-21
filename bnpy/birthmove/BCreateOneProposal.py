@@ -237,7 +237,7 @@ def makeSummaryForBirthProposal(
 
     # Create initial observation model
     xObsModel = curModel.obsModel.copy()
-    xObsModel.update_global_params(xSSslice)
+
     if b_method_initCoordAscent == 'fromprevious' and 'xLPslice' in Info:
         xInitLPslice = Info['xLPslice']
     else:
@@ -258,6 +258,9 @@ def makeSummaryForBirthProposal(
     # Each step does a restricted local step to improve
     # the proposed cluster assignments.
     for rstep in range(b_nRefineSteps):
+        # Update xObsModel
+        xObsModel.update_global_params(xSSslice)
+
         # Restricted local step!
         # * xInitSS : specifies obs-model stats used for initialization
         xSSslice, refineInfo = summarizeRestrictedLocalStep(
@@ -267,8 +270,8 @@ def makeSummaryForBirthProposal(
             curSSwhole=curSSwhole,
             ktarget=ktarget,
             xUIDs=xSSslice.uids,
-            xObsModel=xObsModel,
             xInitSS=xSSslice,
+            xObsModel=xObsModel,
             xInitLPslice=xInitLPslice,
             LPkwargs=LPkwargs,
             nUpdateSteps=1,
@@ -516,6 +519,8 @@ def makeSummaryForExistingBirthProposal(
     # the proposed cluster assignments.
     nRefineSteps = np.maximum(1, b_nRefineSteps)
     for rstep in range(nRefineSteps):
+        xObsModel.update_global_params(xSSinitPlusSlice)
+
         # Restricted local step!
         # * xInitSS : specifies obs-model stats used for initialization
         xSSslice, refineInfo = summarizeRestrictedLocalStep(

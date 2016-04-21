@@ -32,6 +32,7 @@ class EMAlg(LearnAlg):
         --------
         hmodel updated in place with improved global parameters.
         '''
+        self.set_start_time_now()
         prevBound = -np.inf
         isConverged = False
 
@@ -42,7 +43,6 @@ class EMAlg(LearnAlg):
         self.eval_custom_func(
             isInitial=1, **makeDictOfAllWorkspaceVars(**vars()))
 
-        self.set_start_time_now()
         for iterid in xrange(1, self.algParams['nLap'] + 1):
             lap = self.algParams['startLap'] + iterid
             nLapsCompleted = lap - self.algParams['startLap']

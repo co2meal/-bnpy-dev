@@ -3,7 +3,7 @@ FromScratchBregman.py
 
 Initialize suff stats for observation models via Bregman clustering.
 '''
-
+import re
 import numpy as np
 import bnpy.data
 
@@ -21,9 +21,34 @@ def init_global_params(hmodel, Data, **kwargs):
     --------------
     hmodel internal parameters updated to reflect sufficient statistics.
     '''
-    if kwargs['initname'].lower().count('priormean'):
-        kwargs['init_setOneToPriorMean'] = 1
+    if 'initObsModelScale' in kwargs:
+        initObsModelScale = kwargs['initObsModelScale']
+    else:
+        initObsModelScale = 0
+    #if kwargs['initname'].lower().count('priormean'):
+    #    kwargs['init_setOneToPriorMean'] = 1
 
+    extrafields = kwargs['initname'].split("+")
+    for key in extrafields[1:]:
+        m = re.match(
+            r"(?P<name>[a-zA-Z]+)(?P<value>.+)$", key)
+        name = m.group('name')
+        value = m.group('value')
+        if name.count("lam"):
+            initObsModelScale = float(value)
+        elif name.count("distexp"):
+            kwargs['init_distexp'] = float(value)
+        elif name.count("setlasttoprior"):
+            kwargs['init_setOneToPriorMean'] = int(value)
+        elif name.count("iter"):
+            kwargs['init_NiterForBregmanKMeans'] = int(value)    
+
+            if 'logFunc' not in kwargs:
+                def logFunc(msg):
+                    print msg
+                kwargs['logFunc'] = logFunc
+
+    '''
     if kwargs['initname'].count('+'):
         kwargs['init_NiterForBregmanKMeans'] = \
             int(kwargs['initname'].split('+')[1])
@@ -31,14 +56,21 @@ def init_global_params(hmodel, Data, **kwargs):
             def logFunc(msg):
                 print msg
             kwargs['logFunc'] = logFunc
+    '''
+    # Determine initial SS
     SS, Info = initSS_BregmanDiv(
         Data, hmodel, includeAllocSummary=True, **kwargs)
+    # Add in extra initialization mass, if needed
+    if hasattr(SS, 'WordCounts') and initObsModelScale > 0:
+        SS.WordCounts += initObsModelScale
+    # Execute global step on obsModel from these stats
     hmodel.obsModel.update_global_params(SS)
-    Info['targetSS'] = SS
+    # Finally, initialize allocation model params
     if kwargs['init_NiterForBregmanKMeans'] > 0:
         hmodel.allocModel.update_global_params(SS)
     else:
         hmodel.allocModel.init_global_params(Data, **kwargs)    
+    Info['targetSS'] = SS
     return Info
 
 def initSS_BregmanDiv(
@@ -51,7 +83,6 @@ def initSS_BregmanDiv(
         includeAllocSummary=False,
         NiterForBregmanKMeans=1,
         logFunc=None,
-        setOneToPriorMean=0,
         **kwargs):
     ''' Create observation model statistics via Breg. distance sampling.
 
@@ -80,8 +111,6 @@ def initSS_BregmanDiv(
             newkey = key[5:]
             kwargs[newkey] = val
             del kwargs[key]
-    if 'setOneToPriorMean' in kwargs:
-        setOneToPriorMean = kwargs['setOneToPriorMean']
     if 'NiterForBregmanKMeans' in kwargs:
         NiterForBregmanKMeans = kwargs['NiterForBregmanKMeans']
     Niter = np.maximum(NiterForBregmanKMeans, 0)
@@ -105,7 +134,7 @@ def initSS_BregmanDiv(
     if logFunc:
         msg = "Running Bregman k-means with K=%d for %d iters" % (
             K, Niter)
-        if setOneToPriorMean:
+        if 'setOneToPriorMean' in kwargs and kwargs['setOneToPriorMean']:
             msg += ", with initial prior mean cluster"
         logFunc(msg)
 
@@ -116,7 +145,7 @@ def initSS_BregmanDiv(
         Niter=Niter,
         logFunc=logFunc,
         seed=seed,
-        setOneToPriorMean=setOneToPriorMean)
+        **kwargs)
     # Convert labels in Z to compactly use all ints from 0, 1, ... Kused
     # Then translate these into a proper 'resp' 2D array,
     # where resp[n,k] = w[k] if z[n] = k, and 0 otherwise
@@ -151,7 +180,7 @@ def initSS_BregmanDiv(
     else:
         xSS = curModel.obsModel.get_global_suff_stats(
             targetData, None, xtargetLP)
-        if setOneToPriorMean:
+        if 'setOneToPriorMean' in kwargs and kwargs['setOneToPriorMean']:
             neworder = np.hstack([xSS.K, np.arange(xSS.K)])
             xSS.insertEmptyComps(1)
             xSS.reorderComps(neworder)
@@ -187,7 +216,9 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
                          Niter=100, seed=0, init='plusplus',
                          smoothFracInit=1.0, smoothFrac=0,
                          logFunc=None, eps=1e-10,
-                         setOneToPriorMean=0):
+                         setOneToPriorMean=0,
+                         distexp=1.0,
+                         **kwargs):
     ''' Run hard clustering algorithm to find K clusters.
 
     Returns
@@ -197,7 +228,9 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
     Lscores : 1D array, size Niter
     '''
     chosenZ, Mu, _, _ = initKMeans_BregmanDiv(
-        X, K, obsModel, W=W, seed=seed, smoothFrac=smoothFracInit,
+        X, K, obsModel, W=W, seed=seed,
+        smoothFrac=smoothFracInit,
+        distexp=distexp,
         setOneToPriorMean=setOneToPriorMean)
     # Make sure we update K to reflect the returned value.
     # initKMeans_BregmanDiv will return fewer than K clusters
@@ -279,6 +312,7 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
 
 def initKMeans_BregmanDiv(
         X, K, obsModel, W=None, seed=0, smoothFrac=1.0,
+        distexp=1.0,
         setOneToPriorMean=0):
     ''' Initialize cluster means Mu for K clusters.
 
@@ -307,7 +341,6 @@ def initKMeans_BregmanDiv(
     # Initialize list to hold all Mu values
     Mu = [None for k in range(K)]
     Mu[0] = Mu0
-
     # Compute minDiv
     minDiv, DivDataVec = obsModel.calcSmoothedBregDiv(
         X=X, Mu=Mu0, W=W,
@@ -332,8 +365,15 @@ def initKMeans_BregmanDiv(
         elif sum_minDiv < 0 or not np.isfinite(sum_minDiv):
             raise ValueError("sum_minDiv not valid: %f" % (sum_minDiv))
 
-        pvec = minDiv / np.sum(sum_minDiv)
-        chosenZ[k] = PRNG.choice(N, p=pvec)
+        if distexp >= 9:
+            chosenZ[k] = np.argmax(minDiv)
+        else:
+            if distexp > 1:
+                minDiv = minDiv**distexp
+                sum_minDiv = np.sum(minDiv)
+            pvec = minDiv / sum_minDiv
+            chosenZ[k] = PRNG.choice(N, p=pvec)
+
         Mu[k] = obsModel.calcSmoothedMu(X[chosenZ[k]], W=W[chosenZ[k]])
         curDiv = obsModel.calcSmoothedBregDiv(
             X=X, Mu=Mu[k], W=W,
