@@ -37,7 +37,7 @@ def LoadFuncFromCPPLib(libpath, srcpath, funcName):
             setattr(getattr(lib, funcName), 'argtypes', argTypeList)
         return getattr(lib, funcName)
     except OSError as e:
-        warnings.warning(str(e))
+        warnings.warn(str(e))
         def errorFunc(*args, **kwargs):
             raise ImportError("Could not import C++ func: %s" % (funcName))
         return errorFunc
