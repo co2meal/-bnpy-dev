@@ -6,7 +6,7 @@ Generic functions for creating toy bars data
 import numpy as np
 
 
-def Create2DBarsTopicWordParams(V, K, fracMassOnTopic=0.95, PRNG=np.random):
+def Create2DBarsTopicWordParams(V, K, fracMassOnTopic=0.95, PRNG=np.random, slda=False):
     ''' Create parameters of each topics distribution over words
 
         Args
@@ -19,7 +19,11 @@ def Create2DBarsTopicWordParams(V, K, fracMassOnTopic=0.95, PRNG=np.random):
         Returns
         ---------
         topics : K x V matrix, real positive numbers whose rows sum to one
+        eta: Topic response variables
     '''
+    if slda:
+    	eta = np.zeros(K)
+    	
     sqrtV = int(np.sqrt(V))
     BarWidth = sqrtV / (K / 2)  # number of consecutive words in each bar
     B = V / (K / 2)  # total number of "on topic" words in each bar
@@ -30,14 +34,15 @@ def Create2DBarsTopicWordParams(V, K, fracMassOnTopic=0.95, PRNG=np.random):
         wordIDs = range(B * k, B * (k + 1))
         topics[k, wordIDs] = 1.0
 
-    # Make vertical bars
-    for k in range(K / 2):
-        wordIDs = list()
-        for b in range(sqrtV):
-            start = b * sqrtV + k * BarWidth
-            wordIDs.extend(range(start, start + BarWidth))
-        topics[K / 2 + k, wordIDs] = 1.0
-
+	# Make vertical bars
+	for k in range(K / 2):
+		wordIDs = list()
+		for b in range(sqrtV):
+			start = b * sqrtV + k * BarWidth
+			wordIDs.extend(range(start, start + BarWidth))
+		topics[K / 2 + k, wordIDs] = 1.0
+		#only add response weight to vertical bars, -2, -1, 0, 1, 2 repsectively
+		eta[K / 2 + k] = k - 2 
     # Add smoothing mass to all entries in "topics"
     #  instead of picking this value out of thin air, instead,
     #  set so 95% of the mass of each topic is on the "on-topic" bar words
@@ -54,35 +59,37 @@ def Create2DBarsTopicWordParams(V, K, fracMassOnTopic=0.95, PRNG=np.random):
     assert np.sum(topics[0, :B]) > fracMassOnTopic - 0.05
     assert np.sum(topics[1, B:2 * B]) > fracMassOnTopic - 0.05
     assert np.sum(topics[-1, wordIDs]) > fracMassOnTopic - 0.05
-    return topics
-
+    if not slda:
+    	return topics
+    else:
+    	return topics, eta
 
 def Create2DBarsTopicWordParams2(V, K, r=0.5, fracMassOnTopic=0.95,
                                  PRNG=np.random):
-    ''' Create parameters of each topics distribution over words
+	''' Create parameters of each topics distribution over words
 
-        Args
-        ---------
-        V : int vocab size
-        K : int number of topics
-        fracMassOnTopic : fraction of probability mass for "on-topic" words
-        PRNG : random number generator (for reproducibility)
+		Args
+		---------
+		V : int vocab size
+		K : int number of topics
+		fracMassOnTopic : fraction of probability mass for "on-topic" words
+		PRNG : random number generator (for reproducibility)
 
-        Returns
-        ---------
-        topics : K x V matrix, real positive numbers whose rows sum to one
-    '''
-    topics = np.zeros((K, V))
+		Returns
+		---------
+		topics : K x V matrix, real positive numbers whose rows sum to one
+	'''
+	topics = np.zeros((K, V))
 
-    B = V // (K // 2 + 1)
-    for k in range(K // 2):
-        wordIDs = range(B * k, B * (k + 1))
-        topics[2 * k, wordIDs] = np.linspace(1.0, r, B)
-        wordIDs = range(B // 2 + B * k, B // 2 + B * (k + 1))
-        topics[2 * k + 1, wordIDs] = np.linspace(1.0, r, B)
+	B = V // (K // 2 + 1)
+	for k in range(K // 2):
+		wordIDs = range(B * k, B * (k + 1))
+		topics[2 * k, wordIDs] = np.linspace(1.0, r, B)
+		wordIDs = range(B // 2 + B * k, B // 2 + B * (k + 1))
+		topics[2 * k + 1, wordIDs] = np.linspace(1.0, r, B)
 
-    topics = smoothAndNormalizeTopics(topics, fracMassOnTopic, PRNG)
-    return topics
+	topics = smoothAndNormalizeTopics(topics, fracMassOnTopic, PRNG)
+	return topics
 
 
 def smoothAndNormalizeTopics(topics, fracMassOnTopic=0.95, PRNG=np.random):

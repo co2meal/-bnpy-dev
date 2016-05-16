@@ -30,11 +30,12 @@ trueBeta /= trueBeta.sum()
 Defaults['topic_prior'] = gamma * trueBeta
 
 # TOPIC by WORD distribution
-Defaults['topics'] = Bars2D.Create2DBarsTopicWordParams(V, K, PRNG=PRNG)
+Defaults['topics'], Defaults['eta'] = Bars2D.Create2DBarsTopicWordParams(V, K, PRNG=PRNG,slda=True)
 
 
 def get_data_info():
-    s = 'Toy Bars Data with %d true topics. Each doc uses 1-3 bars.' % (K)
+    s = 'Toy Bars Data for SLDA with %d true topics. Each doc uses 1-3 bars.\n' % (K)
+    s += 'Each horizontal bar has no response, each vertical bar has integer response -2, -1, 0, 1, 2.'
     return s
 
 def get_data(seed=SEED, **kwargs):
@@ -70,6 +71,13 @@ def CreateToyDataFromLDAModel(**kwargs):
         if key not in kwargs:
             kwargs[key] = Defaults[key]
     return WordsData.CreateToyDataFromLDAModel(**kwargs)
+
+def CreateToyDataFromSLDAModel(**kwargs):
+    for key in Defaults:
+        if key not in kwargs:
+            kwargs[key] = Defaults[key]
+    kwargs['delta'] = 1
+    return WordsData.CreateToyDataFromSLDAModel(**kwargs)
 
 
 def showExampleDocs(pylab=None):

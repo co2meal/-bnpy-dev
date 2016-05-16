@@ -9,12 +9,12 @@ WordsData
 import numpy as np
 import scipy.sparse
 import scipy.io
-import os
 from collections import namedtuple
 
 from bnpy.data.DataObj import DataObj
 from bnpy.util import as1D, toCArray
 from bnpy.util import numpyToSharedMemArray, sharedMemToNumpyArray
+
 
 class WordsData(DataObj):
 
@@ -50,8 +50,6 @@ class WordsData(DataObj):
         will differ from nDoc when this dataset represents a
         small minibatch of some larger corpus.
     TrueParams : None [default], or dict of true parameters.
-    response: 1D array, size nDoc
-    	response parameter for each document (see supervised LDA)
 
     """
 
@@ -83,8 +81,7 @@ class WordsData(DataObj):
             word_ct.extend(word_ct_d)
         doc_range = np.hstack([0, np.cumsum(doc_sizes)])
         return cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
-                   doc_range=doc_range, vocab_size=vocab_size, **kwargs)
-
+                   doc_range=doc_range, vocab_size=vocab_size)
 
     @classmethod
     def LoadFromFile_ldac(
@@ -97,126 +94,53 @@ class WordsData(DataObj):
         -------
         Data : WordsData object
         '''
-        if sliceID is not None:
-            return cls.LoadFromSliceOfFile_ldac(filepath,
-                vocab_size=vocab_size,
-                nDocTotal=nDocTotal,
-                sliceID=sliceID,
-                nSlice=nSlice,
-                filesize=filesize,
-                **kwargs)
-        try:
-            from bnpy.util.TextFileReader \
-                import LoadWordsDataFromFile_ldac_cython
-            return LoadWordsDataFromFile_ldac_cython(filepath,
-                vocab_size=vocab_size,
-                nDocTotal=nDocTotal,
-                **kwargs)
-        except ImportError:
-            return cls.LoadFromFile_ldac_python(filepath,
-                vocab_size=vocab_size,
-                nDocTotal=nDocTotal,
-                filesize=filesize,
-                **kwargs)
-
-
-    @classmethod
-    def LoadFromFile_ldac_python(
-            cls, filepath, vocab_size=0, nDocTotal=None,
-            sliceID=None, nSlice=None, filesize=None,
-            **kwargs):
-        ''' Constructor for loading data from .ldac format files.
-
-        Returns
-        -------
-        Data : WordsData object
-        '''
-        if sliceID is not None:
-            cls.LoadFromSliceOfFile_ldac(filepath, vocab_size, nDocTotal,
-                sliceID=sliceID,
-                nSlice=nSlice,
-                filesize=filesize,
-                **kwargs)
-        
-        # Estimate num tokens in the file
-        fileSize_bytes = os.path.getsize(filepath)
-        nTokensPerByte = 1.0 / 5
-        estimate_nUniqueTokens = int(nTokensPerByte * fileSize_bytes)
-
-        # Preallocate space
-        word_id = np.zeros(estimate_nUniqueTokens)
-        word_ct = np.zeros(estimate_nUniqueTokens)
-        nSeen = 0
         doc_sizes = []
+        word_id = []
+        word_ct = []
+        Yvals = []
         with open(filepath, 'r') as f:
-            # Simple case: read the whole file
-            for line in f.readlines():
-                try:
-                    nUnique_d = processLine_ldac__fromstring_fillexisting(
-                        line, word_id, word_ct, nSeen)
-                except IndexError as e:
-                    # Double our preallocation, then try again
-                    extra_word_id = np.zeros(word_id.size, dtype=word_id.dtype)
-                    extra_word_ct = np.zeros(word_ct.size, dtype=word_ct.dtype)
-                    word_id = np.hstack([word_id, extra_word_id])
-                    word_ct = np.hstack([word_ct, extra_word_ct])
-                    nUnique_d = processLine_ldac__fromstring_fillexisting(
-                        line, word_id, word_ct, nSeen)
-                doc_sizes.append(nUnique_d)
-                nSeen += nUnique_d
-        word_id = word_id[:nSeen]
-        word_ct = word_ct[:nSeen]
-        doc_range = np.hstack([0, np.cumsum(doc_sizes)])
-        Data = cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
-                   doc_range=doc_range, vocab_size=vocab_size, **kwargs)
-        return Data
-
-    @classmethod
-    def LoadFromSliceOfFile_ldac(
-            cls, filepath, vocab_size=0, nDocTotal=None,
-            sliceID=None, nSlice=None, filesize=None,
-            **kwargs):
-        ''' Constructor for loading data from .ldac format files.
-
-        Returns
-        -------
-        Data : WordsData object
-        '''
-        if filesize is None:
-            filesize = os.path.getsize(filepath)
-
-        # Estimate num tokens in the slice
-        nTokensPerByte = 1.0 / 5
-        estimate_nUniqueTokens = int(nTokensPerByte * filesize / nSlice)
-        # Preallocate space
-        word_id = np.zeros(estimate_nUniqueTokens)
-        word_ct = np.zeros(estimate_nUniqueTokens)
-        doc_sizes = []
-        nSeen = 0
-        with open(filepath, 'r') as f:
-            # Parallel access case: read slice of the file
-            # slices will be roughly even in DISKSIZE, not in num lines
-            # Inspired by:
-            # https://xor0110.wordpress.com/2013/04/13/
-            # how-to-read-a-chunk-of-lines-from-a-file-in-python/
-            start = filesize * sliceID / nSlice
-            stop = filesize * (sliceID + 1) / nSlice
-            if start == 0:
-                f.seek(0)  # goto start of file
+            if sliceID is None:
+                # Simple case: read the whole file
+                for line in f.readlines():
+                    nUnique, d_word_id, d_word_ct = \
+                        processLine_ldac__fromstring(line)
+                    doc_sizes.append(nUnique)
+                    word_id.extend(d_word_id)
+                    word_ct.extend(d_word_ct)
             else:
-                f.seek(start - 1)  # start at end of prev slice
-                f.readline()  # then jump to next line brk to start reading
-            while f.tell() < stop:
-                line = f.readline()
-                nUnique_d = processLine_ldac__fromstring_fillexisting(
-                        line, word_id, word_ct, nSeen)
-                doc_sizes.append(nUnique_d)
-                nSeen += nUnique_d
-        word_id = word_id[:nSeen]
-        word_ct = word_ct[:nSeen]
+                # Parallel access case: read slice of the file
+                # slices will be roughly even in DISKSIZE, not in num lines
+                # Inspired by:
+                # https://xor0110.wordpress.com/2013/04/13/
+                # how-to-read-a-chunk-of-lines-from-a-file-in-python/
+                if filesize is None:
+                    f.seek(0, 2)
+                    filesize = f.tell()
+                start = filesize * sliceID / nSlice
+                stop = filesize * (sliceID + 1) / nSlice
+                if start == 0:
+                    f.seek(0)  # goto start of file
+                else:
+                    f.seek(start - 1)  # start at end of prev slice
+                    f.readline()  # then jump to next line brk to start reading
+                while f.tell() < stop:
+                    line = f.readline()
+                    nUnique, d_word_id, d_word_ct = \
+                        processLine_ldac__fromstring(line)
+                    doc_sizes.append(nUnique)
+                    word_id.extend(d_word_id)
+                    word_ct.extend(d_word_ct)
+
         doc_range = np.hstack([0, np.cumsum(doc_sizes)])
         Data = cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
-                   doc_range=doc_range, vocab_size=vocab_size, **kwargs)
+                   doc_range=doc_range, vocab_size=vocab_size)
+        if len(Yvals) > 0:
+            Yvals = toCArray(Yvals)
+            if np.allclose(Yvals.sum(),
+                           np.int32(Yvals).sum()):
+                Data.Yb = np.int32(Yvals)
+            else:
+                Data.Yr = Yvals
         return Data
 
     @classmethod
@@ -232,16 +156,12 @@ class WordsData(DataObj):
         Data : WordsData object
         """
         MatDict = scipy.io.loadmat(matfilepath, **kwargs)
-        if 'test' in MatDict or 'tokensByDoc' in MatDict:
-            return cls.LoadFromFile_tokenlist(
-                matfilepath, vocabfile=vocabfile, **kwargs)
         return cls(vocabfile=vocabfile, **MatDict)
 
     def __init__(self, word_id=None, word_count=None, doc_range=None,
                  vocab_size=0, vocabList=None, vocabfile=None,
                  summary=None,
-                 nDocTotal=None, TrueParams=None, 
-                 response=None, **kwargs):
+                 nDocTotal=None, TrueParams=None, **kwargs):
         ''' Constructor for WordsData object.
 
         Represents bag-of-words dataset via several 1D vectors,
@@ -273,15 +193,12 @@ class WordsData(DataObj):
             will differ from nDoc when this dataset represents a
             small minibatch of some larger corpus.
         TrueParams : None [default], or dict of true parameters.
-    	response: 1D array, size nDoc
-    		response parameter for each document (see supervised LDA)
         '''
         self.word_id = as1D(toCArray(word_id, dtype=np.int32))
         self.word_count = as1D(toCArray(word_count, dtype=np.float64))
         self.doc_range = as1D(toCArray(doc_range, dtype=np.int32))
         self.vocab_size = int(vocab_size)
-        self.response = as1D(toCArray(response, dtype=np.float64))
-
+        self.dim = self.vocab_size
         if summary is not None:
             self.summary = summary
 
@@ -295,10 +212,7 @@ class WordsData(DataObj):
         elif vocabfile is not None:
             with open(vocabfile, 'r') as f:
                 self.vocabList = [x.strip() for x in f.readlines()]
-        else:
-            self.vocabList = None
-        if vocab_size == 0 and self.vocabList is not None:
-            self.vocab_size = len(self.vocabList)
+
         self._verify_attributes()
         self._set_corpus_size_attributes(nDocTotal)
 
@@ -312,7 +226,6 @@ class WordsData(DataObj):
             self.nDocTotal = self.nDoc
         else:
             self.nDocTotal = int(nDocTotal)
-        self.dim = self.vocab_size
 
     def _verify_attributes(self):
         ''' Basic runtime checks to make sure attribute dims are correct.
@@ -331,12 +244,9 @@ class WordsData(DataObj):
         docEndBiggerThanStart = self.doc_range[1:] - self.doc_range[:-1]
         assert np.all(docEndBiggerThanStart)
 
-        if hasattr(self, 'vocabList') and self.vocabList is not None:
+        if hasattr(self, 'vocabList'):
             if len(self.vocabList) != self.vocab_size:
-                self.vocabList = None
-                
-        if hasattr(self, 'response'):
-        	assert self.response.ndim == 1
+                del self.vocabList
 
     def get_size(self):
         return self.nDoc
@@ -531,51 +441,7 @@ class WordsData(DataObj):
         setattr(self, key, C)
         return C
 
-
-    def getTokenTypeBinaryMatrix(self):
-        ''' Get dense binary array for vocab usage across all words in dataset
-
-        Returns
-        --------
-        B : 2D array, size U x vocab_size
-            B[n,v] = { word_count[n] iff word_id[n] = v
-                     { 0 otherwise
-            Each distinct word token n is represented by one entire row
-            with only one non-zero entry: at column word_id[n]
-        '''
-        key = '__TokenTypeBinaryMat'
-        if hasattr(self, key):
-            return getattr(self, key)
-
-        B = self.getSparseTokenTypeCountMatrix()
-        X = B.toarray()
-        setattr(self, key, X)
-        return X
-
-    def getSparseTokenTypeBinaryMatrix(self):
-        ''' Get sparse matrix for vocab usage across all words in dataset
-
-        Returns
-        --------
-        B : sparse CSC matrix, size U x vocab_size
-            B[n,v] = { 1 iff word_id[n] = v
-                     { 0 otherwise
-            Each distinct word token n is represented by one entire row
-            with only one non-zero entry: at column word_id[n]
-        '''
-        key = '__sparseTokenTypeBinaryMat'
-        if hasattr(self, key):
-            return getattr(self, key)
-
-        # Create sparse matrix C from scratch
-        indptr = np.arange(self.nUniqueToken + 1)
-        data = np.ones(self.nUniqueToken, dtype=np.float64)
-        B = scipy.sparse.csc_matrix((data, self.word_id, indptr),
-                                    shape=(self.vocab_size, self.nUniqueToken))
-        setattr(self, key, B)
-        return B
-
-    def getDocTypeCountMatrix(self, weights=None, **kwargs):
+    def getDocTypeCountMatrix(self):
         ''' Get dense matrix counting vocab usage for each document.
 
         Returns
@@ -584,16 +450,15 @@ class WordsData(DataObj):
             C[d,v] = total count of vocab type v in document d
         '''
         key = '__DocTypeCountMat'
-        if hasattr(self, key) and weights is None:
+        if hasattr(self, key):
             return getattr(self, key)
 
-        C = self.getSparseDocTypeCountMatrix(weights=weights, **kwargs)
+        C = self.getSparseDocTypeCountMatrix()
         X = C.toarray()
-        if weights is None:
-            setattr(self, key, X)
+        setattr(self, key, X)
         return X
 
-    def getSparseDocTypeCountMatrix(self, weights=None, **kwargs):
+    def getSparseDocTypeCountMatrix(self, **kwargs):
         ''' Make sparse matrix counting vocab usage for each document.
 
         Returns
@@ -603,66 +468,16 @@ class WordsData(DataObj):
         '''
         # Check cache, return the matrix if we've computed it already
         key = '__sparseDocTypeCountMat'
-        if hasattr(self, key) and weights is None:
+        if hasattr(self, key):
             return getattr(self, key)
-        if weights is None:
-            data = self.word_count
-        else:
-            assert weights.ndim == 1
-            if weights.size == self.word_count.size:
-                data = self.word_count * weights
-            else:
-                data = self.word_count
 
         # Create CSR matrix representation
         C = scipy.sparse.csr_matrix(
-            (data, self.word_id, self.doc_range),
+            (self.word_count, self.word_id, self.doc_range),
             shape=(self.nDoc, self.vocab_size),
             dtype=np.float64)
-        if weights is None:
-            setattr(self, key, C)
-        elif weights.size == self.nDoc:
-            W = scipy.sparse.csr_matrix(
-                    (weights, np.arange(self.nDoc), np.arange(self.nDoc+1)))
-            C = W * C
+        setattr(self, key, C)
         return C
-
-
-    def getSparseDocTypeBinaryMatrix(self, weights=None, **kwargs):
-        ''' Make sparse matrix indicating binary vocab usage for each doc.
-
-        Returns
-        -------
-        C : sparse CSR matrix, shape nDoc x vocab_size
-            C[d,v] = 1 if vocab type v in document d, 0 otherwise.
-        '''
-        data = np.ones(self.word_id.size, dtype=np.float64)
-        if isinstance(weights, np.ndarray) and weights.size == data.size:
-            assert weights.ndim == 1
-            data *= weights
-
-        # Create CSR matrix representation
-        B = scipy.sparse.csr_matrix(
-            (data, self.word_id, self.doc_range),
-            shape=(self.nDoc, self.vocab_size),
-            dtype=np.float64)
-
-        if isinstance(weights, np.ndarray) and weights.size == self.nDoc:
-            assert weights.ndim == 1
-            W = scipy.sparse.csr_matrix(
-                    (weights, np.arange(self.nDoc), np.arange(self.nDoc+1)))
-            B = W * B
-        return B
-
-    def getDocTypeBinaryMatrix(self, **kwargs):
-        ''' Make dense array indicating binary vocab usage for each doc.
-
-        Returns
-        -------
-        B : 2D dense array, shape nDoc x vocab_size
-        '''
-        return self.getSparseDocTypeBinaryMatrix().toarray()
-
 
     def clearCache(self):
         for key in ['__TokenTypeCountMat', '__sparseTokenTypeCountMat',
@@ -721,13 +536,13 @@ class WordsData(DataObj):
         -------
         Q : 2D array, size W x W (where W is vocab_size)
         """
-        Q /= np.float32(nDoc)
-        sameWordVec /= np.float32(nDoc)
+        Q /= nDoc
+        sameWordVec /= nDoc
         diagIDs = np.diag_indices(self.vocab_size)
         Q[diagIDs] -= sameWordVec
 
         # Fix small numerical issues (like diag entries of -1e-15 instead of 0)
-        np.maximum(Q, 1e-100, out=Q)
+        np.maximum(Q, 0, out=Q)
         return Q
 
     def add_data(self, WData):
@@ -832,8 +647,7 @@ class WordsData(DataObj):
 
         if hasattr(self, 'alwaysTrackTruth'):
             doTrackTruth = doTrackTruth or self.alwaysTrackTruth
-        hasTrueZ = hasattr(self, 'TrueParams') and \
-            ('Z' in self.TrueParams or 'resp' in self.TrueParams)
+        hasTrueZ = hasattr(self, 'TrueParams') and 'Z' in self.TrueParams
         if doTrackTruth and hasTrueZ:
             newTrueParams = dict()
             for key, arr in self.TrueParams.items():
@@ -847,93 +661,8 @@ class WordsData(DataObj):
         else:
             newTrueParams = None
 
-        if hasattr(self, 'vocabList'):
-            newVocabList = self.vocabList
-        else:
-            newVocabList = None            
-
         return WordsData(word_id, word_count, doc_range, self.vocab_size,
-                         nDocTotal=nDocTotal,
-                         TrueParams=newTrueParams,
-                         vocabList=newVocabList)
-
-
-    def makeSubsetByThresholdingWeights(
-            self, atomWeightVec=None, thr=0):
-        ''' Returns WordsData object representing subset of this dataset.
-
-
-        Returns
-        -------
-        Dtarget : WordsData object
-        docIDs : 1D array, size Dtarget.nDoc
-        atomIDs : 1D array, size Dtarget.nUniqueToken
-
-        Example
-        -------
-        >>> word_id = np.asarray([0, 1, 2, 0, 1, 2,  5, 6, 7])
-        >>> word_ct = np.asarray([1, 7, 8, 1, 7, 8,  1, 1, 1])
-        >>> doc_range = np.asarray([0, 3, 6, 9])
-        >>> Data = WordsData(word_id, word_ct, doc_range, vocab_size=10)
-        >>> weights = np.asarray([0, 1, 1, 0, 1, 1, 0, 0, 0])
-        >>> Dtarget, d, a = Data.makeSubsetByThresholdingWeights(weights, 0.1)
-        >>> print a
-        [1 2 4 5]
-        >>> print d
-        [0, 1]
-        >>> print Dtarget.word_count
-        [ 7.  8.  7.  8.]
-        >>> X = Data.getDocTypeCountMatrix()
-        >>> Xtarget = Dtarget.getDocTypeCountMatrix()
-        >>> np.all(X[d] >= Xtarget)
-        True
-
-        Example with empty result
-        -------
-        >>> empty_weights = np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0])
-        >>> Dtarget, d, a = Data.makeSubsetByThresholdingWeights(
-        ...     empty_weights, 0.1)
-        >>> print d
-        []
-        >>> Dtarget == None
-        True
-        '''
-        N = atomWeightVec.size
-        assert N == self.nUniqueToken
-
-        docIDs = list()
-        atomIDs = list()
-        doc_range = [0]
-        for d in xrange(self.nDoc):
-            start = self.doc_range[d]
-            stop = self.doc_range[d+1]
-            atomIDs_d = np.flatnonzero(atomWeightVec[start:stop] >= thr)
-            if atomIDs_d.size > 0:
-                atomIDs.extend(atomIDs_d + start)
-                docIDs.append(d)
-                doc_range.append(doc_range[-1] + atomIDs_d.size)
-        atomIDs = np.asarray(atomIDs)
-
-        if len(atomIDs) < 1:
-            return None, docIDs, atomIDs
-
-        doc_range = np.asarray(doc_range)
-        new_word_id = self.word_id[atomIDs].copy()
-        new_word_ct = np.ceil(
-            self.word_count[atomIDs] * atomWeightVec[atomIDs])
-        if hasattr(self, 'vocabList'):
-            newVocabList = self.vocabList
-        else:
-            newVocabList = None            
-
-        Dtarget = WordsData(
-            word_id=new_word_id,
-            word_count=new_word_ct,
-            doc_range=doc_range,
-            vocab_size=self.vocab_size,
-            vocabList=newVocabList,
-            )
-        return Dtarget, docIDs, atomIDs
+                         nDocTotal=nDocTotal, TrueParams=newTrueParams)
 
     @classmethod
     def CreateToyDataSimple(cls, nDoc=10, nUniqueTokensPerDoc=10,
@@ -1044,6 +773,7 @@ class WordsData(DataObj):
         if topic_prior is None:
             topic_prior = gamma * probs
         from bnpy.util import RandUtil
+        PRNG = np.random.RandomState(seed)
 
         K = topics.shape[0]
         V = topics.shape[1]
@@ -1062,9 +792,6 @@ class WordsData(DataObj):
         # lists
         startPos = 0
         for d in xrange(nDocTotal):
-            docseed = (seed * d) % (100000000) # need docseed to have type int
-            PRNG = np.random.RandomState(docseed)
-
             # Draw topic appearance probabilities for this document
             Pi[d, :] = PRNG.dirichlet(topic_prior)
 
@@ -1209,40 +936,6 @@ def makeDataSliceFromSharedMem(dataShMemDict,
 
     Returns
     -------
-    Dslice : WordsData object
-    """
-    if batchID is not None and batchID in dataShMemDict:
-        dataShMemDict = dataShMemDict[batchID]
-
-    # Make local views (NOT copies) to shared mem arrays
-    doc_range = sharedMemToNumpyArray(dataShMemDict['doc_range'])
-    word_id = sharedMemToNumpyArray(dataShMemDict['word_id'])
-    word_count = sharedMemToNumpyArray(dataShMemDict['word_count'])
-    vocab_size = int(dataShMemDict['vocab_size'])
-
-    if cslice is None:
-        cslice = (0, doc_range.size - 1)
-    elif cslice[1] is None:
-        cslice = (0, doc_range.size - 1)
-
-    tstart = doc_range[cslice[0]]
-    tstop = doc_range[cslice[1]]
-    Dslice = WordsData(
-        vocab_size=vocab_size,
-        doc_range=doc_range[cslice[0]:cslice[1] + 1] - doc_range[cslice[0]],
-        word_id=word_id[tstart:tstop],
-        word_count=word_count[tstart:tstop],
-        nDoc=cslice[1] - cslice[0],
-        )
-    return Dslice
-
-def makeDataSliceFromSharedMem_NamedTuple(dataShMemDict,
-                               cslice=(0, None),
-                               batchID=None):
-    """ Create data slice from provided raw arrays and slice indicators.
-
-    Returns
-    -------
     Dslice : namedtuple with same fields as WordsData object
         * vocab_size
         * doc_range
@@ -1324,49 +1017,12 @@ def processLine_ldac__fromstring(line):
     --------
     >>> a, b, c = processLine_ldac__fromstring('5 66:6 77:7 88:8')
     >>> print a
-    5
+    5.0
     >>> print b
-    [66 77 88]
+    [ 66.  77.  88.]
     >>> print c
-    [6 7 8]
+    [ 6.  7.  8.]
     """
     line = line.replace(':', ' ')
     data = np.fromstring(line, sep=' ', dtype=np.int32)
     return data[0], data[1::2], data[2::2]
-
-
-def processLine_ldac__fromstring_fillexisting(line, word_id, word_ct, start):
-    """
-    Examples
-    --------
-    >>> word_id = np.zeros(5, dtype=np.int32)
-    >>> word_ct = np.zeros(5, dtype=np.float64)
-    >>> a = processLine_ldac__fromstring_fillexisting(
-    ...    '5 66:6 77:7 88:8',
-    ...    word_id, word_ct, 0)
-    >>> print a
-    5
-    >>> print word_id
-    [66 77 88  0  0]
-    >>> print word_ct
-    [ 6.  7.  8.  0.  0.]
-    """
-    line = line.replace(':', ' ')
-    data = np.fromstring(line, sep=' ', dtype=np.int32)
-    stop = start + (len(data) - 1) // 2
-    if stop >= word_id.size:
-        raise IndexError("Provided array not large enough")    
-    word_id[start:stop] = data[1::2]
-    word_ct[start:stop] = data[2::2]
-    return data[0]
-
-'''
-DEPRECATED
-        if len(Yvals) > 0:
-            Yvals = toCArray(Yvals)
-            if np.allclose(Yvals.sum(),
-                           np.int32(Yvals).sum()):
-                Data.Yb = np.int32(Yvals)
-            else:
-                Data.Yr = Yvals
-'''

@@ -49,6 +49,8 @@ class WordsData(DataObj):
         total size of the corpus
         will differ from nDoc when this dataset represents a
         small minibatch of some larger corpus.
+    response: 1D array, size nDoc
+    	response variable for each document, see Supervised LDA
     TrueParams : None [default], or dict of true parameters.
 
     """
@@ -99,8 +101,8 @@ class WordsData(DataObj):
         Data : WordsData object
         '''
         if hasattr(self,'response'):
-        	print 'Not supported for SLDA.....returning'
-        	return
+        	print 'WARNING: Not supported for SLDA.'
+        	
         doc_sizes = []
         word_id = []
         word_ct = []
@@ -163,8 +165,8 @@ class WordsData(DataObj):
         Data : WordsData object
         """
         if hasattr(self,'response'):
-        	print 'Not supported for SLDA.....returning'
-        	return
+        	print 'WARNING: Not supported for SLDA.'
+
         MatDict = scipy.io.loadmat(matfilepath, **kwargs)
         return cls(vocabfile=vocabfile, **MatDict)
 
@@ -606,9 +608,9 @@ class WordsData(DataObj):
             -------
             WordsData : bnpy WordsData instance, with at most nDoc documents
         '''
-        if hasattr(self,'response'):
-        	print 'Not supported for SLDA.....returning'
-        	return
+        #if hasattr(self,'response'):
+        # 	print 'WARNING: Not supported for SLDA.'
+
         if candidates is None:
             nSamples = np.minimum(self.nDoc, nDoc)
             docMask = randstate.choice(self.nDoc, nSamples, replace=False)
@@ -903,8 +905,8 @@ class WordsData(DataObj):
 		------
 		Data : WordsData object
 		'''
-		print "TODO"
-		return
+		#print "TODO"
+		#return
 		if topic_prior is None:
 			topic_prior = gamma * probs
 		from bnpy.util import RandUtil
@@ -999,8 +1001,8 @@ class WordsData(DataObj):
         Writes state of this dataset to file.
         '''
         if hasattr(self,'response'):
-        	print 'Not supported for SLDA.....returning'
-        	return
+        	print 'WARNING: Not saving response variables'
+
         word_id = self.word_id
         if min_word_index > 0:
             word_id = word_id + min_word_index
@@ -1030,8 +1032,8 @@ class WordsData(DataObj):
         Writes state of this dataset to file.
         '''
         if hasattr(self,'response'):
-        	print 'Not supported for SLDA.....returning'
-        	return
+        	print 'WARNING: Not saving response variables'
+
         word_id = self.word_id
         if min_word_index > 0:
             word_id = word_id + min_word_index
@@ -1084,66 +1086,84 @@ class WordsData(DataObj):
 def makeDataSliceFromSharedMem(dataShMemDict,
                                cslice=(0, None),
                                batchID=None):
-    """ Create data slice from provided raw arrays and slice indicators.
+	""" Create data slice from provided raw arrays and slice indicators.
 
-    Returns
-    -------
-    Dslice : namedtuple with same fields as WordsData object
-        * vocab_size
-        * doc_range
-        * word_id
-        * word_count
-        * nDoc
-        * dim
-        Represents subset of documents identified by cslice tuple.
+	Returns
+	-------
+	Dslice : namedtuple with same fields as WordsData object
+		* vocab_size
+		* doc_range
+		* word_id
+		* word_count
+		* nDoc
+		* dim
+		Represents subset of documents identified by cslice tuple.
 
-    Example
-    -------
-    >>> Data = WordsData.CreateToyDataSimple(nDoc=10)
-    >>> shMemDict = Data.getRawDataAsSharedMemDict()
-    >>> Dslice = makeDataSliceFromSharedMem(shMemDict)
-    >>> np.allclose(Data.doc_range, Dslice.doc_range)
-    True
-    >>> np.allclose(Data.word_id, Dslice.word_id)
-    True
-    >>> Data.vocab_size == Dslice.vocab_size
-    True
-    >>> Aslice = makeDataSliceFromSharedMem(shMemDict, (0, 3))
-    >>> Aslice.nDoc
-    3
-    >>> np.allclose(Aslice.doc_range, Dslice.doc_range[0:4])
-    True
-    """
-    if hasattr(self,'response'):
-        	print 'Not supported for SLDA.....returning'
-        	return
-    if batchID is not None and batchID in dataShMemDict:
-        dataShMemDict = dataShMemDict[batchID]
+	Example
+	-------
+	>>> Data = WordsData.CreateToyDataSimple(nDoc=10)
+	>>> shMemDict = Data.getRawDataAsSharedMemDict()
+	>>> Dslice = makeDataSliceFromSharedMem(shMemDict)
+	>>> np.allclose(Data.doc_range, Dslice.doc_range)
+	True
+	>>> np.allclose(Data.word_id, Dslice.word_id)
+	True
+	>>> Data.vocab_size == Dslice.vocab_size
+	True
+	>>> Aslice = makeDataSliceFromSharedMem(shMemDict, (0, 3))
+	>>> Aslice.nDoc
+	3
+	>>> np.allclose(Aslice.doc_range, Dslice.doc_range[0:4])
+	True
+	"""
+	if hasattr(self,'response'):
+			print 'Not supported for SLDA.....returning'
 
-    # Make local views (NOT copies) to shared mem arrays
-    doc_range = sharedMemToNumpyArray(dataShMemDict['doc_range'])
-    word_id = sharedMemToNumpyArray(dataShMemDict['word_id'])
-    word_count = sharedMemToNumpyArray(dataShMemDict['word_count'])
-    vocab_size = int(dataShMemDict['vocab_size'])
+	if batchID is not None and batchID in dataShMemDict:
+		dataShMemDict = dataShMemDict[batchID]
 
-    if cslice is None:
-        cslice = (0, doc_range.size - 1)
-    elif cslice[1] is None:
-        cslice = (0, doc_range.size - 1)
+	# Make local views (NOT copies) to shared mem arrays
+	doc_range = sharedMemToNumpyArray(dataShMemDict['doc_range'])
+	word_id = sharedMemToNumpyArray(dataShMemDict['word_id'])
+	word_count = sharedMemToNumpyArray(dataShMemDict['word_count'])
+	vocab_size = int(dataShMemDict['vocab_size'])
 
-    tstart = doc_range[cslice[0]]
-    tstop = doc_range[cslice[1]]
-    keys = ['vocab_size', 'doc_range',
-            'word_id', 'word_count', 'nDoc', 'dim']
-    Dslice = namedtuple("WordsDataTuple", keys)(
-        vocab_size=vocab_size,
-        doc_range=doc_range[cslice[0]:cslice[1] + 1] - doc_range[cslice[0]],
-        word_id=word_id[tstart:tstop],
-        word_count=word_count[tstart:tstop],
-        nDoc=cslice[1] - cslice[0],
-        dim=vocab_size,
-    )
-    return Dslice
+	if hasattr(self,'response'):
+		response = sharedMemToNumpyArray(dataShMemDict['resonse'])
+
+	if cslice is None:
+		cslice = (0, doc_range.size - 1)
+	elif cslice[1] is None:
+		cslice = (0, doc_range.size - 1)
+
+	tstart = doc_range[cslice[0]]
+	tstop = doc_range[cslice[1]]
+	keys = ['vocab_size', 'doc_range',
+			'word_id', 'word_count', 'nDoc', 'dim']
+		
+	if hasattr(self,'response'):
+		keys.append('response')
+
+	if not hasattr(self,'response'):	
+		Dslice = namedtuple("WordsDataTuple", keys)(
+			vocab_size=vocab_size,
+			doc_range=doc_range[cslice[0]:cslice[1] + 1] - doc_range[cslice[0]],
+			word_id=word_id[tstart:tstop],
+			word_count=word_count[tstart:tstop],
+			nDoc=cslice[1] - cslice[0],
+			dim=vocab_size,
+		)
+	else:
+		Dslice = namedtuple("WordsDataTuple", keys)(
+		vocab_size=vocab_size,
+		doc_range=doc_range[cslice[0]:cslice[1] + 1] - doc_range[cslice[0]],
+		word_id=word_id[tstart:tstop],
+		word_count=word_count[tstart:tstop],
+		nDoc=cslice[1] - cslice[0],
+		dim=vocab_size,
+		response=response
+	)
+	return Dslice
 
 
 def processLine_ldac__splitandzip(line):
@@ -1160,8 +1180,8 @@ def processLine_ldac__splitandzip(line):
     ('6', '7', '8')
     """
     if hasattr(self,'response'):
-        	print 'Not supported for SLDA.....returning'
-        	return
+        print 'WARNING: Not supported for SLDA'
+
     Fields = line.strip().split(' ')
     nUnique = int(Fields[0])
     doc_word_id, doc_word_ct = zip(
@@ -1182,8 +1202,8 @@ def processLine_ldac__fromstring(line):
     [ 6.  7.  8.]
     """
     if hasattr(self,'response'):
-        	print 'Not supported for SLDA.....returning'
-        	return
+		print 'WARNING: Not supported for SLDA'
+		
     line = line.replace(':', ' ')
     data = np.fromstring(line, sep=' ', dtype=np.int32)
     return data[0], data[1::2], data[2::2]
