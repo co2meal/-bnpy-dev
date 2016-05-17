@@ -417,6 +417,7 @@ def loadTopicModelFromTxtFiles(
 
     if os.path.exists(snapshotPath + "/topics.txt"):
         Mdict['topics'] = np.loadtxt(snapshotPath + "/topics.txt")
+        Mdict['topics'] = as2D(toCArray(Mdict['topics'], dtype=np.float64))
         assert Mdict['topics'].ndim == 2
         assert Mdict['topics'].shape == (K,V)
     else:

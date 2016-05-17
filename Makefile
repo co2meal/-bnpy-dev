@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 EIGENOPTFLAGS=-O3 -ffast-math -DNDEBUG
 
-all: util_entropy libfwdbwd libsparsetopics libsparseresp
+all: util_entropy libfwdbwd libsparsetopics libsparseresp libsparseManyDocs
 
 # Rule: compile C extension via cython for fast calculation of entropy
 util_entropy:
