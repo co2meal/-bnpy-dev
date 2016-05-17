@@ -9,7 +9,7 @@ from bnpy.ioutil.BNPYArgParser import parse_task_ids, arglist_to_kwargs
 from JobFilter import filterJobs
 
 
-def rankTasksForSingleJobOnDisk(joboutpath):
+def rankTasksForSingleJobOnDisk(joboutpath, **kwargs):
     ''' Make files for job allowing rank-based referencing of tasks.
 
     Post Condition
@@ -22,16 +22,9 @@ def rankTasksForSingleJobOnDisk(joboutpath):
         which are each references (symlinks) to tasks in that directory.
     '''
     # First, rank the tasks from best to worst
-    sortedTaskIDs = rankTasksForSingleJob(joboutpath)
+    sortedScores, sortedTaskIDs = rankTasksForSingleJob(joboutpath, **kwargs)
 
-    # If we've sorted these same tasks before, just quit early
-    infotxtfile = os.path.join(joboutpath, '.info-ranking.txt')
-    if os.path.exists(infotxtfile):
-        prevRankedTaskIDs = [int(i) for i in as1D(np.loadtxt(infotxtfile))]
-        curRankedTaskIDs = [int(i) for i in sortedTaskIDs]
-        if len(sortedTaskIDs) == len(prevRankedTaskIDs):
-            if np.allclose(curRankedTaskIDs, prevRankedTaskIDs):
-                return None
+    # TODO If we've sorted these same tasks before, just quit early
 
     # Remove all old hidden rank files
     hiddenFileList = glob.glob(os.path.join(joboutpath, '.*'))
@@ -40,8 +33,6 @@ def rankTasksForSingleJobOnDisk(joboutpath):
             os.unlink(fpath)
 
     # Save record of new info file
-    np.savetxt(infotxtfile, sortedTaskIDs, fmt='%s')
-
     for rankID, taskidstr in enumerate(sortedTaskIDs):
         rankID += 1  # 1 based indexing!
 
@@ -59,28 +50,56 @@ def rankTasksForSingleJobOnDisk(joboutpath):
             if rankID == int(np.ceil(len(sortedTaskIDs) / 2.0)):
                 os.symlink(os.path.join(joboutpath, taskidstr),
                            os.path.join(joboutpath, '.median'))
+    # Return scores and associated task ids, sorted from best to worst
+    return sortedScores, sortedTaskIDs
 
-
-def rankTasksForSingleJob(joboutpath):
+def rankTasksForSingleJob(
+        joboutpath,
+        multiTaskRankOrder='bigtosmall',
+        **kwargs):
     ''' Get list of tasks for job, ranked best-to-worst by final ELBO score
 
     Returns
     ----------
     sortedtaskIDs : list of task names, each entry is an int
     '''
-    taskids = parse_task_ids(joboutpath)
-    # Read in the ELBO score for each task
-    ELBOScores = np.zeros(len(taskids))
+    # Read in the score for each task
+    scores, taskids = scoreTasksForSingleJob(joboutpath, **kwargs)
+    # Sort in descending order, largest to smallest!
+    if multiTaskRankOrder == 'bigtosmall':
+        sortIDs = np.argsort(-1 * scores)
+    else:
+        sortIDs = np.argsort(scores)
+    return scores[sortIDs], [taskids[t] for t in sortIDs]
+
+def scoreTasksForSingleJob(
+        joboutpath,
+        taskids='all',
+        scoreTxtFile='evidence.txt',
+        singleTaskScoreFunc=np.max,
+        extraTxtFileDict=None,
+        **kwargs):
+    ''' Get list of tasks for job, ranked best-to-worst by final ELBO score
+
+    Returns
+    ----------
+    scores : list of scores, each entry is a float
+    taskids : list of ids, each entry is an int
+    '''
+    taskids = parse_task_ids(joboutpath, taskids)
+    # Read in the score for each task
+    scores = np.zeros(len(taskids))
     for tid, taskidstr in enumerate(taskids):
         assert isinstance(taskidstr, str)
-
-        taskELBOTrace = np.loadtxt(os.path.join(joboutpath,
-                                                taskidstr, 'evidence.txt'))
-        ELBOScores[tid] = taskELBOTrace[-1]
-
-    # Sort in descending order, largest to smallest!
-    sortIDs = np.argsort(-1 * ELBOScores)
-    return [taskids[t] for t in sortIDs]
+        scorevec = np.loadtxt(
+            os.path.join(joboutpath, taskidstr, scoreTxtFile))
+        kwargs = dict()
+        if extraTxtFileDict is not None:       
+            for key, xTxtFile in extraTxtFileDict:
+                kwargs[key] = np.loadtxt(
+                    os.path.join(joboutpath, taskidstr, xTxtFile))
+        scores[tid] = singleTaskScoreFunc(scorevec, **kwargs)
+    return scores, taskids
 
 
 def markBestAmongJobPatternOnDisk(jobPattern, key='initname'):

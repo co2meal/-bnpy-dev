@@ -32,7 +32,7 @@ def getPrefixForLapQuery(taskpath, lapQuery):
     try:
         saveLaps = np.loadtxt(os.path.join(taskpath, 'laps-saved-params.txt'))
     except IOError:
-        fileList = glob.glob(os.path.join(taskpath, 'Lap*TopicModel.mat'))
+        fileList = glob.glob(os.path.join(taskpath, 'Lap*Topic*'))
         if len(fileList) == 0:
             fileList = glob.glob(os.path.join(taskpath, 'Lap*.log_prob_w'))
         assert len(fileList) > 0
@@ -390,7 +390,9 @@ def loadTopicModel(
 
 def loadTopicModelFromTxtFiles(
         snapshotPath, returnTPA=False, returnWordCounts=False,
-        normalizeProbs=True, normalizeTopics=True, **kwargs):
+        normalizeProbs=True,
+        normalizeTopics=True,
+        **kwargs):
     ''' Load from snapshot text files.
 
     Returns

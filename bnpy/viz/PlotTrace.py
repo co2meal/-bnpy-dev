@@ -135,6 +135,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                            linewidth=2,
                            linestyle='-',
                            drawLineToXMax=None,
+                           showOnlyAfterLap=0,
                            xvar='laps',
                            **kwargs):
     ''' Create line plot in current figure for each task/run of jobpath
@@ -157,6 +158,8 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
     for tt, taskid in enumerate(taskids):
         xs = None
         ys = None
+        laps = None
+
         try:
             xtxtfile = os.path.join(jobpath, taskid, xvar + '.txt')
             if not os.path.isfile(xtxtfile):
@@ -169,6 +172,11 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                 ytxtfile = os.path.join(
                     jobpath, taskid, yvar + '-saved-params.txt')
             ys = np.loadtxt(ytxtfile)
+
+            if ytxtfile.count('saved-params'):
+                laptxtfile = os.path.join(jobpath, taskid, 'laps-saved-params.txt')
+            else:
+                laptxtfile = os.path.join(jobpath, taskid, 'laps.txt')
         except IOError as e:
             # TODO: when is this code needed?
             # xs, ys = loadXYFromTopicModelFiles(jobpath, taskid)
@@ -181,6 +189,9 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                     # Heldout metrics
                     xs, ys = loadXYFromTopicModelSummaryFiles(
                         jobpath, taskid, xvar=xvar, yvar=yvar)
+                    if showOnlyAfterLap:
+                        laps, _ = loadXYFromTopicModelSummaryFiles(
+                            jobpath, taskid, xvar='laps', yvar=yvar)
             except ValueError:
                 raise e
         if yvar == 'hamming-distance' or yvar == 'Keff':
@@ -225,7 +236,15 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
             mask = xs >= 1.0
             xs = xs[mask]
             ys = ys[mask]
-
+        elif showOnlyAfterLap:
+            # print "Filtering for data recorded at lap >= %s" % (
+            #    showOnlyAfterLap)
+            if laps is None:
+                laps = np.loadtxt(laptxtfile)
+            mask = laps >= showOnlyAfterLap
+            xs = xs[mask]
+            ys = ys[mask]
+            
         # Force plot density (data points per lap) to desired specification
         # This avoids making plots that have huge file sizes,
         # due to too much content in the given display space

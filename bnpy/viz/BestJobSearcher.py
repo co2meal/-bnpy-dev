@@ -4,6 +4,8 @@ import bnpy
 import glob
 import os
 
+import TaskRanker
+
 def makeBestJobPathViaGridSearch(
         jobpathPattern=None,
         wildcard='WILD',
@@ -20,11 +22,10 @@ def makeBestJobPathViaGridSearch(
         os.unlink(LINKtobestjobpath)
     assert os.path.exists(bestjobpath)
     
-    # Make a new symlink
-    os.symlink(bestjobpath, LINKtobestjobpath)
-    print "Made New Directory"
-    print "------------------"
-    print LINKtobestjobpath
+    # Make a new symlink, if we determined a BEST path among several jobs
+    if LINKtobestjobpath.count("BEST"):
+        os.symlink(bestjobpath, LINKtobestjobpath)
+        print "Made New Dir: ", LINKtobestjobpath
 
 def findBestJobViaGridSearch(
         jobpathPattern=None,
@@ -32,7 +33,8 @@ def findBestJobViaGridSearch(
         taskids='all',
         scoreTxtFile='validation-predlik-avgLikScore.txt',
         singleTaskScoreFunc=np.max,
-        multiTaskScoreFunc=np.median,
+        multiTaskRankOrder='bigtosmall',
+        multiTaskScoreFunc=np.max,
         **kwargs):
     ''' Given a wildcard jobpath, find best of all matching jobs
 
@@ -74,6 +76,15 @@ def findBestJobViaGridSearch(
     jobWildDescrList = list()
     jobScores = np.zeros(len(jobpathList))
     for jj, jobpath in enumerate(jobpathList):
+        taskScores, taskids = TaskRanker.rankTasksForSingleJobOnDisk(
+            jobpath, taskids=taskids,
+            scoreTxtFile=scoreTxtFile,
+            singleTaskScoreFunc=singleTaskScoreFunc,
+            multiTaskRankOrder=multiTaskRankOrder,
+            **kwargs)
+        jobScores[jj] = multiTaskScoreFunc(taskScores)
+           
+        '''
         # Loop over the tasks for this job
         taskIDstrList = bnpy.ioutil.BNPYArgParser.parse_task_ids(
             jobpath, taskids)
@@ -82,7 +93,7 @@ def findBestJobViaGridSearch(
             tasktxtfile = os.path.join(jobpath, taskIDstr, scoreTxtFile)
             taskScores[ii] = singleTaskScoreFunc(np.loadtxt(tasktxtfile))
         jobScores[jj] = multiTaskScoreFunc(taskScores)
-
+        '''
         # Pretty print a summary
         jobwildstr = ""
         for varName in wildVarNames:
@@ -100,9 +111,11 @@ def findBestJobViaGridSearch(
         jobWildDescrList.append(jobwildstr[:-1])
 
     bestJobID = np.argmax(jobScores)
-    print "Winner"
-    print "------"
-    print "%.3f %s" % (jobScores[bestJobID], jobWildDescrList[bestJobID])
+    if len(jobScores) > 1:
+        print "Winner"
+        print "------"
+        print "%.3f %s" % (jobScores[bestJobID], jobWildDescrList[bestJobID])
+    print ''
     return jobpathList[bestJobID], jobWildDescrList[bestJobID]
 
 if __name__ == '__main__':
