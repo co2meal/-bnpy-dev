@@ -68,6 +68,7 @@ class MemoVBMovesAlg(LearnAlg):
         # Custom func hook
         self.eval_custom_func(
             isInitial=1, **makeDictOfAllWorkspaceVars(**vars()))
+        ElapsedTimeLogger.writeToLogOnLapCompleted(lapFrac)
 
         # Begin loop over batches of data...
         SS = None
@@ -97,7 +98,7 @@ class MemoVBMovesAlg(LearnAlg):
                 if SS is not None and SS.hasSelectionTerms():
                     SS._SelectTerms.setAllFieldsToZero()
             MovePlans = self.makeMovePlans(
-                hmodel, SS, 
+                hmodel, SS,
                 MovePlans=MovePlans,
                 MoveRecordsByUID=MoveRecordsByUID,
                 lapFrac=lapFrac)
@@ -129,10 +130,8 @@ class MemoVBMovesAlg(LearnAlg):
             hmodel, didUpdate = self.globalStep(hmodel, SS, lapFrac)
 
             # ELBO calculation
-            ElapsedTimeLogger.startEvent('global', 'ev')
             Lscore = hmodel.calc_evidence(
-                SS=SS, afterGlobalStep=didUpdate)
-            ElapsedTimeLogger.stopEvent('global', 'ev')
+                SS=SS, afterGlobalStep=didUpdate, doLogElapsedTime=True)
 
             # Birth moves!
             if self.hasMove('birth') and hasattr(SS, 'propXSS'):
@@ -274,21 +273,19 @@ class MemoVBMovesAlg(LearnAlg):
 
         # Do the real work here: calc local params
         # Pass lap and batch info so logging happens
-        ElapsedTimeLogger.startEvent('local', 'update')
         LPbatch = curModel.calc_local_params(Dbatch, 
-            lapFrac=lapFrac, batchID=batchID, **LPkwargs)
-        ElapsedTimeLogger.stopEvent('local', 'update')
+            lapFrac=lapFrac, batchID=batchID,
+            doLogElapsedTime=True, **LPkwargs)
         # Summary time!
-        ElapsedTimeLogger.startEvent('local', 'summary')
         SSbatch = curModel.get_global_suff_stats(
             Dbatch, LPbatch,
             doPrecompEntropy=1,
             doTrackTruncationGrowth=1,
+            doLogElapsedTime=True,
             trackDocUsage=trackDocUsage,
             **MovePlans)
         if 'm_UIDPairs' in MovePlans:
             SSbatch.setMergeUIDPairs(MovePlans['m_UIDPairs'])
-        ElapsedTimeLogger.stopEvent('local', 'summary')
 
         if SS is not None:
             # Force newest stats to have same unique ids as whole stats
@@ -524,22 +521,20 @@ class MemoVBMovesAlg(LearnAlg):
         ---------
         hmodel global parameters updated in place.
         '''
-        ElapsedTimeLogger.startEvent('global', 'update')
         doFullPass = self.algParams['doFullPassBeforeMstep']
         didUpdate = False
         if self.algParams['doFullPassBeforeMstep'] == 1:
             if lapFrac >= 1.0:
-                hmodel.update_global_params(SS)
+                hmodel.update_global_params(SS, doLogElapsedTime=True)
                 didUpdate = True
         elif doFullPass > 1.0:
             if lapFrac >= 1.0 or (doFullPass < SS.nDoc):
                 # update if we've seen specified num of docs, not before
-                hmodel.update_global_params(SS)
+                hmodel.update_global_params(SS, doLogElapsedTime=True)
                 didUpdate = True
         else:
-            hmodel.update_global_params(SS)
+            hmodel.update_global_params(SS, doLogElapsedTime=True)
             didUpdate = True
-        ElapsedTimeLogger.stopEvent('global', 'update')
         return hmodel, didUpdate
 
     def makeMovePlans(self, hmodel, SS,
