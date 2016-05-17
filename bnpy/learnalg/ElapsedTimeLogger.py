@@ -11,7 +11,7 @@ StartTimesDict = defaultdict(lambda: defaultdict(float))
 CurrentLapTimesDict = defaultdict(lambda: defaultdict(float))
 
 EVENTNAMES = [
-    'all', 'local', 'global', 'io']
+    'all', 'local', 'global', 'io', 'callback']
 
 def startEvent(eventName, subeventName='', level=logging.DEBUG):
     ''' 

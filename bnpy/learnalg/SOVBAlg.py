@@ -6,7 +6,7 @@ Implementation of stochastic online VB (soVB) for bnpy models
 import numpy as np
 from LearnAlg import LearnAlg
 from LearnAlg import makeDictOfAllWorkspaceVars
-
+import ElapsedTimeLogger
 
 class SOVBAlg(LearnAlg):
 
@@ -50,6 +50,7 @@ class SOVBAlg(LearnAlg):
         # Custom func hook
         self.eval_custom_func(
             isInitial=1, **makeDictOfAllWorkspaceVars(**vars()))
+        ElapsedTimeLogger.writeToLogOnLapCompleted(lapFrac)
 
         if self.algParams['doMemoELBO']:
             SStotal = None
@@ -74,12 +75,15 @@ class SOVBAlg(LearnAlg):
             # E step
             self.algParamsLP['batchID'] = batchID
             self.algParamsLP['lapFrac'] = lapFrac  # logging
-            LP = hmodel.calc_local_params(Dchunk, **self.algParamsLP)
+            LP = hmodel.calc_local_params(Dchunk, 
+                doLogElapsedTime=True,
+                **self.algParamsLP)
 
             rho = (1 + iterid + self.rhodelay) ** (-1.0 * self.rhoexp)
             if self.algParams['doMemoELBO']:
                 # SS step. Scale at size of current batch.
                 SS = hmodel.get_global_suff_stats(Dchunk, LP,
+                                                  doLogElapsedTime=True,
                                                   doPrecompEntropy=True)
                 # Incremental updates for whole-dataset stats
                 # Must happen before applification.
@@ -99,15 +103,17 @@ class SOVBAlg(LearnAlg):
                     ampF = Dchunk.nObsTotal / float(Dchunk.nObs)
                     SS.applyAmpFactor(ampF)
                 # M step with learning rate
-                hmodel.update_global_params(SS, rho)
+                hmodel.update_global_params(SS, rho, doLogElapsedTime=True)
                 # ELBO step
                 assert not SStotal.hasAmpFactor()
                 evBound = hmodel.calc_evidence(
                     SS=SStotal,
+                    doLogElapsedTime=True,
                     afterGlobalStep=not self.algParams['useSlackTermsInELBO'])
             else:
                 # SS step. Scale at size of current batch.
-                SS = hmodel.get_global_suff_stats(Dchunk, LP)
+                SS = hmodel.get_global_suff_stats(Dchunk, LP,
+                    doLogElapsedTime=True)
 
                 # Scale up to size of whole dataset.
                 if hasattr(Dchunk, 'nDoc'):
@@ -118,11 +124,12 @@ class SOVBAlg(LearnAlg):
                     SS.applyAmpFactor(ampF)
 
                 # M step with learning rate
-                hmodel.update_global_params(SS, rho)
+                hmodel.update_global_params(SS, rho, doLogElapsedTime=True)
 
                 # ELBO step
                 assert SS.hasAmpFactor()
-                EvChunk = hmodel.calc_evidence(Dchunk, SS, LP)
+                EvChunk = hmodel.calc_evidence(
+                    Dchunk, SS, LP, doLogElapsedTime=True)
                 if EvMemory[batchID] != 0:
                     EvRunningSum -= EvMemory[batchID]
                 EvRunningSum += EvChunk
@@ -141,6 +148,9 @@ class SOVBAlg(LearnAlg):
                 self.saveParams(lapFrac, hmodel, tryToSparsifyOutput=1)
                 # don't save SS here, since its for one batch only
             self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
+
+            if self.isLastBatch(lapFrac):
+                ElapsedTimeLogger.writeToLogOnLapCompleted(lapFrac)
             # .... end loop over data
 
         # Finished! Save, print and exit

@@ -401,7 +401,8 @@ class LearnAlg(object):
     def isLastBatch(self, lapFrac):
         ''' Returns True/False if at last batch in the current lap.
         '''
-        return lapFrac % 1 == 0
+        lapRem = np.abs(lapFrac - np.round(lapFrac))
+        return np.allclose(lapRem, 0.0, rtol=0, atol=1e-8)
 
     def do_birth_at_lap(self, lapFrac):
         ''' Returns True/False for whether birth happens at given lap
@@ -423,9 +424,13 @@ class LearnAlg(object):
     def eval_custom_func(self, isFinal=0, isInitial=0, lapFrac=0, **kwargs):
         ''' Evaluates a custom hook function
         '''
+
         cFuncPath = self.outputParams['customFuncPath']
         if cFuncPath is None or cFuncPath == 'None':
             return None
+
+        cbName = str(cFuncPath)
+        ElapsedTimeLogger.startEvent('callback', cbName)
 
         cFuncArgs_string = self.outputParams['customFuncArgs']
         nLapTotal = self.algParams['nLap']
@@ -467,6 +472,7 @@ class LearnAlg(object):
         if hasattr(cFuncModule, 'onAlgorithmComplete') \
            and isFinal:
             cFuncModule.onAlgorithmComplete(args=cFuncArgs_string, **kwargs)
+        ElapsedTimeLogger.stopEvent('callback', cbName)
 
     def saveDebugStateAtBatch(self, name, batchID, LPchunk=None, SS=None,
                               SSchunk=None, hmodel=None,
