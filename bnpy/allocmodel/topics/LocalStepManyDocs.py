@@ -128,10 +128,10 @@ def calcLocalParams(
                 #tstart = time.time()
                 DocTopicCount[d, :] = wc_d * init_spR[Data.word_id[start:stop]]
                 #telapsed += time.time() - tstart
-
         if not DO_DENSE:
             m_start = nnzPerRowLP * start
             m_stop = nnzPerRowLP * stop
+            
             # SPARSE RESP
             calcSparseLocalParams_SingleDoc(
                 wc_d,

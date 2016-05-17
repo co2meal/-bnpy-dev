@@ -35,6 +35,7 @@ class MemoVBMovesAlg(LearnAlg):
         # birth / merge / delete records
         LearnAlg.__init__(self, **kwargs)
         self.SSmemory = dict()
+        self.LPmemory = dict()
         self.LastUpdateLap = dict()
 
     def makeNewUIDs(self, nMoves=1, b_Kfresh=0, **kwargs):
@@ -55,6 +56,7 @@ class MemoVBMovesAlg(LearnAlg):
         hmodel updated in place with improved global parameters.
         '''
         self.set_start_time_now()
+        self.memoLPkeys = hmodel.allocModel.get_keys_for_memoized_local_params()
 
         origmodel = hmodel
         self.maxUID = hmodel.obsModel.K - 1
@@ -271,11 +273,19 @@ class MemoVBMovesAlg(LearnAlg):
             if self.algParams['birth']['b_debugWriteHTML']:
                 trackDocUsage = 1
 
+        if self.algParams['doMemoizeLocalParams'] and batchID in self.LPmemory:
+            oldbatchLP = self.load_batch_local_params_from_memory(batchID)
+        else:
+            oldbatchLP = None
+
         # Do the real work here: calc local params
         # Pass lap and batch info so logging happens
-        LPbatch = curModel.calc_local_params(Dbatch, 
+        LPbatch = curModel.calc_local_params(Dbatch, oldbatchLP,
             lapFrac=lapFrac, batchID=batchID,
             doLogElapsedTime=True, **LPkwargs)
+
+        if self.algParams['doMemoizeLocalParams']:
+            self.save_batch_local_params_to_memory(batchID, LPbatch)
         # Summary time!
         SSbatch = curModel.get_global_suff_stats(
             Dbatch, LPbatch,
@@ -399,6 +409,36 @@ class MemoVBMovesAlg(LearnAlg):
                 )
             ElapsedTimeLogger.stopEvent('delete', 'localexpansion')
         return SSbatch
+
+    def load_batch_local_params_from_memory(self, batchID, doCopy=0):
+        ''' Load local parameter dict stored in memory for provided batchID
+
+        TODO: Fastforward so recent truncation changes are accounted for.
+
+        Returns
+        -------
+        batchLP : dict of local parameters specific to batchID
+        '''
+        batchLP = self.LPmemory[batchID]
+        if doCopy:
+            # Duplicating to avoid changing the raw data stored in LPmemory
+            # Usually for debugging only
+            batchLP = copy.deepcopy(batchLP)
+        return batchLP
+
+    def save_batch_local_params_to_memory(self, batchID, batchLP):
+        ''' Store certain fields of the provided local parameters dict
+              into "memory" for later retrieval.
+            Fields to save determined by the memoLPkeys attribute of this alg.
+        '''
+        batchLP = dict(**batchLP) # make a copy
+        allkeys = batchLP.keys()
+        for key in allkeys:
+            if key not in self.memoLPkeys:
+                del batchLP[key]
+        if len(batchLP.keys()) > 0:
+            self.LPmemory[batchID] = batchLP
+
 
     def incrementWholeDataSummary(
             self, SS, SSbatch, oldSSbatch,

@@ -627,14 +627,36 @@ double tryRestartsForDoc(
     // Find active topics eligible for sparse restart
     int nAccept = 0;
     int nTrial = 0;
-    double SMALL_THR = 1e-15;
+    
+    double CANDIDATE_THR = 1e-10;
     double curELBO = 0.0;
     double totalLogSumResp = 0.0;
     prevTopicCount_d.fill(0);
-    if (verbose > 1) {
-        printf("SPARSE RESTARTS at doc %d!!\n", d);
+    if (verbose > 1 && d < 10) {
+        printf("\nSPARSE RESTARTS at doc %d!!\n", d);
     }
     for (int riter = 0; riter < numRestarts; riter++) {
+        // Seach for smallest topic we have yet to try
+        double minVal = N_d + 1.0; // Will never be a value in topicCount
+        int numAboveThr = 0;
+        int chosenTopicID = -1;
+        for (int ka = 0; ka < Kactive; ka++) {
+            int k = activeTopics_d(ka);
+            if (topicCount(d, k) > CANDIDATE_THR) {
+                numAboveThr += 1;
+                if (topicCount(d, k) < minVal) {
+                    minVal = topicCount(d, k);
+                    chosenTopicID = k;
+                }
+            }
+        }
+
+        // Need at least two topics with non-neglible size to try restarting.
+        // Otherwise, we should just quit
+        if (numAboveThr <= 1 || chosenTopicID < 0) {
+            break;
+        }
+
         if (riter == 0) {
             totalLogSumResp = updateAssignmentsForDoc_ReviseActiveSetDupOK(
                 d, start_d, N_d, nnzPerRow, Kactive,
@@ -652,24 +674,8 @@ double tryRestartsForDoc(
                 prevTopicCount_d(k) = topicCount(d, k);
             }
         }
-        // SEARCH FOR SMALLEST TOPIC HAVE NOT YET TRIED YET
-        int numAboveThr = 0;
-        double minVal = N_d + 1.0; // Will never be a value in topicCount
-        int minLoc = 0;
-        for (int ka = 0; ka < Kactive; ka++) {
-            int k = activeTopics_d(ka);
-            if (topicCount(d, k) > SMALL_THR) {
-                numAboveThr += 1;
-                if (topicCount(d, k) < minVal) {
-                    minVal = topicCount(d, k);
-                    minLoc = k;
-                }
-            }
-        }
-        if (numAboveThr == 1) {
-            break;
-        }
-        if (verbose > 1) {
+
+        if (verbose > 1 && d < 10) {
             printf("START: best known counts. ELBO=%.5e \n", curELBO);
             for (int ka = 0; ka < Kactive; ka++) {
                 int k = activeTopics_d(ka);
@@ -677,13 +683,13 @@ double tryRestartsForDoc(
             }
             printf("\n");
         }
-        SMALL_THR = minVal;
+
         // Force chosen topic to zero
-        topicCount(d, minLoc) = 0.0;
-        if (verbose > 1) {        
+        topicCount(d, chosenTopicID) = 0.0;
+        if (verbose > 1 && d < 10) {        
             printf(
                 "RESTART: Set index %d to zero (%d left)\n", 
-                minLoc, numAboveThr - 1);
+                chosenTopicID, numAboveThr - 1);
             for (int ka = 0; ka < Kactive; ka++) {
                 int k = activeTopics_d(ka);
                 printf("%02d:%06.2f ", k, topicCount(d, k));
@@ -702,14 +708,14 @@ double tryRestartsForDoc(
         }
         // If the change is small, abandon current proposal
         double propELBO;
-        if (abs(prevTopicCount_d(minLoc) - topicCount(d, minLoc)) < 1e-5) {
+        if (abs(prevTopicCount_d(chosenTopicID) - topicCount(d, chosenTopicID)) < 1e-5) {
             propELBO = curELBO;
         } else {
             propELBO = calcELBOForDoc(d, alphaEbeta, topicCount,
                 ElogProb_d, activeTopics_d,
                 totalLogSumResp, sum_gammalnalphaEbeta, Kactive);
         }
-        if (verbose > 1) {
+        if (verbose > 1 && d < 10) {
             for (int ka = 0; ka < Kactive; ka++) {
                 int k = activeTopics_d(ka);
                 printf("%02d:%06.2f ", k, topicCount(d, k));
@@ -718,13 +724,17 @@ double tryRestartsForDoc(
             printf("propELBO % .6e\n", propELBO);
             printf(" curELBO % .6e\n", curELBO);
             if (propELBO > curELBO) {
-                printf("beforeCount: %.6f\n", prevTopicCount_d(minLoc));
-                printf(" afterCount: %.6f\n", topicCount(d, minLoc));
+                printf("beforeCount: %.6f\n", prevTopicCount_d(chosenTopicID));
+                printf(" afterCount: %.6f\n", topicCount(d, chosenTopicID));
                 printf("gainELBO % .6e ACCEPTED \n", propELBO - curELBO);
             } else {
                 printf("gainELBO % .6e rejected \n", propELBO - curELBO);
             }
         }
+
+        // Reset threshold for which topic to choose next
+        CANDIDATE_THR = prevTopicCount_d(chosenTopicID);
+
         // If accepted, set current best doc-topic counts to latest proposal
         // Otherwise, reset the starting point for the next proposal.
         if (propELBO > curELBO) {
@@ -741,6 +751,13 @@ double tryRestartsForDoc(
             }
         }
         nTrial += 1;
+
+        if (verbose > 1 && d < 10) {
+            printf("topicCount(d,k) = %.5e\n", topicCount(d,chosenTopicID));
+            printf("prevTopicCount(d,k) = %.5e\n", prevTopicCount_d(chosenTopicID));
+            printf("NEW THR = %.5e\n", CANDIDATE_THR);
+        }
+
     } // end loop over restarts
 
 
@@ -873,7 +890,7 @@ void sparseLocalStepManyDocs_ActiveOnly(
             tempScores_n,
             termResp_data,
             termResp_colids);
-        if (verbose) {
+        if (verbose > 0) {
             printf("Precalculated Topics-by-term\n");
             for (int v = 0; v < 5; v++) {
                 printf("term %06d ", v);
@@ -1011,7 +1028,7 @@ void sparseLocalStepManyDocs_ActiveOnly(
                     }
                 }
             }
-            if (verbose > 1) {
+            if (verbose > 2) {
                 printf("iter %3d doRevise %d Kactive %4d maxDiff %11.6f\n",
                     iter, doReviseActiveSet, Kactive, maxDiff);
                 printf("  ");
@@ -1022,7 +1039,7 @@ void sparseLocalStepManyDocs_ActiveOnly(
                 printf("\n");
             }
             if (maxDiff <= convThrLP) {
-                if (verbose > 1) {
+                if (verbose > 2) {
                     printf("EARLY EXIT! maxDiff < %11.6f\n", convThrLP);
                 }
                 break;

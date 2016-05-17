@@ -53,7 +53,21 @@ def sparseLocalStep_WordCountData(
         nRAcceptVec = np.zeros(1, dtype=np.int32)
     assert maxDiffVec.dtype == np.float64
     assert numIterVec.dtype == np.int32
-    
+
+    # Handle starting from memoized doc-topic counts
+    if initDocTopicCountLP == 'memo':
+        if 'DocTopicCount' in LP:
+            DocTopicCount = LP['DocTopicCount']
+        else:
+            initDocTopicCountLP = 'setDocProbsToEGlobalProbs'
+
+    # Allow sparse restarts ONLY on first pass through dataset
+    if restartLP > 1:
+        if 'lapFrac' in kwargs and kwargs['lapFrac'] <= 1.0:
+            restartLP = 1
+        else:
+            restartLP = 0
+
     # Use provided DocTopicCount array if its the right size
     # Otherwise, create a new one from scratch
     TopicCount_OUT = None
@@ -95,6 +109,7 @@ def sparseLocalStep_WordCountData(
         reviseActiveFirstLP,
         reviseActiveEveryLP,
         verboseLP)
+
     # Package results up into dict
     if not isinstance(LP, dict):
         LP = dict()

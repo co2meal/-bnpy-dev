@@ -92,6 +92,15 @@ def calcLocalParams_SingleDoc(
         prevDocTopicCount_d[:] = DocTopicCount_d
 
     Info = dict(maxDiff=maxDiff, iter=iter)
+
+
+    # Allow sparse restarts ONLY on first pass through dataset
+    if restartLP > 1:
+        if 'lapFrac' in kwargs and kwargs['lapFrac'] <= 1.0:
+            restartLP = 1
+        else:
+            restartLP = 0
+
     if restartLP:
         DocTopicCount_d, DocTopicProb_d, sumResp_d, RInfo = \
             removeJunkTopics_SingleDoc(
