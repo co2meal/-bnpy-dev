@@ -5,6 +5,7 @@ import numpy as np
 import multiprocessing
 import os
 import ElapsedTimeLogger 
+import scipy.sparse
 
 from collections import defaultdict
 
@@ -21,6 +22,7 @@ from bnpy.mergemove import selectCandidateMergePairs, ELBO_GAP_ACCEPT_TOL
 from bnpy.deletemove import DLogger, selectCandidateDeleteComps
 from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
 from bnpy.util import argsort_bigtosmall_stable
+from bnpy.util.SparseRespUtil import sparsifyResp
 from LearnAlg import makeDictOfAllWorkspaceVars
 from LearnAlg import LearnAlg
 from SharedMemWorker import SharedMemWorker
@@ -285,7 +287,7 @@ class MemoVBMovesAlg(LearnAlg):
             doLogElapsedTime=True, **LPkwargs)
 
         if self.algParams['doMemoizeLocalParams']:
-            self.save_batch_local_params_to_memory(batchID, LPbatch)
+            self.save_batch_local_params_to_memory(batchID, LPbatch, Dbatch)
         # Summary time!
         SSbatch = curModel.get_global_suff_stats(
             Dbatch, LPbatch,
@@ -420,13 +422,26 @@ class MemoVBMovesAlg(LearnAlg):
         batchLP : dict of local parameters specific to batchID
         '''
         batchLP = self.LPmemory[batchID]
+        if isinstance(batchLP, str):
+            ElapsedTimeLogger.startEvent('io', 'loadlocal')
+            batchLPpath = os.path.abspath(batchLP)
+            assert os.path.exists(batchLPpath)
+            F = np.load(batchLPpath)
+            indptr = np.arange(
+                0, (F['D']+1)*F['nnzPerDoc'],
+                F['nnzPerDoc'])
+            batchLP = dict()
+            batchLP['DocTopicCount'] = scipy.sparse.csr_matrix(
+                (F['data'], F['indices'], indptr),
+                shape=(F['D'], F['K'])).toarray()
+            ElapsedTimeLogger.stopEvent('io', 'loadlocal')
         if doCopy:
             # Duplicating to avoid changing the raw data stored in LPmemory
             # Usually for debugging only
             batchLP = copy.deepcopy(batchLP)
         return batchLP
 
-    def save_batch_local_params_to_memory(self, batchID, batchLP):
+    def save_batch_local_params_to_memory(self, batchID, batchLP, batchData):
         ''' Store certain fields of the provided local parameters dict
               into "memory" for later retrieval.
             Fields to save determined by the memoLPkeys attribute of this alg.
@@ -437,8 +452,35 @@ class MemoVBMovesAlg(LearnAlg):
             if key not in self.memoLPkeys:
                 del batchLP[key]
         if len(batchLP.keys()) > 0:
-            self.LPmemory[batchID] = batchLP
-
+            if self.algParams['doMemoizeLocalParams'] == 1:
+                self.LPmemory[batchID] = batchLP
+            elif self.algParams['doMemoizeLocalParams'] == 2:
+                ElapsedTimeLogger.startEvent('io', 'savelocal')
+                spDTC = sparsifyResp(
+                    batchLP['DocTopicCount'],
+                    self.algParams['nnzPerDocForStorage'])
+                wc_D = batchLP['DocTopicCount'].sum(axis=1)
+                wc_U = np.repeat(wc_D, self.algParams['nnzPerDocForStorage'])
+                spDTC.data *= wc_U
+                savepath = self.savedir.replace(os.environ['BNPYOUTDIR'], '')
+                if os.path.exists('/ltmp/'):
+                    savepath = '/ltmp/%s/' % (savepath)
+                else:
+                    savepath = '/tmp/%s/' % (savepath)
+                from distutils.dir_util import mkpath
+                mkpath(savepath)
+                savepath = os.path.join(savepath, 'batch%d.npz' % (batchID))
+                # Now actually save it!
+                np.savez(savepath,
+                    data=spDTC.data,
+                    indices=spDTC.indices,
+                    D=spDTC.shape[0],
+                    K=spDTC.shape[1],
+                    nnzPerDoc=spDTC.indptr[1])
+                self.LPmemory[batchID] = savepath
+                del batchLP
+                del spDTC
+                ElapsedTimeLogger.stopEvent('io', 'savelocal')
 
     def incrementWholeDataSummary(
             self, SS, SSbatch, oldSSbatch,
