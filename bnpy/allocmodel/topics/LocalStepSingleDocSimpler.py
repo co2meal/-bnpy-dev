@@ -429,7 +429,8 @@ if __name__ == '__main__':
 
         keypress = raw_input("Press any key for next plot >>>")
         if keypress.count("embed"):
-            from IPython import embed; embed()
+            from IPython import embed;
+            embed()
         elif keypress.count("exit"):
             break
         if (d + 1) % 25 == 0:
