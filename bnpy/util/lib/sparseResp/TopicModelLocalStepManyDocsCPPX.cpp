@@ -632,8 +632,15 @@ double tryRestartsForDoc(
     double curELBO = 0.0;
     double totalLogSumResp = 0.0;
     prevTopicCount_d.fill(0);
-    if (verbose > 1 && d < 10) {
+    if (verbose > 1 && d < 1) {
         printf("\nSPARSE RESTARTS at doc %d!!\n", d);
+    }
+    if (verbose > 1 && d < 1) {
+        for (int ka = 0; ka < Kactive; ka++) {
+            int k = activeTopics_d(ka);
+            printf(" %03d:%06.2f", k, topicCount(d,k));
+        }
+        printf("\n");
     }
     for (int riter = 0; riter < numRestarts; riter++) {
         // Seach for smallest topic we have yet to try
@@ -675,7 +682,7 @@ double tryRestartsForDoc(
             }
         }
 
-        if (verbose > 1 && d < 10) {
+        if (verbose > 1 && d < 1) {
             printf("START: best known counts. ELBO=%.5e \n", curELBO);
             for (int ka = 0; ka < Kactive; ka++) {
                 int k = activeTopics_d(ka);
@@ -686,7 +693,7 @@ double tryRestartsForDoc(
 
         // Force chosen topic to zero
         topicCount(d, chosenTopicID) = 0.0;
-        if (verbose > 1 && d < 10) {        
+        if (verbose > 1 && d < 1) {        
             printf(
                 "RESTART: Set index %d to zero (%d left)\n", 
                 chosenTopicID, numAboveThr - 1);
@@ -715,7 +722,7 @@ double tryRestartsForDoc(
                 ElogProb_d, activeTopics_d,
                 totalLogSumResp, sum_gammalnalphaEbeta, Kactive);
         }
-        if (verbose > 1 && d < 10) {
+        if (verbose > 1 && d < 1) {
             for (int ka = 0; ka < Kactive; ka++) {
                 int k = activeTopics_d(ka);
                 printf("%02d:%06.2f ", k, topicCount(d, k));
@@ -752,7 +759,7 @@ double tryRestartsForDoc(
         }
         nTrial += 1;
 
-        if (verbose > 1 && d < 10) {
+        if (verbose > 1 && d < 1) {
             printf("topicCount(d,k) = %.5e\n", topicCount(d,chosenTopicID));
             printf("prevTopicCount(d,k) = %.5e\n", prevTopicCount_d(chosenTopicID));
             printf("NEW THR = %.5e\n", CANDIDATE_THR);
@@ -760,8 +767,7 @@ double tryRestartsForDoc(
 
     } // end loop over restarts
 
-
-    if (numRestarts > 0) {
+    if (numRestarts > 0 && nTrial > 0) {
         rAcceptVec(0) += nAccept;
         rTrialVec(0) += nTrial;
         for (int ka = 0; ka < Kactive; ka++) {
@@ -913,6 +919,10 @@ void sparseLocalStepManyDocs_ActiveOnly(
 
     // Visit each document and update its spResp (and corresponding topicCount)
     for (int d = 0; d < D; d++) {
+        if (verbose == 2 && d < 1) {
+            printf("\nSTANDARD INFERENCE AT DOC %d\n", d);
+        }
+
         int start_d = doc_range(d);
         int N_d = doc_range(d+1) - doc_range(d);
 
@@ -1037,13 +1047,13 @@ void sparseLocalStepManyDocs_ActiveOnly(
                 }
             }
 
-            if (verbose > 2) {
-                printf("iter %3d doRevise %d Kactive %4d maxDiff %11.6f\n",
-                    iter, doReviseActiveSet, Kactive, maxDiff);
+            if (verbose == 2 && d < 1) {
+                printf("d %3d iter %3d doRevise %d Kactive %4d maxDiff %11.6f\n",
+                    d, iter, doReviseActiveSet, Kactive, maxDiff);
                 printf("  ");
                 for (int ka = 0; ka < Kactive; ka++) {
                     int k = activeTopics_d(ka);
-                    printf("%d:%5.1f ", k, topicCount(d,k));
+                    printf("%02d:%06.2f ", k, topicCount(d,k));
                 }
                 printf("\n");
             }
