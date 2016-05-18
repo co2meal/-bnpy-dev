@@ -939,6 +939,14 @@ void sparseLocalStepManyDocs_ActiveOnly(
                 spareActiveTopics_d,
                 ACTIVE_THR,
                 K, nnzPerRow);
+        } else if (initProbsToEbeta == 0) {
+             Kactive = updateActiveSetForDocFromScratch(
+                 d,
+                 topicCount,
+                 activeTopics_d,
+                 spareActiveTopics_d,
+                 ACTIVE_THR,
+                 K, nnzPerRow);
         } else {
             // Initialize active set to ALL topics    
             Kactive = K;
@@ -950,7 +958,7 @@ void sparseLocalStepManyDocs_ActiveOnly(
         for (iter = 0; iter < nCoordAscentIterLP; iter++) {
             //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
             // DETERMINE CURRENT ACTIVE SET
-            if (nnzPerRow > 1 && Kactive <= nnzPerRow) {
+            if (iter > 0 && nnzPerRow > 1 && Kactive <= nnzPerRow) {
                 // Set of active docs is already as small as can be,
                 // so nothing to gain from revising
                 doReviseActiveSet = 0;
@@ -1028,6 +1036,7 @@ void sparseLocalStepManyDocs_ActiveOnly(
                     }
                 }
             }
+
             if (verbose > 2) {
                 printf("iter %3d doRevise %d Kactive %4d maxDiff %11.6f\n",
                     iter, doReviseActiveSet, Kactive, maxDiff);
