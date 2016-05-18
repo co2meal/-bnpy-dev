@@ -91,15 +91,20 @@ def scoreTasksForSingleJob(
     scores = np.zeros(len(taskids))
     for tid, taskidstr in enumerate(taskids):
         assert isinstance(taskidstr, str)
-        scorevec = np.loadtxt(
-            os.path.join(joboutpath, taskidstr, scoreTxtFile))
+        try:
+            scorevec = np.loadtxt(
+                os.path.join(joboutpath, taskidstr, scoreTxtFile))
+        except IOError as e:
+            scores[tid] = np.nan
+            continue
         kwargs = dict()
         if extraTxtFileDict is not None:       
             for key, xTxtFile in extraTxtFileDict:
                 kwargs[key] = np.loadtxt(
                     os.path.join(joboutpath, taskidstr, xTxtFile))
         scores[tid] = singleTaskScoreFunc(scorevec, **kwargs)
-    return scores, taskids
+    mask = np.flatnonzero(np.isfinite(scores))
+    return scores[mask], np.asarray(taskids)[mask].tolist()
 
 
 def markBestAmongJobPatternOnDisk(jobPattern, key='initname'):

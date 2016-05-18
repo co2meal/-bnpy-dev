@@ -25,7 +25,6 @@ def makeBestJobPathViaGridSearch(
     # Make a new symlink, if we determined a BEST path among several jobs
     if LINKtobestjobpath.count("BEST"):
         os.symlink(bestjobpath, LINKtobestjobpath)
-        print "Made New Dir: ", LINKtobestjobpath
 
 def findBestJobViaGridSearch(
         jobpathPattern=None,
@@ -64,7 +63,6 @@ def findBestJobViaGridSearch(
         key = key[:key.index('=')]
         wildVarNames.append(key)
         start = wcloc + 1
-    print "Grid search over field names: ", wildVarNames
 
     jobpathList = [jpath for jpath in 
         sorted(glob.glob(jobpathPattern.replace(wildcard, '*')))
@@ -107,15 +105,9 @@ def findBestJobViaGridSearch(
                 stop = len(jobpath)
             kvstr = jobpath[start:stop]
             jobwildstr += kvstr + "-"
-        print "%.3f %s" % (jobScores[jj], jobwildstr)
         jobWildDescrList.append(jobwildstr[:-1])
 
     bestJobID = np.argmax(jobScores)
-    if len(jobScores) > 1:
-        print "Winner"
-        print "------"
-        print "%.3f %s" % (jobScores[bestJobID], jobWildDescrList[bestJobID])
-    print ''
     return jobpathList[bestJobID], jobWildDescrList[bestJobID]
 
 if __name__ == '__main__':
