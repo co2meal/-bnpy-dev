@@ -3,10 +3,14 @@ SOVBAlg.py
 
 Implementation of stochastic online VB (soVB) for bnpy models
 '''
+import os
 import numpy as np
+import scipy.sparse
+
 from LearnAlg import LearnAlg
 from LearnAlg import makeDictOfAllWorkspaceVars
 import ElapsedTimeLogger
+from bnpy.util.SparseRespUtil import sparsifyResp
 
 class SOVBAlg(LearnAlg):
 
@@ -17,6 +21,7 @@ class SOVBAlg(LearnAlg):
         super(type(self), self).__init__(**kwargs)
         self.rhodelay = self.algParams['rhodelay']
         self.rhoexp = self.algParams['rhoexp']
+        self.LPmemory = dict()
 
     def fit(self, hmodel, DataIterator, SS=None):
         ''' Run stochastic variational to fit hmodel parameters to Data.
@@ -75,16 +80,22 @@ class SOVBAlg(LearnAlg):
             # E step
             self.algParamsLP['batchID'] = batchID
             self.algParamsLP['lapFrac'] = lapFrac  # logging
-            LP = hmodel.calc_local_params(Dchunk, 
+            if batchID in self.LPmemory:
+                batchLP = self.load_batch_local_params_from_memory(batchID)
+            else:
+                batchLP = None
+            LP = hmodel.calc_local_params(Dchunk, batchLP,
                 doLogElapsedTime=True,
                 **self.algParamsLP)
-
             rho = (1 + iterid + self.rhodelay) ** (-1.0 * self.rhoexp)
             if self.algParams['doMemoELBO']:
                 # SS step. Scale at size of current batch.
                 SS = hmodel.get_global_suff_stats(Dchunk, LP,
                                                   doLogElapsedTime=True,
                                                   doPrecompEntropy=True)
+                if self.algParams['doMemoizeLocalParams']:
+                    self.save_batch_local_params_to_memory(
+                        batchID, LP)
                 # Incremental updates for whole-dataset stats
                 # Must happen before applification.
                 if batchID in SSPerBatch:
@@ -160,3 +171,75 @@ class SOVBAlg(LearnAlg):
             isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
 
         return self.buildRunInfo(Data=DataIterator, evBound=evBound, SS=SS)
+
+
+    def load_batch_local_params_from_memory(self, batchID, doCopy=0):
+        ''' Load local parameter dict stored in memory for provided batchID
+
+        TODO: Fastforward so recent truncation changes are accounted for.
+
+        Returns
+        -------
+        batchLP : dict of local parameters specific to batchID
+        '''
+        batchLP = self.LPmemory[batchID]
+        if isinstance(batchLP, str):
+            ElapsedTimeLogger.startEvent('io', 'loadlocal')
+            batchLPpath = os.path.abspath(batchLP)
+            assert os.path.exists(batchLPpath)
+            F = np.load(batchLPpath)
+            indptr = np.arange(
+                0, (F['D']+1)*F['nnzPerDoc'],
+                F['nnzPerDoc'])
+            batchLP = dict()
+            batchLP['DocTopicCount'] = scipy.sparse.csr_matrix(
+                (F['data'], F['indices'], indptr),
+                shape=(F['D'], F['K'])).toarray()
+            ElapsedTimeLogger.stopEvent('io', 'loadlocal')
+        if doCopy:
+            # Duplicating to avoid changing the raw data stored in LPmemory
+            # Usually for debugging only
+            batchLP = copy.deepcopy(batchLP)
+        return batchLP
+
+    def save_batch_local_params_to_memory(self, batchID, batchLP):
+        ''' Store certain fields of the provided local parameters dict
+              into "memory" for later retrieval.
+            Fields to save determined by the memoLPkeys attribute of this alg.
+        '''
+        batchLP = dict(**batchLP) # make a copy
+        allkeys = batchLP.keys()
+        for key in allkeys:
+            if key != 'DocTopicCount':
+                del batchLP[key]
+        if len(batchLP.keys()) > 0:
+            if self.algParams['doMemoizeLocalParams'] == 1:
+                self.LPmemory[batchID] = batchLP
+            elif self.algParams['doMemoizeLocalParams'] == 2:
+                ElapsedTimeLogger.startEvent('io', 'savelocal')
+                spDTC = sparsifyResp(
+                    batchLP['DocTopicCount'],
+                    self.algParams['nnzPerDocForStorage'])
+                wc_D = batchLP['DocTopicCount'].sum(axis=1)
+                wc_U = np.repeat(wc_D, self.algParams['nnzPerDocForStorage'])
+                spDTC.data *= wc_U
+                savepath = self.savedir.replace(os.environ['BNPYOUTDIR'], '')
+                if os.path.exists('/ltmp/'):
+                    savepath = '/ltmp/%s/' % (savepath)
+                else:
+                    savepath = '/tmp/%s/' % (savepath)
+                from distutils.dir_util import mkpath
+                mkpath(savepath)
+                savepath = os.path.join(savepath, 'batch%d.npz' % (batchID))
+                # Now actually save it!
+                np.savez(savepath,
+                    data=spDTC.data,
+                    indices=spDTC.indices,
+                    D=spDTC.shape[0],
+                    K=spDTC.shape[1],
+                    nnzPerDoc=spDTC.indptr[1])
+                self.LPmemory[batchID] = savepath
+                del batchLP
+                del spDTC
+                ElapsedTimeLogger.stopEvent('io', 'savelocal')
+
