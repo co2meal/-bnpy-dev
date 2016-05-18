@@ -304,9 +304,11 @@ def L_alloc(Data=None, LP=None, nDoc=0, alpha=1.0, **kwargs):
 
     K = LP['DocTopicCount'].shape[1]
     cDiff = nDoc * c_Func(alpha / K, K) - c_Func(LP['theta'])
-    slackVec = LP['DocTopicCount'] + alpha / K - LP['theta']
-    slackVec *= LP['ElogPi']
-    return cDiff + np.sum(slackVec)
+    return cDiff
+    # Slack term will always be zero, so need not compute it.
+    #slackVec = LP['DocTopicCount'] + alpha / K - LP['theta']
+    #slackVec *= LP['ElogPi']
+    #return cDiff + np.sum(slackVec)
 
 
 def L_entropy(Data=None, LP=None, resp=None, returnVector=0):
@@ -406,10 +408,11 @@ def calcSummaryStats(Dslice, LP=None, alpha=None,
     if doPrecompEntropy:
         assert 'theta' in LP
         Lalloc = L_alloc(Dslice, LP, alpha=alpha)
+        SS.setELBOTerm('L_alloc', Lalloc, dims=None)
+
         if 'nnzPerRow' in LP and LP['nnzPerRow'] == 1:
             SS.setELBOTerm('Hvec', 0.0, dims=None)
         else:
             Hvec = L_entropy(Dslice, LP, returnVector=1)
             SS.setELBOTerm('Hvec', Hvec, dims='K')
-        SS.setELBOTerm('L_alloc', Lalloc, dims=None)
     return SS
