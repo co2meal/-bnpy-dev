@@ -896,7 +896,7 @@ class WordsData(DataObj):
                                   nWordsPerDocFunc=None,
                                   topic_prior=None, topics=None,
                                   gamma=None, probs=None,
-                                  eta=None,delta=None,
+                                  eta=None,delta=1.0,
                                   **kwargs):
 		''' Generates WordsData dataset via LDA generative model.
 
@@ -919,6 +919,7 @@ class WordsData(DataObj):
 		# Make sure topics sum to one
 		topics = topics / topics.sum(axis=1)[:, np.newaxis]
 		assert K == topic_prior.size
+	
 
 		doc_range = np.zeros(nDocTotal + 1)
 		wordIDsPerDoc = list()
@@ -951,10 +952,13 @@ class WordsData(DataObj):
 													  topics[k, :], PRNG)
 
 			# Calculate response for this doc
-			mu = np.dot(Npercomp,eta) / float(nDocTotal)
-			r = np.random.randn(1,1)[0]
-			doc_response = 1/math.sqrt(delta)*r + mu
-
+			# y ~ N(eta * \bar{z}, delta^2)
+			#\bar{z} = 1/N * \sum_{n=1}^N(z_n)
+			mu = np.dot(Npercomp,eta) / float(nWordsPerDoc)
+			#r = np.random.randn(1,1)[0]
+			#doc_response = 1/math.sqrt(delta)*r + mu
+			doc_response = np.random.normal(loc=mu,scale=delta)
+			
 			# Record word_id, word_count, doc_range and response
 			wIDs = np.flatnonzero(wordCountBins > 0)
 			wCounts = wordCountBins[wIDs]
@@ -978,7 +982,7 @@ class WordsData(DataObj):
 		resp /= resp.sum(axis=1)[:, np.newaxis]
 		TrueParams = dict(K=K, topics=topics,
 						  beta=topic_prior / topic_prior.sum(),
-						  topic_prior=topic_prior, resp=resp)
+						  topic_prior=topic_prior, resp=resp, eta=eta, Pi=Pi)
 
 		Data = WordsData(
 			word_id, word_count, doc_range, V, response=response, TrueParams=TrueParams)

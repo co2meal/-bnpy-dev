@@ -9,19 +9,19 @@ no response, vertical bars give response.
 #  see WordsData.CreateToyDataFromLDAModel for details.
 '''
 import numpy as np
-from bnpy.data import WordsData
+from bnpy.data import WordsData_slda
 import Bars2D
 
 SEED = 8675309
 PRNG = np.random.RandomState(SEED)
 
 # FIXED DATA GENERATION PARAMS
-K = 10  # Number of topics
-V = 900  # Vocabulary Size
+K = 8  # Number of topics
+V = 100  # Vocabulary Size
 gamma = 0.5  # hyperparameter over doc-topic distribution
 
 Defaults = dict()
-Defaults['nDocTotal'] = 2000
+Defaults['nDocTotal'] = 1000
 Defaults['nWordsPerDoc'] = 2 * V / (K / 2)
 
 # GLOBAL PROB DISTRIBUTION OVER TOPICS
@@ -50,7 +50,7 @@ def get_data(seed=SEED, **kwargs):
     nWordsPerDoc : int
         Number of total words to create in each document (all docs same length)
     '''
-    Data = CreateToyDataFromLDAModel(seed=seed, **kwargs)
+    Data = CreateToyDataFromSLDAModel(seed=seed, **kwargs)
     Data.name = 'BarsK10V900'
     Data.summary = get_data_info()
     return Data
@@ -60,7 +60,7 @@ def get_test_data(seed=6789, nDocTotal=50, **kwargs):
 
     Uses different random seed than get_data, but otherwise similar.
     '''
-    Data = CreateToyDataFromLDAModel(seed=seed, nDocTotal=nDocTotal, **kwargs)
+    Data = CreateToyDataFromSLDAModel(seed=seed, nDocTotal=nDocTotal, **kwargs)
     Data.name = 'BarsK10V900'
     Data.summary = get_data_info()
     return Data
