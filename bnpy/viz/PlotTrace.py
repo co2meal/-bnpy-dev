@@ -189,7 +189,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                     # Heldout metrics
                     xs, ys = loadXYFromTopicModelSummaryFiles(
                         jobpath, taskid, xvar=xvar, yvar=yvar)
-                    if showOnlyAfterLap:
+                    if showOnlyAfterLap and showOnlyAfterLap > 0:
                         laps, _ = loadXYFromTopicModelSummaryFiles(
                             jobpath, taskid, xvar='laps', yvar=yvar)
             except ValueError:
@@ -216,9 +216,6 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         if xs.size != ys.size:
             raise ValueError('Dimension mismatch. len(xs)=%d, len(ys)=%d'
                              % (xs.size, ys.size))
-
-        if xs.size < 3:
-            continue
 
         # Cleanup laps data. Verify that it is sorted, with no collisions.
         if xvar == 'laps':
@@ -304,8 +301,8 @@ def loadXYFromTopicModelSummaryFiles(jobpath, taskid, xvar='laps', yvar='K'):
     xs = np.loadtxt(xpath)
     ys = np.loadtxt(ypath)
     # HACK!
-    if yvar.count('Lik') and jobpath.count('Berk') and np.max(ys) > 100:
-        ys /= 64
+    ##if yvar.count('Lik') and jobpath.count('Berk') and np.max(ys) > 100:
+    ##    ys /= 64
     return xs, ys
 
 
