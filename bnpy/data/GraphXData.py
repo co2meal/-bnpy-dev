@@ -222,7 +222,8 @@ class GraphXData(XData):
         -------
         AdjMat : 3D array, nNodes x nNodes x D
         '''
-        AdjMat = np.zeros((self.nNodes, self.nNodes, self.dim))
+        AdjMat = np.empty((self.nNodes, self.nNodes, self.dim))
+        AdjMat[:] = np.nan
         AdjMat[self.edges[:,0], self.edges[:,1]] = self.X
         return AdjMat
 
@@ -276,6 +277,33 @@ class GraphXData(XData):
             return cls.read_from_txt(filepath, **kwargs)
         raise NotImplemented('File extension not supported')
 
+    @classmethod
+    def read_from_graphtxtfile(cls, filepath, 
+                      nEdgesTotal=None, nNodesTotal=None,
+                      settingspath=None, 
+                      **kwargs):
+        ''' Static constructor loading .graph file into GraphXData instance.
+        '''
+        if settingspath is not None:
+            with open(settingspath, 'r') as f:
+                for line in f.readlines():
+                    if line.count('='):
+                        fields = [f.strip() for f in line.split('=')]
+                        assert len(fields) == 2
+                        if fields[0] == 'N' or fields[0] == 'nNodesTotal':
+                            nNodesTotal = int(fields[1])
+                        if fields[0] == 'E' or fields[0] == 'nEdgesTotal':
+                            nEdgesTotal = int(fields[1])
+        txtData = np.loadtxt(filepath, dtype=np.int32)
+        assert txtData.ndim == 2
+        assert txtData.shape[1] == 4
+        edges = txtData[:, [1,2]]
+        X = as2D(txtData[:, 3])
+        # Make sure X and edges have correct dims
+        if X.shape[0] != edges.shape[0]:
+            X = X.T
+        return cls(nNodesTotal=nNodesTotal, nEdgesTotal=nEdgesTotal,
+                   edges=edges, X=X)
     @classmethod
     def read_from_txt(cls, filepath, 
                       nEdgesTotal=None, nNodesTotal=None, **kwargs):

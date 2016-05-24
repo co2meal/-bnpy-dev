@@ -75,8 +75,7 @@ def get_short_name():
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
-
-    Data = get_data(nNodes=100)
+    Data = get_data(nNodes=100, alpha=0.5)
     w = Data.TrueParams['w']
 
     # # Draw graph with nodes colored by their mixed community membership
