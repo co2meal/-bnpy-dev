@@ -26,6 +26,8 @@ class XData(DataObj):
         each row is a single dense observation vector
     Xprev : 2D array, size N x D, optional
         "previous" observations for auto-regressive likelihoods
+    Y : 1D array, size N, optional
+        response or dependent variable for regression likelihoods
     D : int
         the dimension of each observation
     nObs : int
@@ -84,7 +86,8 @@ class XData(DataObj):
             InDict['nObsTotal'] = nObsTotal
         return cls(**InDict)
 
-    def __init__(self, X=None, nObsTotal=None, TrueZ=None, Xprev=None,
+    def __init__(self, X=None, nObsTotal=None, TrueZ=None,
+                 Xprev=None, Y=None,
                  TrueParams=None, summary=None, **kwargs):
         ''' Constructor for XData instance for provided array data X.
 
@@ -98,6 +101,8 @@ class XData(DataObj):
         self.X = as2D(toCArray(X, dtype=np.float64))
         if Xprev is not None:
             self.Xprev = as2D(toCArray(Xprev, dtype=np.float64))
+        if Y is not None:
+            self.Y = as2D(toCArray(Y, dtype=np.float64))
 
         # Verify attributes are consistent
         self._set_dependent_params(nObsTotal=nObsTotal)
@@ -128,7 +133,9 @@ class XData(DataObj):
         assert self.X.flags.owndata
         assert self.X.flags.aligned
         assert self.X.flags.writeable
-
+        if hasattr(self, 'Y'):
+            assert self.Y.shape[0] == self.X.shape[0]
+            
     def get_size(self):
         """ Get number of observations in memory for this object.
 
@@ -197,6 +204,10 @@ class XData(DataObj):
             newXprev = self.Xprev[atomMask]
         else:
             newXprev = None
+        if hasattr(self, 'Y'):
+            newY = self.Y[atomMask]
+        else:
+            newY = None
         newX = self.X[atomMask]
 
         if hasattr(self, 'alwaysTrackTruth'):
@@ -213,7 +224,7 @@ class XData(DataObj):
         else:
             nObsTotal = None
 
-        return XData(X=newX, Xprev=newXprev,
+        return XData(X=newX, Xprev=newXprev, Y=newY,
                      TrueZ=newTrueZ, nObsTotal=nObsTotal)
 
     def add_data(self, XDataObj):
@@ -231,6 +242,9 @@ class XData(DataObj):
         if hasattr(self, 'Xprev'):
             assert hasattr(XDataObj, 'Xprev')
             self.Xprev = np.vstack([self.Xprev, XDataObj.Xprev])
+        if hasattr(self, 'Y'):
+            assert hasattr(XDataObj, 'Y')
+            self.Y = np.vstack([self.Y, XDataObj.Y])
         self._check_dims()
 
     def get_random_sample(self, nObs, randstate=np.random):
@@ -250,6 +264,8 @@ class XData(DataObj):
         dataShMemDict['nObsTotal'] = self.nObsTotal
         if hasattr(self, 'Xprev'):
             dataShMemDict['Xprev'] = numpyToSharedMemArray(self.Xprev)
+        if hasattr(self, 'Y'):
+            dataShMemDict['Y'] = numpyToSharedMemArray(self.Y)
         return dataShMemDict
 
     def getDataSliceFunctionHandle(self):
@@ -294,7 +310,7 @@ def makeDataSliceFromSharedMem(dataShMemDict,
     >>> Aslice.nObs
     2
 
-    TODO: Make compatible with Xprev field in autoreg models.
+    TODO: Make compatible with Xprev and Y field in autoreg models.
     """
     if batchID is not None and batchID in dataShMemDict:
         dataShMemDict = dataShMemDict[batchID]

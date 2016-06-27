@@ -4,12 +4,14 @@ from ZeroMeanGaussObsModel import ZeroMeanGaussObsModel
 from AutoRegGaussObsModel import AutoRegGaussObsModel
 from MultObsModel import MultObsModel
 from BernObsModel import BernObsModel
+from GaussRegressYFromFixedXObsModel import GaussRegressYFromFixedXObsModel
 
 ObsModelConstructorsByName = {
     'DiagGauss': DiagGaussObsModel,
     'Gauss': GaussObsModel,
     'ZeroMeanGauss': ZeroMeanGaussObsModel,
     'AutoRegGauss': AutoRegGaussObsModel,
+    'GaussRegressYFromFixedX': GaussRegressYFromFixedXObsModel,
     'Mult': MultObsModel,
     'Bern': BernObsModel,
 }
