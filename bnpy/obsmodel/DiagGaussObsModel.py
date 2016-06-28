@@ -55,41 +55,9 @@ class DiagGaussObsModel(AbstractObsModel):
         self.K = 0
         self.inferType = inferType
         self.min_covar = min_covar
-        self.createPrior(Data, **PriorArgs)
+        self.Prior = createParamBagForPrior(Data, **PriorArgs)
         self.Cache = dict()
 
-    def createPrior(self, Data, nu=0, beta=None,
-                    m=None, kappa=None,
-                    MMat='zero',
-                    ECovMat=None, sF=1.0, **kwargs):
-        ''' Initialize Prior ParamBag attribute.
-
-        Post Condition
-        ------
-        Prior expected covariance matrix set to match provided value.
-        '''
-        D = self.D
-        nu = np.maximum(nu, D + 2)
-        kappa = np.maximum(kappa, 1e-8)
-        if beta is None:
-            if ECovMat is None or isinstance(ECovMat, str):
-                ECovMat = createECovMatFromUserInput(D, Data, ECovMat, sF)
-            beta = np.diag(ECovMat) * (nu - 2)
-        else:
-            if beta.ndim == 0:
-                beta = np.asarray([beta], dtype=np.float)
-        if m is None:
-            if MMat == 'data':
-                m = np.sum(Data.X, axis=0)
-            else:
-                m = np.zeros(D)
-        elif m.ndim < 1:
-            m = np.asarray([m], dtype=np.float)
-        self.Prior = ParamBag(K=0, D=D)
-        self.Prior.setField('nu', nu, dims=None)
-        self.Prior.setField('kappa', kappa, dims=None)
-        self.Prior.setField('m', m, dims=('D'))
-        self.Prior.setField('beta', beta, dims=('D'))
 
     def get_mean_for_comp(self, k=None):
         if hasattr(self, 'EstParams'):
@@ -107,8 +75,6 @@ class DiagGaussObsModel(AbstractObsModel):
         else:
             return self._E_CovMat(k)
 
-    # I/O Utils
-    # for humans
     def get_name(self):
         return 'DiagGauss'
 
@@ -116,17 +82,7 @@ class DiagGaussObsModel(AbstractObsModel):
         return 'Gaussian with diagonal covariance.'
 
     def get_info_string_prior(self):
-        msg = 'Gauss-Wishart on each pair mu, lam (each dim independent)\n'
-        if self.D > 2:
-            sfx = ' ...'
-        else:
-            sfx = ''
-        S = self._E_CovMat()[:2, :2]
-        msg += 'E[ mu[k] ]     = %s%s\n' % (str(self.Prior.m[:2]), sfx)
-        msg += 'E[ CovMat[k] ] = \n'
-        msg += str(S) + sfx
-        msg = msg.replace('\n', '\n  ')
-        return msg
+        return getStringSummaryOfPrior(self.Prior)
 
     def setEstParams(self, obsModel=None, SS=None, LP=None, Data=None,
                      mu=None, sigma=None, Sigma=None,
@@ -169,8 +125,7 @@ class DiagGaussObsModel(AbstractObsModel):
         self.K = self.EstParams.K
 
     def setPostFactors(self, obsModel=None, SS=None, LP=None, Data=None,
-                       nu=0, beta=0, m=0, kappa=0,
-                       **kwargs):
+                       **param_kwargs):
         ''' Set attribute Post to provided values.
         '''
         self.ClearCache()
@@ -188,18 +143,7 @@ class DiagGaussObsModel(AbstractObsModel):
         if SS is not None:
             self.updatePost(SS)
         else:
-            m = as2D(m)
-            if m.shape[1] != self.D:
-                m = m.T.copy()
-            beta = as2D(beta)
-            if beta.shape[1] != self.D:
-                beta = beta.T.copy()
-            K, _ = m.shape
-            self.Post = ParamBag(K=K, D=self.D)
-            self.Post.setField('nu', as1D(nu), dims=('K'))
-            self.Post.setField('beta', beta, dims=('K', 'D'))
-            self.Post.setField('m', m, dims=('K', 'D'))
-            self.Post.setField('kappa', as1D(kappa), dims=('K'))
+            self.Post = packParamBagForPost(D=self.D, **param_kwargs)
         self.K = self.Post.K
 
     def setPostFromEstParams(self, EstParams, Data=None, N=None):
@@ -469,6 +413,9 @@ class DiagGaussObsModel(AbstractObsModel):
             Post.setField('beta', beta, dims=('K', 'D'))
 
     def calcLogSoftEvMatrix_FromPost(self, Data, **kwargs):
+        return calcLogSoftEvMatrix_FromPost(Data, Post=self.Post)
+
+    def zzz_calcLogSoftEvMatrix_FromPost(self, Data, **kwargs):
         ''' Calculate expected log soft ev matrix under Post.
 
         Returns
@@ -498,6 +445,10 @@ class DiagGaussObsModel(AbstractObsModel):
         return dist
 
     def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False, **kwargs):
+        return calcELBOFromSSAndPost(SS=SS, Post=self.Post, Prior=self.Prior)
+
+    
+    def _zzz_calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False, **kwargs):
         """ Calculate obsModel's objective using suff stats SS and Post.
 
         Args
@@ -537,6 +488,7 @@ class DiagGaussObsModel(AbstractObsModel):
         if returnVec:
             return elbo
         return elbo.sum()
+    
 
     def getDatasetScale(self, SS):
         ''' Get number of observed scalars in dataset from suff stats.
@@ -567,7 +519,7 @@ class DiagGaussObsModel(AbstractObsModel):
         return cA + cB - cPrior - cAB
 
     def calcHardMergeGap_AllPairs(self, SS):
-        ''' Calculate change in ELBO for all possible candidate hard merge pairs
+        ''' Calculate change in ELBO for all possible hard merge pairs
 
         Returns
         ---------
@@ -1027,8 +979,6 @@ class DiagGaussObsModel(AbstractObsModel):
         return priorN_ZMG * Div_ZMG + priorN_FVG * Div_FVG
     # .... end class
 
-    # .... end class
-
 
 def MAPEstParams_inplace(nu, beta, m, kappa=0):
     ''' MAP estimate parameters mu, Sigma given Normal-Wishart hyperparameters
@@ -1067,7 +1017,7 @@ def c_Diff(nu1, beta1, m1, kappa1,
     diff : scalar real value of the difference in cumulant functions
     '''
     cDiff = - 0.5 * LOGTWO * (nu1 - nu2) \
-            - gammaln(0.5 * nu1) + gammaln(0.5 * nu2) \
+        - gammaln(0.5 * nu1) + gammaln(0.5 * nu2) \
         + 0.5 * (np.log(kappa1) - np.log(kappa2)) \
         + 0.5 * (nu1 * np.log(beta1) - nu2 * np.log(beta2))
     return np.sum(cDiff)
@@ -1125,34 +1075,271 @@ def calcLocalParams(Dslice, **kwargs):
     return LP
 
 
-def calcLogSoftEvMatrix_FromPost(Dslice, **kwargs):
+def calcLogSoftEvMatrix_FromPost(Dslice,
+        Post=None,
+        nu=None,
+        beta=None,
+        m=None,
+        kappa=None,
+        E_logdetL_K=None,
+        K=None,
+        **kwargs):
     ''' Calculate expected log soft ev matrix for variational.
 
     Returns
     ------
     L : 2D array, size N x K
     '''
-    K = kwargs['K']
+    if Post is not None:
+        nu = Post.nu
+        beta = Post.beta
+        m = Post.m
+        kappa = Post.kappa
+
+    if K is None:
+        K = nu.size
+    assert K == nu.size
+    assert K == kappa.size
     L = np.zeros((Dslice.nObs, K))
     for k in xrange(K):
+        if E_logdetL_K is None:
+            E_logdetL_k = E_logdetL(nu=nu[k], beta=beta[k])
+        else:
+            E_logdetL_k = E_logdetL_K[k]
+
         L[:, k] = - 0.5 * Dslice.dim * LOGTWOPI \
-            + 0.5 * np.sum(kwargs['E_logL'][k])  \
-            - 0.5 * _mahalDist_Post(Dslice.X, k, **kwargs)
+            + 0.5 * np.sum(E_logdetL_k) \
+            - 0.5 * _mahalDist_Post(
+                Dslice.X, 
+                nu=nu[k], 
+                beta=beta[k],
+                m=m[k],
+                kappa=kappa[k])
     return L
 
 
-def _mahalDist_Post(X, k, D=None,
-                    beta=None,
-                    m=None, nu=None, kappa=None, **kwargs):
+def _mahalDist_Post(X, beta=None, m=None, nu=None, kappa=None, **kwargs):
     ''' Calc expected mahalonobis distance from comp k to each data atom
 
-        Returns
-        --------
-        distvec : 1D array, size nObs
-               distvec[n] gives E[ \Lam (x-\mu)^2 ] for comp k
+    Returns
+    --------
+    distvec : 1D array, size nObs
+           distvec[n] gives E[ \Lam (x-\mu)^2 ] for comp k
     '''
-    Xdiff = X - m[k]
+    D = int(m.size)
+    Xdiff = X - m
     np.square(Xdiff, out=Xdiff)
-    dist = np.dot(Xdiff, nu[k] / beta[k])
-    dist += D / kappa[k]
+    dist = np.dot(Xdiff, nu / beta)
+    dist += D / kappa
     return dist
+
+def calcPostParamsFromSS(
+        SS=None, 
+        Prior=None,
+        Post=None,
+        returnParamBag=True,
+        **kwargs):
+    ''' Calc updated posterior parameters for all clusters from suff stats
+
+    Returns
+    --------
+    nu : 1D array, size K
+    beta : 2D array, size K x D
+    m : 2D array, size K x D
+    kappa : 1D array, size K
+    '''
+    K = SS.K
+    D = SS.D
+
+    nu = Prior.nu + SS.N
+    kappa = Prior.kappa + SS.N
+    m = (Prior.kappa * Prior.m + SS.x) / kappa[:, np.newaxis]
+    beta = Prior.beta + SS.xx \
+        + Prior.kappa * np.square(Prior.m) \
+        - kappa[:, np.newaxis] * np.square(m)
+
+    if not returnParamBag:
+        return nu, beta, m, kappa
+    return packParamBagForPost(
+        nu=nu, beta=beta, m=m, kappa=kappa, Post=Post)
+
+
+def calcELBOFromSSAndPost(
+        SS,
+        Post=None, Prior=None,
+        returnVec=0, afterMStep=False, **kwargs):
+    """ Calculate obsModel's objective using suff stats SS and Post.
+
+    Args
+    -------
+    SS : bnpy SuffStatBag
+    afterMStep : boolean flag
+        if 1, elbo calculated assuming M-step just completed
+
+    Returns
+    -------
+    obsELBO : scalar float
+        Equal to E[ log p(x) + log p(phi) - log q(phi)]
+    """
+    elbo = np.zeros(SS.K)
+    for k in xrange(SS.K):
+        elbo[k] = c_Diff(
+            Prior.nu, Prior.beta, Prior.m, Prior.kappa,
+            Post.nu[k], Post.beta[k], Post.m[k], Post.kappa[k],
+            )
+        if not afterMStep:
+            aDiff = SS.N[k] + Prior.nu - Post.nu[k]
+            bDiff = SS.xx[k] + Prior.beta \
+                + Prior.kappa * np.square(Prior.m) \
+                - Post.beta[k] \
+                - Post.kappa[k] * np.square(Post.m[k])
+            cDiff = SS.x[k] + Prior.kappa * Prior.m \
+                - Post.kappa[k] * Post.m[k]
+            dDiff = SS.N[k] + Prior.kappa - Post.kappa[k]
+            elbo[k] += \
+                + 0.5 * aDiff * np.sum(
+                    E_logdetL(
+                        nu=Post.nu[k],
+                        beta=Post.beta[k])) \
+                - 0.5 * np.inner(bDiff, E_L(
+                        nu=Post.nu[k],
+                        beta=Post.beta[k])) \
+                + np.inner(cDiff, E_Lm(
+                        nu=Post.nu[k],
+                        beta=Post.beta[k],
+                        m=Post.m[k])) \
+                - 0.5 * dDiff * np.sum(E_Lm2(
+                        nu=Post.nu[k],
+                        beta=Post.beta[k],
+                        m=Post.m[k],
+                        kappa=Post.kappa[k]))
+    elbo += -(0.5 * SS.D * LOGTWOPI) * SS.N
+    if returnVec:
+        return elbo
+    return elbo.sum()
+
+def E_logdetL(nu=None, beta=None, **kwargs):
+    '''
+    '''
+    return LOGTWO - np.log(beta) + digamma(0.5 * nu)
+
+def E_L(nu=None, beta=None, **kwargs):
+    '''
+    '''
+    return nu / beta
+
+def E_Lm(nu=None, beta=None, m=None, **kwargs):
+    ''' Expected value of np.dot(L, m)
+
+    Returns
+    -------
+    E_Lm : 1D array, size D
+    '''
+    return (nu / beta) * m
+
+def E_Lm2(nu=None, beta=None, m=None, kappa=None, **kwargs):
+    ''' Expected value of np.dot(m.T, np.dot(L,m))
+
+    Returns
+    -------
+    E_Lm2 : 1D array, size D
+    '''
+    return 1.0 / kappa + (nu / beta) * (m * m)
+
+def packParamBagForPost(
+        nu=None,
+        beta=None,
+        m=None,
+        kappa=None,
+        D=None,
+        Post=None,
+        **kwargs):
+    '''
+    '''
+    m = as2D(m)
+    beta = as2D(beta)
+
+    if D is None:
+        D = m.shape[1]
+
+    if m.shape[1] != D:
+        m = m.T.copy()
+    if beta.shape[1] != D:
+        beta = beta.T.copy()
+    K, _ = m.shape
+    if Post is None:
+        Post = ParamBag(K=K, D=D)
+    else:
+        assert isinstance(Post, ParamBag)
+        assert Post.K == K
+        assert Post.D == D        
+    Post.setField('nu', as1D(nu), dims=('K'))
+    Post.setField('beta', beta, dims=('K', 'D'))
+    Post.setField('m', m, dims=('K', 'D'))
+    Post.setField('kappa', as1D(kappa), dims=('K'))
+    return Post
+
+def getStringSummaryOfPrior(Prior):
+    ''' Get human-readable summary of specific prior
+
+    Returns
+    -------
+    s : str
+    '''
+    if Prior.D > 2:
+        sfx = ' ...'
+    else:
+        sfx = ''
+
+    msg = 'Gauss-Wishart on each independent dimension of mean, precision\n'
+    msg += "Wishart on each dim of precision\n"
+    msg += "      nu = %.3e %s\n" % (Prior.nu, sfx)
+    msg += "    beta = %.3e %s\n" % (Prior.beta[:2], sfx)
+    #S = self._E_CovMat()[:2, :2]
+    #msg += 'E[ CovMat[k] ] = \n'
+    #msg += str(S) + sfx
+    msg += "Gaussian on each dim of mean\n"
+    msg += '    E[ mu[k] ]     = %s%s\n' % (str(Prior.m[:2]), sfx)
+    #msg = msg.replace('\n', '\n  ')
+    return msg
+
+def createParamBagForPrior(
+        Data, D=0, nu=0, beta=None,
+        m=None, kappa=None,
+        MMat='zero', ECovMat=None, sF=1.0,
+        Prior=None,
+        **kwargs):
+    ''' Initialize ParamBag of parameters which specify prior.
+
+    Returns
+    -------
+    Prior : ParamBag
+    '''
+    if Data is None:
+        D = int(D)
+    else:
+        D = int(Data.dim)
+    nu = np.maximum(nu, D + 2)
+    kappa = np.maximum(kappa, 1e-8)
+    if beta is None:
+        if ECovMat is None or isinstance(ECovMat, str):
+            ECovMat = createECovMatFromUserInput(D, Data, ECovMat, sF)
+        beta = np.diag(ECovMat) * (nu - 2)
+    else:
+        if beta.ndim == 0:
+            beta = np.asarray([beta], dtype=np.float)
+    if m is None:
+        if MMat == 'data':
+            m = np.sum(Data.X, axis=0)
+        else:
+            m = np.zeros(D)
+    elif m.ndim < 1:
+        m = np.asarray([m], dtype=np.float)
+    if Prior is None:
+        Prior = ParamBag(K=0, D=D)
+    assert Prior.D == D
+    Prior.setField('nu', nu, dims=None)
+    Prior.setField('kappa', kappa, dims=None)
+    Prior.setField('m', m, dims=('D'))
+    Prior.setField('beta', beta, dims=('D'))
+    return Prior
