@@ -5,8 +5,13 @@ def flatstr2np(xvecstr):
     return np.asarray([float(x) for x in xvecstr.split()])
 
 
-def np2flatstr(X, fmt="% .6f"):
-    return ' '.join([fmt % (x) for x in np.asarray(X).flatten()])
+def np2flatstr(arr, fmt="% .6g"):
+    return np.array2string(
+        arr,
+        prefix='',
+        separator=' ',
+        formatter={'float_kind':lambda x: fmt % x})
+    #    return ' '.join([fmt % (x) for x in np.asarray(X).flatten()])
 
 
 def np2strList(X, fmt="%.4f", zeroThr=1e-25, zeroSymb=''):

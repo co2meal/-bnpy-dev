@@ -5,12 +5,11 @@ from scipy.special import gammaln, digamma
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from bnpy.util import dotATA, dotATB, dotABT
-from bnpy.util import as1D, as2D, toCArray
+from bnpy.util import as1D, as2D, toCArray, np2flatstr
 from bnpy.util import numpyToSharedMemArray, fillSharedMemArray
 from bnpy.util.SparseRespStatsUtil import calcRXX_withDenseResp, calcSpRXX
 from AbstractObsModel import AbstractObsModel
 from GaussObsModel import createECovMatFromUserInput
-
 
 class DiagGaussObsModel(AbstractObsModel):
 
@@ -1293,13 +1292,13 @@ def getStringSummaryOfPrior(Prior):
 
     msg = 'Gauss-Wishart on each independent dimension of mean, precision\n'
     msg += "Wishart on each dim of precision\n"
-    msg += "      nu = %.3e %s\n" % (Prior.nu, sfx)
-    msg += "    beta = %.3e %s\n" % (Prior.beta[:2], sfx)
+    msg += "      nu = %.3g %s\n" % (Prior.nu, sfx)
+    msg += "    beta = %s %s\n" % (np2flatstr(Prior.beta[:2]), sfx)
     #S = self._E_CovMat()[:2, :2]
     #msg += 'E[ CovMat[k] ] = \n'
     #msg += str(S) + sfx
     msg += "Gaussian on each dim of mean\n"
-    msg += '    E[ mu[k] ]     = %s%s\n' % (str(Prior.m[:2]), sfx)
+    msg += '    E[ mu[k] ]     = %s%s\n' % (np2flatstr(Prior.m[:2]), sfx)
     #msg = msg.replace('\n', '\n  ')
     return msg
 
