@@ -85,6 +85,7 @@ def load_model(matfilepath, prefix='Best', lap=None):
         allocModel = load_alloc_model(matfilepath, prefix)
         model = HModel(allocModel, obsModel)
     except IOError as e:
+        print str(e)
         '''
         if prefix == 'Best':
             matList = glob.glob(os.path.join(matfilepath, '*TopicModel.mat'))
