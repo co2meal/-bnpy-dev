@@ -129,10 +129,12 @@ class GaussRegressYFromDiagGaussXObsModel(AbstractObsModel):
         E_log_soft_ev_NK = DiagGaussX.calcLogSoftEvMatrix_FromPost(
             Data,
             Post=self.Post)
-        E_log_soft_ev_NK = RegressY.calcLogSoftEvMatrix_FromPost(
-            Data,
-            Post=self.Post,
-            E_log_soft_ev_NK=E_log_soft_ev_NK)
+        if hasattr(Data, 'Y'):
+            # Only incorporate Y attribute if present
+            E_log_soft_ev_NK = RegressY.calcLogSoftEvMatrix_FromPost(
+                Data,
+                Post=self.Post,
+                E_log_soft_ev_NK=E_log_soft_ev_NK)
         return E_log_soft_ev_NK
 
     def updatePost(self, SS):
@@ -152,8 +154,6 @@ class GaussRegressYFromDiagGaussXObsModel(AbstractObsModel):
         self.Post = RegressY.calcPostParamsFromSS(
             SS=SS, Prior=self.Prior, Post=self.Post)
         self.K = SS.K
-
-
 
     def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False, **kwargs):
         """ Calculate obsModel's objective using suff stats SS and Post.
@@ -181,4 +181,46 @@ class GaussRegressYFromDiagGaussXObsModel(AbstractObsModel):
             returnVec=returnVec, afterMStep=afterMStep)
         return elbo_XModel + elbo_YModel
 
+    def predictClusterSpecificYFromX(self, Data):
+        ''' Predict output given input for each cluster
 
+        Returns
+        -------
+        Y_NK : 2D array, size N x K
+            Y_NK[n, k] is equal to E[ y_n | x_n, z_n=k ]
+        '''
+        return predictClusterSpecificYFromX(
+            Data=Data,
+            Post=self.Post)
+
+def predictClusterSpecificYFromX(
+        Data=None, X_ND=None, X_NE=None, Post=None, **kwargs):
+    ''' Predict output given input for each cluster
+
+    Returns
+    -------
+    Y_NK : 2D array, size N x K
+        Y_NK[n, k] is equal to E[ y_n | x_n, z_n=k ]
+    '''
+    if X_NE is None:
+        if Data is not None:
+            if isinstance(Data, np.ndarray):
+                X_ND = Data
+            else:
+                X_ND = Data.X
+
+        assert isinstance(X_ND, np.ndarray)
+        assert X_ND.ndim == 2
+        N = X_ND.shape[0]
+        X_NE = np.hstack([X_ND, np.ones(N)[:,np.newaxis]])
+
+    # Verify input data
+    assert isinstance(X_NE, np.ndarray)
+    assert X_NE.ndim == 2
+    assert X_NE[:,-1].min() == 1.0
+    assert X_NE[:,-1].max() == 1.0
+    N, E = X_NE.shape
+
+    # Make cluster-specific prediction for each data point
+    Y_NK = np.dot(X_NE, Post.w_KE.T)
+    return Y_NK

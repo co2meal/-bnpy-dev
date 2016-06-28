@@ -767,3 +767,4 @@ def calcHardMergeGapForPair(
             w_E=Prior.w_E, P_EE=Prior.P_EE)
     cAB = c_Func(*calcPostParamsFromSSForComp(SS, kA, kB, Prior))
     return cAB + cPrior - cA - cB, cPost_K, cPrior
+
