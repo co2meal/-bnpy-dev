@@ -88,7 +88,16 @@ def initSS_BregmanDiv(
 
     Args
     ------
-    Data
+    Data : bnpy dataset
+        dataset
+    curModel : bnpy HModel
+        must at least have defined obsModel prior distribution
+    curLPslice : None or LP dict
+        if None, will use entire dataset
+
+    ktarget : int
+        id of specific cluster to target within curModel
+        if None, will use entire dataset
 
     Keyword args
     ------------
@@ -212,13 +221,14 @@ def initSS_BregmanDiv(
         Lscores=Lscores))
     return xSS, DebugInfo
 
-def runKMeans_BregmanDiv(X, K, obsModel, W=None,
-                         Niter=100, seed=0, init='plusplus',
-                         smoothFracInit=1.0, smoothFrac=0,
-                         logFunc=None, eps=1e-10,
-                         setOneToPriorMean=0,
-                         distexp=1.0,
-                         **kwargs):
+def runKMeans_BregmanDiv(
+        X, K, obsModel, W=None,
+        Niter=100, seed=0, init='plusplus',
+        smoothFracInit=1.0, smoothFrac=0,
+        logFunc=None, eps=1e-10,
+        setOneToPriorMean=0,
+        distexp=1.0,
+        **kwargs):
     ''' Run hard clustering algorithm to find K clusters.
 
     Returns
@@ -349,6 +359,8 @@ def initKMeans_BregmanDiv(
         smoothFrac=smoothFrac)
     if not setOneToPriorMean:
         minDiv[chosenZ[0]] = 0
+
+    # Sample each cluster id using distance heuristic
     for k in range(1, K):
         sum_minDiv = np.sum(minDiv)        
         if sum_minDiv == 0.0:
@@ -383,6 +395,8 @@ def initKMeans_BregmanDiv(
         curDiv[chosenZ[k]] = 0
         minDiv = np.minimum(minDiv, curDiv)
     return chosenZ, Mu, minDiv, np.sum(DivDataVec)
+
+
 
 
 def makeDataSubsetByThresholdResp(

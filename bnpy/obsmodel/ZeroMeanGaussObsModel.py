@@ -663,6 +663,14 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
             B = self.Post.B[k]
         return nu * np.trace(np.linalg.solve(B, Smat))
 
+    def getSmoothedMuForComp(self, k):
+        ''' Compute smoothed mean vector for cluster k
+
+        Returns
+        -------
+        Mu_k : 2D array, size D x D
+        '''
+        return self.get_covar_mat_for_comp(k)
 
     def calcSmoothedMu(self, X, W=None):
         ''' Compute smoothed estimate of mean of statistic xxT.
