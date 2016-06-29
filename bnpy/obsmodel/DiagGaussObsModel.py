@@ -54,7 +54,7 @@ class DiagGaussObsModel(AbstractObsModel):
         self.K = 0
         self.inferType = inferType
         self.min_covar = min_covar
-        self.Prior = createParamBagForPrior(Data, **PriorArgs)
+        self.Prior = createParamBagForPrior(Data, D=D, **PriorArgs)
         self.Cache = dict()
 
 
@@ -142,7 +142,9 @@ class DiagGaussObsModel(AbstractObsModel):
         if SS is not None:
             self.updatePost(SS)
         else:
-            self.Post = packParamBagForPost(D=self.D, **param_kwargs)
+            if 'D' not in param_kwargs:
+                param_kwargs['D'] = self.D
+            self.Post = packParamBagForPost(**param_kwargs)
         self.K = self.Post.K
 
     def setPostFromEstParams(self, EstParams, Data=None, N=None):
@@ -324,6 +326,8 @@ class DiagGaussObsModel(AbstractObsModel):
         m : 1D array, size D
         kappa : positive scalar
         '''
+        return calcPostParamsFromSSForComp(SS, kA, kB)
+        '''
         if kB is None:
             SN = SS.N[kA]
             Sx = SS.x[kA]
@@ -340,6 +344,7 @@ class DiagGaussObsModel(AbstractObsModel):
             + Prior.kappa * np.square(Prior.m) \
             - kappa * np.square(m)
         return nu, beta, m, kappa
+        '''
 
     def updatePost_stochastic(self, SS, rho):
         ''' Update attribute Post for all comps given suff stats
@@ -507,15 +512,9 @@ class DiagGaussObsModel(AbstractObsModel):
         ---------
         gap : scalar real, indicates change in ELBO after merge of kA, kB
         '''
-        Post = self.Post
-        Prior = self.Prior
-        cA = c_Func(Post.nu[kA], Post.beta[kA], Post.m[kA], Post.kappa[kA])
-        cB = c_Func(Post.nu[kB], Post.beta[kB], Post.m[kB], Post.kappa[kB])
-        cPrior = c_Func(Prior.nu, Prior.beta, Prior.m, Prior.kappa)
-
-        nu, beta, m, kappa = self.calcPostParamsForComp(SS, kA, kB)
-        cAB = c_Func(nu, beta, m, kappa)
-        return cA + cB - cPrior - cAB
+        gap, _, _ = calcHardMergeGapForPair(
+            SS=SS, Prior=self.Prior, Post=self.Post, kA=kA, kB=kB)
+        return gap        
 
     def calcHardMergeGap_AllPairs(self, SS):
         ''' Calculate change in ELBO for all possible hard merge pairs
@@ -525,20 +524,15 @@ class DiagGaussObsModel(AbstractObsModel):
         Gap : 2D array, size K x K, upper-triangular entries non-zero
               Gap[j,k] : scalar change in ELBO after merge of k into j
         '''
-        Post = self.Post
-        Prior = self.Prior
-        cPrior = c_Func(Prior.nu, Prior.beta, Prior.m, Prior.kappa)
-        c = np.zeros(SS.K)
-        for k in xrange(SS.K):
-            c[k] = c_Func(Post.nu[k], Post.beta[k], Post.m[k], Post.kappa[k])
-
-        Gap = np.zeros((SS.K, SS.K))
-        for j in xrange(SS.K):
-            for k in xrange(j + 1, SS.K):
-                nu, beta, m, kappa = self.calcPostParamsForComp(SS, j, k)
-                cjk = c_Func(nu, beta, m, kappa)
-                Gap[j, k] = c[j] + c[k] - cPrior - cjk
-        return Gap
+        Gap2D = np.zeros((SS.K, SS.K))
+        cPrior = None
+        cPost_K = [None for k in range(SS.K)]
+        for kA in xrange(SS.K):
+            for kB in xrange(kA + 1, SS.K):
+                    Gap2D[kA, kB], cPost_K, cPrior = calcHardMergeGapForPair(
+                        SS=SS, Post=self.Post, Prior=self.Prior, kA=kA, kB=kB,
+                        cPrior=cPrior, cPost_K=cPost_K)
+        return Gap2D
 
     def calcHardMergeGap_SpecificPairs(self, SS, PairList):
         ''' Calc change in ELBO for specific list of candidate hard merge pairs
@@ -549,9 +543,14 @@ class DiagGaussObsModel(AbstractObsModel):
               Gap[j] : scalar change in ELBO after merge of pair in PairList[j]
         '''
         Gaps = np.zeros(len(PairList))
+        cPrior = None
+        cPost_K = [None for k in range(SS.K)]
         for ii, (kA, kB) in enumerate(PairList):
-            Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
+            Gaps[ii], cPost_K, cPrior = calcHardMergeGapForPair(
+                SS=SS, Post=self.Post, Prior=self.Prior, kA=kA, kB=kB,
+                cPrior=cPrior, cPost_K=cPost_K)
         return Gaps
+
 
     def calcLogMargLikForComp(self, SS, kA, kB=None, **kwargs):
         ''' Calc log marginal likelihood of data assigned to given component
@@ -1163,6 +1162,41 @@ def calcPostParamsFromSS(
         nu=nu, beta=beta, m=m, kappa=kappa, Post=Post)
 
 
+
+def calcPostParamsFromSSForComp(
+        SS=None, 
+        kA=None, kB=None,
+        Prior=None,
+        **kwargs):
+    ''' Calc updated posterior parameters for all clusters from suff stats
+
+    Returns
+    --------
+    nu : positive scalar
+    beta : 1D array, size D
+    m : 1D array, size D
+    kappa : positive scalar
+    '''
+    K = SS.K
+    D = SS.D
+
+    if kB is None:
+        SS_N_k = SS.N[kA]
+        SS_x_k = SS.x[kA]
+        SS_xx_k = SS.xx[kA]
+    else:
+        SS_N_k = SS.N[kA] + SS.N[kB]
+        SS_x_k = SS.x[kA] + SS.x[kB]
+        SS_xx_k = SS.xx[kA] + SS.xx[kB]
+
+    nu = Prior.nu + SS_N_k
+    kappa = Prior.kappa + SS_N_k
+    m = (Prior.kappa * Prior.m + SS_x_k) / kappa
+    beta = Prior.beta + SS_xx_k \
+        + Prior.kappa * np.square(Prior.m) \
+        - kappa * np.square(m)
+    return nu, beta, m, kappa
+
 def calcELBOFromSSAndPost(
         SS,
         Post=None, Prior=None,
@@ -1342,3 +1376,43 @@ def createParamBagForPrior(
     Prior.setField('m', m, dims=('D'))
     Prior.setField('beta', beta, dims=('D'))
     return Prior
+
+
+def calcHardMergeGapForPair(
+        SS=None, Prior=None, Post=None, kA=0, kB=1, 
+        cPost_K=None,
+        cPrior=None,
+        ):
+    ''' Compute difference in ELBO objective after merging two clusters
+
+    Uses caching if desired
+
+    Returns
+    -------
+    Ldiff : scalar
+        difference in ELBO from merging cluster indices kA and kB
+    '''
+    if cPost_K is None:
+        cPost_K = [None for k in range(SS.K)]
+
+    if cPost_K[kA] is None:
+        cA = c_Func(
+            Post.nu[kA], Post.beta[kA],
+            Post.m[kA], Post.kappa[kA])
+    else:
+        cA = cPost_K[kA]
+
+    if cPost_K[kB] is None:
+        cB = c_Func(
+            Post.nu[kB], Post.beta[kB],
+            Post.m[kB], Post.kappa[kB])
+        cPost_K[kB] = cB
+    else:
+        cB = cPost_K[kB]
+
+    if cPrior is None:
+        cPrior = c_Func(
+            Prior.nu, Prior.beta,
+            Prior.m, Prior.kappa)
+    cAB = c_Func(*calcPostParamsFromSSForComp(SS, kA, kB, Prior))
+    return cA + cB - cPrior - cAB, cPost_K, cPrior

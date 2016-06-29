@@ -18,11 +18,18 @@ class GaussRegressYFromDiagGaussXObsModel(AbstractObsModel):
     ''' Model for producing 1D observations from modeled covariates
 
     Attributes for DiagGauss Prior
-    --------------------
-    ???
+    ------------------------------
+    nu : scalar positive float
+        degrees of freedom for precision-matrix random variable L
+    B : 2D array, size D x D
+        determines mean of the precision-matrix random variable L
+    m : 1D array, size D
+        mean of the location parameter mu
+    kappa : scalar positive float
+        additional precision for location parameter mu
 
     Attributes for Regression Prior
-    --------------------
+    -------------------------------
     w_E : 1D array, size E
         mean of the regression weights
     P_EE : 2D array, size E x E
@@ -147,7 +154,7 @@ class GaussRegressYFromDiagGaussXObsModel(AbstractObsModel):
         Attributes K and Post updated in-place.
         '''
         self.ClearCache()
-        if not hasattr(self, 'Post'):
+        if not hasattr(self, 'Post') or SS.K != self.Post.K:
             self.Post = None
         self.Post = DiagGaussX.calcPostParamsFromSS(
             SS=SS, Prior=self.Prior, Post=self.Post)
@@ -180,6 +187,42 @@ class GaussRegressYFromDiagGaussXObsModel(AbstractObsModel):
             Prior=self.Prior,
             returnVec=returnVec, afterMStep=afterMStep)
         return elbo_XModel + elbo_YModel
+
+    def calcHardMergeGap(self, SS, kA, kB):
+        ''' Calculate change in ELBO after a hard merge applied to this model
+
+        Returns
+        ---------
+        gap : scalar real, indicates change in ELBO after merge of kA, kB
+        '''
+        gapX, _, _ = DiagGaussX.calcHardMergeGapForPair(
+            SS=SS, Post=self.Post, Prior=self.Prior, kA=kA, kB=kB)
+        gapY, _, _ = RegressY.calcHardMergeGapForPair(
+            SS=SS, Post=self.Post, Prior=self.Prior, kA=kA, kB=kB)
+        return gapX + gapY
+
+    def calcHardMergeGap_SpecificPairs(self, SS, PairList):
+        ''' Calc change in ELBO for specific list of candidate hard merge pairs
+
+        Returns
+        ---------
+        Gaps : 1D array, size L
+              Gap[j] : scalar change in ELBO after merge of pair in PairList[j]
+        '''
+        Gaps = np.zeros(len(PairList))
+        XcPrior = None
+        XcPost_K = [None for k in range(SS.K)]
+        YcPrior = None
+        YcPost_K = [None for k in range(SS.K)]
+        for ii, (kA, kB) in enumerate(PairList):
+            gapX, XcPost_K, XcPrior = DiagGaussX.calcHardMergeGapForPair(
+                SS=SS, Post=self.Post, Prior=self.Prior, kA=kA, kB=kB,
+                cPrior=XcPrior, cPost_K=XcPost_K)
+            gapY, YcPost_K, YcPrior = DiagGaussX.calcHardMergeGapForPair(
+                SS=SS, Post=self.Post, Prior=self.Prior, kA=kA, kB=kB,
+                cPrior=YcPrior, cPost_K=YcPost_K)
+            Gaps[ii] = gapX + gapY
+        return Gaps
 
     def predictClusterSpecificYFromX(self, Data):
         ''' Predict output given input for each cluster

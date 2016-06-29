@@ -226,7 +226,6 @@ class GaussRegressYFromFixedXObsModel(AbstractObsModel):
         pdict = self._unpack_params(k=k)
         return E_d_w_wT(**pdict)
 
-
     def calcHardMergeGap(self, SS, kA, kB):
         ''' Calculate change in ELBO after a hard merge applied to this model
 
@@ -234,10 +233,9 @@ class GaussRegressYFromFixedXObsModel(AbstractObsModel):
         ---------
         gap : scalar real, indicates change in ELBO after merge of kA, kB
         '''
-        Post = self.Post
-        Prior = self.Prior
-        return calcHardMergeGapForPair(
+        gap, _, _ = calcHardMergeGapForPair(
             SS=SS, Post=self.Post, Prior=self.Prior, kA=kA, kB=kB)
+        return gap
 
     def calcHardMergeGap_SpecificPairs(self, SS, PairList):
         ''' Calc change in ELBO for specific list of candidate hard merge pairs
