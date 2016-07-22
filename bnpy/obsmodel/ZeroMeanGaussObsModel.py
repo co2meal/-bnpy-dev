@@ -735,11 +735,11 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         assert Mu[0].shape[1] == D
 
         if smoothFrac == 0:
-            smoothMu = eps * self.Prior.B / self.Prior.nu
+            smoothMu = eps * self.Prior.B / (self.Prior.nu - self.D - 1)
             smoothNu = 1.0 # + eps ??
         else:
             smoothMu = self.Prior.B
-            smoothNu = 1 + self.Prior.nu
+            smoothNu = 1 + self.Prior.nu - self.D - 1
         Div = np.zeros((N, K))
         for k in xrange(K):
             chol_Mu_k = np.linalg.cholesky(Mu[k])
