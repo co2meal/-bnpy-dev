@@ -684,7 +684,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         Mu : 2D array, size D x D
         '''
         if X is None:
-            Mu = self.Prior.B / self.Prior.nu
+            Mu = self.Prior.B / (self.Prior.nu - self.D - 1)
             return Mu
         if X.ndim == 1:
             X = X[np.newaxis,:]
@@ -698,7 +698,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
             wX = np.sqrt(W)[:,np.newaxis] * X
             sum_wxxT = np.dot(wX.T, wX)
             sum_w = np.sum(W)
-        Mu = (self.Prior.B + sum_wxxT) / (self.Prior.nu + sum_w)
+        Mu = (self.Prior.B + sum_wxxT) / (self.Prior.nu - self.D - 1 + sum_w)
         assert Mu.ndim == 2
         assert Mu.shape == (D, D,)
         return Mu

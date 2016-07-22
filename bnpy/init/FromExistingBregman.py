@@ -1,4 +1,4 @@
-
+import numpy as np
 
 def runKMeans_BregmanDiv_existing(
         X, K, obsModel,
@@ -27,13 +27,12 @@ def runKMeans_BregmanDiv_existing(
     Lscores : 1D array, size Niter
     '''
     Korig = obsModel.K
-    chosenZ, Mu, _, _ = initKMeans_BregmanDiv_exist(
+    chosenZ, Mu, _, _ = initKMeans_BregmanDiv_existing(
         X, K, obsModel,
         W=W,
         seed=seed,
         smoothFrac=smoothFracInit,
-        distexp=distexp,
-        setOneToPriorMean=setOneToPriorMean)
+        distexp=distexp)
     # Make sure we update K to reflect the returned value.
     # initKMeans_BregmanDiv will return fewer than K clusters
     # in some edge cases, like when data matrix X has duplicate rows
@@ -78,14 +77,14 @@ def runKMeans_BregmanDiv_existing(
         for k in xrange(K):
             if W is None:
                 W_k = None
-                N[k] = np.sum(Z==k)
+                N[k] = np.sum(Z==k+Korig)
             else:
-                W_k = W[Z==k]
+                W_k = W[Z==k+Korig]
                 N[k] = np.sum(W_k)
             if N[k] > 0:
-                Mu[k] = obsModel.calcSmoothedMu(X[Z==k], W_k)
+                Mu[k+Korig] = obsModel.calcSmoothedMu(X[Z==k+Korig], W_k)
             else:
-                Mu[k] = obsModel.calcSmoothedMu(X=None)
+                Mu[k+Korig] = obsModel.calcSmoothedMu(X=None)
         if logFunc:
             logFunc("iter %d: Lscore %.3e" % (riter, Lscore))
             if W is None:
@@ -99,17 +98,21 @@ def runKMeans_BregmanDiv_existing(
             break
         prevN[:] = N
 
-    uniqueZ = np.unique(Z)
+    # uniqueZ = np.unique(Z)
     if Niter > 0:
         # In case a cluster was pushed to zero
-        if uniqueZ.size < len(Mu):
-            Mu = [Mu[k] for k in uniqueZ]
+        # if uniqueZ.size < len(Mu):
+        #     Mu = [Mu[k] for k in uniqueZ]
+        for k in reversed(xrange(K)):
+            if N[k] == 0:
+                del(Mu[k+Korig])
+                Z[Z > k+Korig] -= 1
     else:
         # Without full pass through dataset, many items not assigned
         # which we indicated with Z value of -1
         # Should ignore this when counting states
         uniqueZ = uniqueZ[uniqueZ >= 0]
-    assert len(Mu) == uniqueZ.size
+    # assert len(Mu) == uniqueZ.size
     return Z, Mu, np.asarray(Lscores)
 
 def initKMeans_BregmanDiv_existing(
@@ -139,8 +142,8 @@ def initKMeans_BregmanDiv_existing(
     # Initialize list Mu to hold all mean vectors
     # First obsModel.K entries go to existing clusters found in the obsModel.
     # Final K entries are placeholders for the new clusters we'll make below.
-    Mu = [obsModel.getSmoothedMuForComp(k) for k in obsModel.K]
-    Mu.extend([None for k in range K])
+    Mu = [obsModel.getSmoothedMuForComp(k) for k in xrange(obsModel.K)]
+    Mu.extend([None for k in xrange(K)])
 
     # Compute minDiv between all data and existing clusters
     minDiv, DivDataVec = obsModel.calcSmoothedBregDiv(
