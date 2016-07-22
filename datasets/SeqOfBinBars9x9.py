@@ -138,7 +138,7 @@ def generateDataset(**kwargs):
         stop = doc_range[i + 1]
 
         T = stop - start
-        Z = np.zeros(T)
+        Z = np.zeros(T, dtype=np.int32)
         X = np.zeros((T, D))
         nConsec = 0
 

@@ -274,8 +274,9 @@ def runKMeans_BregmanDiv(
             # numerically indistinguishable from zero. Don't care about these.
             assert np.all(np.diff(Lscores) <= 1e-5)
         except AssertionError:
-            msg = 'In the kmeans update loop of FromScratchBregman.py'
-            msg += 'Lscores not monotonically decreasing...'
+            msg = "iter %d: Lscore %.3e" % (riter, Lscore)
+            msg += '\nIn the kmeans update loop of FromScratchBregman.py'
+            msg += '\nLscores not monotonically decreasing...'
             if logFunc:
                 logFunc(msg)
             else:
@@ -338,7 +339,6 @@ def initKMeans_BregmanDiv(
     N = X.shape[0]
     if W is None:
         W = np.ones(N)
-
     chosenZ = np.zeros(K, dtype=np.int32)
     if setOneToPriorMean:
         chosenZ[0] = -1

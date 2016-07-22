@@ -99,6 +99,8 @@ def test_Bern(K=50, N=1000, W=None, **kwargs):
         if W.size != N:   
             PRNG = np.random.RandomState(0)
             W = PRNG.rand(N)
+    else:
+        W = None
     Z, Mu, Lscores = runBregKMeans(
         Data.X, K, hmodel.obsModel,
         W=W, smoothFrac=0.0, smoothFracInit=1.0,
@@ -119,6 +121,8 @@ def test_Mult(K=50, N=1000, W=None, **kwargs):
         if W.size != N:   
             PRNG = np.random.RandomState(0)
             W = PRNG.rand(N)
+    else:
+        W = None
     Z, Mu, Lscores = runBregKMeans(
         X, K, hmodel.obsModel,
         W=W, smoothFrac=0.0, smoothFracInit=1.0,
