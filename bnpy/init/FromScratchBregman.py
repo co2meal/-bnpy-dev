@@ -338,7 +338,6 @@ def initKMeans_BregmanDiv(
     N = X.shape[0]
     if W is None:
         W = np.ones(N)
-
     chosenZ = np.zeros(K, dtype=np.int32)
     if setOneToPriorMean:
         chosenZ[0] = -1

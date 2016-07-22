@@ -13,7 +13,15 @@ def runKMeans_BregmanDiv_existing(
         distexp=1.0,
         init='plusplus',
         **kwargs):
-    ''' Run hard clustering algorithm to add K new clusters to existing model.
+    ''' Run hard clustering algorithm with K new clusters plus existing model.
+
+    Given an existing model with Korig clusters,
+    We first initialize K brand-new clusters via Bregman kmeans++.
+    Next, we run Niter iterations of coordinate ascent, which iteratively
+    updates the assignments of data to clusters, and then updates cluster means.
+
+    Importantly, *only* the new clusters have their mean parameters updated.
+    Existing clusters are *fixed* to values given by provided obsModel.
 
     Returns
     -------
@@ -72,7 +80,7 @@ def runKMeans_BregmanDiv_existing(
             else:
                 print msg
             assert np.all(np.diff(Lscores) <= 1e-5)
-
+        Lscores.append(Lscore)
         N = np.zeros(K)
         for k in xrange(K):
             if W is None:
@@ -98,21 +106,21 @@ def runKMeans_BregmanDiv_existing(
             break
         prevN[:] = N
 
-    # uniqueZ = np.unique(Z)
     if Niter > 0:
         # In case a cluster was pushed to zero
-        # if uniqueZ.size < len(Mu):
-        #     Mu = [Mu[k] for k in uniqueZ]
+        # We remove that index from list Mu
+        # And shift labels in the assigned Z array
         for k in reversed(xrange(K)):
             if N[k] == 0:
-                del(Mu[k+Korig])
+                del Mu[k+Korig]
                 Z[Z > k+Korig] -= 1
+        # Verify that all data points have been assigned to a cluster
+        assert np.all(Z >= 0)
     else:
         # Without full pass through dataset, many items not assigned
         # which we indicated with Z value of -1
         # Should ignore this when counting states
-        uniqueZ = uniqueZ[uniqueZ >= 0]
-    # assert len(Mu) == uniqueZ.size
+    assert len(Mu) == np.unique(Z[Z >= 0]).size        
     return Z, Mu, np.asarray(Lscores)
 
 def initKMeans_BregmanDiv_existing(
