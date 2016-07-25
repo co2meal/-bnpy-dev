@@ -1,3 +1,11 @@
+'''
+RunBregKMeans : verify monotonic improvement in k-means objective
+
+Usage
+-----
+$ python RunBregKMeans.py <obsModelName> --N 100 --K 33
+'''
+
 from __future__ import print_function
 
 import numpy as np
