@@ -141,21 +141,20 @@ if __name__ == '__main__':
     if args.N is not None:
         Nrange = [args.N]
     else:
-        Nrange = [int(n) for n in args.Nrange]
+        Nrange = [int(n) for n in args.Nrange.split(',')]
     if args.K is not None:
         Krange = [args.K]
     else:
-        Krange = [int(n) for n in args.Krange]
+        Krange = [int(n) for n in args.Krange.split(',')]
     D = args.D
     W = args.W
     eps = args.eps
 
-
     for N in Nrange:
-        print('--------- N=' + str(N))
         for K in Krange:
             if K > N:
                 continue
+            print('--------- N=%d K=%d' % (N,K))
             if args.obsModelName.count("Bern"):
                 test_Bern(K, N, W=W)
             elif args.obsModelName.count("Mult"):
