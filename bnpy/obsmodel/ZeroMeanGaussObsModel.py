@@ -670,6 +670,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         -------
         Mu_k : 2D array, size D x D
         '''
+        #return self.Post.B[k] / self.Post.nu[k]
         return self.get_covar_mat_for_comp(k)
 
     def calcSmoothedMu(self, X, W=None):
@@ -683,8 +684,11 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         -------
         Mu : 2D array, size D x D
         '''
+        Prior_nu = self.Prior.nu - self.D - 1
+        # Prior_nu = self.Prior.nu
+
         if X is None:
-            Mu = self.Prior.B / (self.Prior.nu - self.D - 1)
+            Mu = self.Prior.B / (Prior_nu)
             return Mu
         if X.ndim == 1:
             X = X[np.newaxis,:]
@@ -698,7 +702,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
             wX = np.sqrt(W)[:,np.newaxis] * X
             sum_wxxT = np.dot(wX.T, wX)
             sum_w = np.sum(W)
-        Mu = (self.Prior.B + sum_wxxT) / (self.Prior.nu - self.D - 1 + sum_w)
+        Mu = (self.Prior.B + sum_wxxT) / (Prior_nu + sum_w)
         assert Mu.ndim == 2
         assert Mu.shape == (D, D,)
         return Mu
