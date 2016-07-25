@@ -2,7 +2,7 @@ import numpy as np
 from bnpy.util import split_str_into_fixed_width_lines
 
 def runKMeans_BregmanDiv_existing(
-        X, K, obsModel,
+        X, Kfresh, obsModel,
         W=None,
         Niter=100,
         seed=0,
@@ -10,11 +10,12 @@ def runKMeans_BregmanDiv_existing(
         smoothFrac=0,
         logFunc=None,
         eps=1e-10,
+        assert_monotonic=True,
         setOneToPriorMean=0,
         distexp=1.0,
         init='plusplus',
         **kwargs):
-    ''' Run hard clustering algorithm to add K new clusters to existing model.
+    ''' Run clustering algorithm to add Kfresh new clusters to existing model.
 
     Returns
     -------
@@ -22,14 +23,14 @@ def runKMeans_BregmanDiv_existing(
         Contains assignments to Korig + K possible clusters
         if Niter == 0, unassigned data items have value Z[n] = -1 
 
-    Mu : 2D array, size (Korig + K) x D
-        Includes original Korig clusters and K new clusters
+    Mu : 2D array, size (Korig + Kfresh) x D
+        Includes original Korig clusters and Kfresh new clusters
 
     Lscores : 1D array, size Niter
     '''
     Korig = obsModel.K
     chosenZ, Mu, _, _ = initKMeans_BregmanDiv_existing(
-        X, K, obsModel,
+        X, Kfresh, obsModel,
         W=W,
         seed=seed,
         smoothFrac=smoothFracInit,
@@ -38,8 +39,8 @@ def runKMeans_BregmanDiv_existing(
     # initKMeans_BregmanDiv will return fewer than K clusters
     # in some edge cases, like when data matrix X has duplicate rows
     # and specified K is larger than the number of unique rows.
-    K = len(Mu) - Korig
-    assert K > 0
+    Kfresh = len(Mu) - Korig
+    assert Kfresh > 0
     assert Niter >= 0
     if Niter == 0:
         Z = -1 * np.ones(X.shape[0])
@@ -47,8 +48,13 @@ def runKMeans_BregmanDiv_existing(
             Z[chosenZ[1:]] = Korig + np.arange(chosenZ.size - 1)
         else:
             Z[chosenZ] = Korig + np.arange(chosenZ.size)
+
+    # Run coordinate ascent,
+    # Alternatively these updates:
+    # Local step: set assignment of every data point to its nearest cluster
+    # (partial) global step: update mean parameters for Kfresh new clusters
     Lscores = list()
-    prevN = np.zeros(K)
+    prevN_K = np.zeros(Korig + Kfresh)
     for riter in xrange(Niter):
         Div = obsModel.calcSmoothedBregDiv(
             X=X, Mu=Mu, W=W,
@@ -60,60 +66,74 @@ def runKMeans_BregmanDiv_existing(
             Mu=Mu, smoothFrac=smoothFrac).sum()
         Lscore = Ldata + Lprior
         Lscores.append(Lscore)
-        # Verify objective is monotonically increasing
-        try:
-            # Test allows small positive increases that are
-            # numerically indistinguishable from zero. Don't care about these.
-            assert np.all(np.diff(Lscores) <= 1e-5)
-        except AssertionError:
-            msg = 'In the kmeans update loop of FromScratchBregman.py'
-            msg += 'Lscores not monotonically decreasing...'
-            if logFunc:
-                logFunc(msg)
-            else:
-                print msg
-            assert np.all(np.diff(Lscores) <= 1e-5)
+        if assert_monotonic:
+            # Verify objective is monotonically increasing
+            try:
+                # Test allows small positive increases that are
+                # numerically indistinguishable from zero. Don't care about these.
+                assert np.all(np.diff(Lscores) <= 1e-5)
+            except AssertionError:
+                msg = 'In the kmeans update loop of FromScratchBregman.py'
+                msg += 'Lscores not monotonically decreasing...'
+                if logFunc:
+                    logFunc(msg)
+                else:
+                    print msg
+                assert np.all(np.diff(Lscores) <= 1e-5)
 
-        N = np.zeros(K)
-        for k in xrange(K):
+        curN_K = np.zeros(Korig + Kfresh)
+        for k in xrange(Korig + Kfresh):
             if W is None:
                 W_k = None
-                N[k] = np.sum(Z==k+Korig)
+                curN_K[k] = np.sum(Z==k)
             else:
-                W_k = W[Z==k+Korig]
-                N[k] = np.sum(W_k)
-            if N[k] > 0:
-                Mu[k+Korig] = obsModel.calcSmoothedMu(X[Z==k+Korig], W_k)
-            else:
-                Mu[k+Korig] = obsModel.calcSmoothedMu(X=None)
+                W_k = W[Z==k]
+                curN_K[k] = np.sum(W_k)
+
+            # Update mean parameters
+            if k >= Korig:
+                if curN_K[k] > 0:
+                    Mu[k] = obsModel.calcSmoothedMu(X[Z==k], W_k)
+                else:
+                    Mu[k] = obsModel.calcSmoothedMu(X=None)
         if logFunc:
             logFunc("iter %d: Lscore %.3e" % (riter, Lscore))
-            if W is None:
-                 str_sum_w = ' '.join(['%7.0f' % (x) for x in N])
-            else:
-                 assert np.allclose(N.sum(), W.sum())
-                 str_sum_w = ' '.join(['%7.2f' % (x) for x in N])
-            str_sum_w = split_str_into_fixed_width_lines(str_sum_w, tostr=True)
-            logFunc(str_sum_w)
-        if np.max(np.abs(N - prevN)) == 0:
-            break
-        prevN[:] = N
+            def countvec2str(curN_K):
+                if W is None:
+                     str_sum_w = ' '.join(['%7.0f' % (x) for x in curN_K])
+                else:
+                     assert np.allclose(curN_K.sum(), W.sum())
+                     str_sum_w = ' '.join(['%7.2f' % (x) for x in curN_K])
+                return split_str_into_fixed_width_lines(
+                    str_sum_w, tostr=True)
 
-    # uniqueZ = np.unique(Z)
+
+            str_sum_w_exist = countvec2str(curN_K[:Korig])
+            logFunc(str_sum_w_exist)
+            
+            str_sum_w_fresh = countvec2str(curN_K[Korig:])
+            logFunc(str_sum_w_fresh)
+
+        if np.max(np.abs(curN_K - prevN_K)) == 0:
+            break
+        prevN_K[:] = curN_K
+
     if Niter > 0:
-        # In case a cluster was pushed to zero
-        # if uniqueZ.size < len(Mu):
-        #     Mu = [Mu[k] for k in uniqueZ]
-        for k in reversed(xrange(K)):
-            if N[k] == 0:
-                del(Mu[k+Korig])
-                Z[Z > k+Korig] -= 1
+        # In case a new cluster (index Korig, Korig+1, ... Korig+Kfresh)
+        # has mass pushed to zero, we delete it.
+        # All original clusters (index 0, 1, ... Korig) remain untouched.
+        for k in reversed(xrange(Korig, Korig + Kfresh)):
+            if curN_K[k] == 0:
+                del(Mu[k])
+                Z[Z > k] -= 1
+        Kfreshnonzero = np.unique(Z[Z >= Korig]).size
+        assert len(Mu) == Korig + Kfreshnonzero
     else:
-        # Without full pass through dataset, many items not assigned
-        # which we indicated with Z value of -1
-        # Should ignore this when counting states
-        uniqueZ = uniqueZ[uniqueZ >= 0]
-    # assert len(Mu) == uniqueZ.size
+        # Did not do a full assignment step, so many items are unassigned
+        # This is indicated with Z value of -1.
+        Kfreshnonzero = np.unique(Z[Z >= Korig]).size
+        assert Kfreshnonzero == Kfresh
+        assert len(Mu) == Korig + Kfresh
     return Z, Mu, np.asarray(Lscores)
 
 def initKMeans_BregmanDiv_existing(
