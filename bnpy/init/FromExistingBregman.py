@@ -74,14 +74,7 @@ def runKMeans_BregmanDiv_existing(
             Mu=Mu, smoothFrac=smoothFrac).sum()
         Lscore = Ldata + Lprior
         Lscores.append(Lscore)
-        if assert_monotonic:-    Given an existing model with Korig clusters,
--    We first initialize K brand-new clusters via Bregman kmeans++.
--    Next, we run Niter iterations of coordinate ascent, which iteratively
--    updates the assignments of data to clusters, and then updates cluster means.
--
--    Importantly, *only* the new clusters have their mean parameters updated.
--    Existing clusters are *fixed* to values given by provided obsModel.
-
+        if assert_monotonic:
             # Verify objective is monotonically increasing
             try:
                 # Test allows small positive increases that are
