@@ -228,6 +228,7 @@ def runKMeans_BregmanDiv(
         logFunc=None, eps=1e-10,
         setOneToPriorMean=0,
         distexp=1.0,
+        assert_monotonic=True,
         **kwargs):
     ''' Run hard clustering algorithm to find K clusters.
 
@@ -269,18 +270,20 @@ def runKMeans_BregmanDiv(
         Lscore = Ldata + Lprior
         Lscores.append(Lscore)
         # Verify objective is monotonically increasing
-        try:
-            # Test allows small positive increases that are
-            # numerically indistinguishable from zero. Don't care about these.
-            assert np.all(np.diff(Lscores) <= 1e-5)
-        except AssertionError:
-            msg = 'In the kmeans update loop of FromScratchBregman.py'
-            msg += 'Lscores not monotonically decreasing...'
-            if logFunc:
-                logFunc(msg)
-            else:
-                print msg
-            assert np.all(np.diff(Lscores) <= 1e-5)
+        if assert_monotonic:
+            try:
+                # Test allows small positive increases that are
+                # numerically indistinguishable from zero. Don't care about these.
+                assert np.all(np.diff(Lscores) <= 1e-5)
+            except AssertionError:
+                msg = "iter %d: Lscore %.3e" % (riter, Lscore)
+                msg += '\nIn the kmeans update loop of FromScratchBregman.py'
+                msg += '\nLscores not monotonically decreasing...'
+                if logFunc:
+                    logFunc(msg)
+                else:
+                    print msg
+                assert np.all(np.diff(Lscores) <= 1e-5)
 
         N = np.zeros(K)
         for k in xrange(K):
