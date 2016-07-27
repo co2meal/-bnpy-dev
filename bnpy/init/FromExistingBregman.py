@@ -18,6 +18,14 @@ def runKMeans_BregmanDiv_existing(
         **kwargs):
     ''' Run clustering algorithm to add Kfresh new clusters to existing model.
 
+    Given an existing model with Korig clusters,
+    We first initialize K brand-new clusters via Bregman kmeans++.
+    Next, we run Niter iterations of coordinate ascent, which iteratively
+    updates the assignments of data to clusters, and then updates cluster means.
+
+    Importantly, *only* the new clusters have their mean parameters updated.
+    Existing clusters are *fixed* to values given by provided obsModel.
+
     Returns
     -------
     Z : 1D array, size N
