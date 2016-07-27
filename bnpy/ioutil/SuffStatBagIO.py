@@ -8,7 +8,7 @@ except ImportError:
     pass
 
 
-def saveSuffStatBag(file_path, SS, compress=1):
+def saveSuffStatBag(file_path='', SS=None, compress=1):
     ''' Write SuffStatBag object to disk in reproducible way.
 
     Args
@@ -47,7 +47,7 @@ def saveSuffStatBag(file_path, SS, compress=1):
     joblib.dump(SS, file_path, compress=compress)
 
 
-def loadSuffStatBag(file_path):
+def loadSuffStatBag(file_path=''):
     ''' Load SuffStatBag object from disk in reproducible way.
 
     Args
