@@ -132,5 +132,5 @@ if __name__ == '__main__':
                 ii += 1
                 axList[r,c].set_xticks([])
                 axList[r,c].set_yticks([])
-                axList[r,c].set_axes('image')
+
     pylab.show()
