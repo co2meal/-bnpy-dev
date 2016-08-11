@@ -81,8 +81,7 @@ def calcLocalParams_SingleDoc(
         np.dot(Lik_d, DocTopicProb_d, out=sumResp_d)
 
         # Update DocTopicCounts
-        # np.dot(wc_d / sumResp_d, Lik_d, out=DocTopicCount_d)
-        DocTopicCount_d = np.dot(wc_d / sumResp_d, Lik_d)
+        np.dot(wc_d / sumResp_d, Lik_d, out=DocTopicCount_d)
         DocTopicCount_d *= DocTopicProb_d
 
         # Check for convergence

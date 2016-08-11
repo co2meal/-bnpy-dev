@@ -74,7 +74,7 @@ if __name__ == '__main__':
             (np.ones(Z.size), Z, np.arange(0, Z.size+1, 1)),
             shape=(TestData.nObs, Kall))
         )
-    DocTopicCount = np.bincount(Z, minlength=Kall).reshape((1, Kall))
+    DocTopicCount = np.asarray(np.bincount(Z, minlength=Kall).reshape((1, Kall)), dtype=np.float64)
     testLP['DocTopicCount'] = DocTopicCount
     alphaPi0 = np.hstack((trainedModel.allocModel.alpha_E_beta(),
                           trainedModel.allocModel.E_beta_rem() / (Kfresh+1) * np.ones(Kfresh)))
@@ -95,8 +95,10 @@ if __name__ == '__main__':
     combinedModel.update_global_params(combinedSS)
 
     # Refine this combined model via several coord ascent passes thru TestData
+    testLP = dict(DocTopicCount=DocTopicCount)
     for aiter in range(10):
-        testLP = combinedModel.calc_local_params(TestData)
+        testLP = combinedModel.calc_local_params(TestData,
+                        testLP, initDocTopicCountLP='memo')
         testSS = combinedModel.get_global_suff_stats(
             TestData, testLP, doPrecompEntropy=1, doTrackTruncationGrowth=1)
 
