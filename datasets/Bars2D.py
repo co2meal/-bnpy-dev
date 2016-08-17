@@ -43,8 +43,10 @@ def Create2DBarsTopicWordParams(V, K, fracMassOnTopic=0.95, PRNG=np.random, slda
 		topics[K / 2 + k, wordIDs] = 1.0
 		#only add response weight to vertical bars, -10, -5, 0, 5, 10 respectively
 		#eta[K / 2 + k] = 
-		eta[4:8] = [-20, -10, 10 ,20]
-		
+		#eta[4:8] = [-20, -10, 10 ,20]
+		if slda:
+			#eta[4:8] = [-10, -5, 5 ,10]
+			eta[4:8] = [-20, -5, 5 ,20]
     # Add smoothing mass to all entries in "topics"
     #  instead of picking this value out of thin air, instead,
     #  set so 95% of the mass of each topic is on the "on-topic" bar words

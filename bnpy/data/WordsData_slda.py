@@ -955,6 +955,7 @@ class WordsData(DataObj):
 			# y ~ N(eta * \bar{z}, delta^2)
 			#\bar{z} = 1/N * \sum_{n=1}^N(z_n)
 			mu = np.dot(Npercomp,eta) / float(nWordsPerDoc)
+			#mu = np.dot(Pi[d,:], eta) / float(nWordsPerDoc)
 			#r = np.random.randn(1,1)[0]
 			#doc_response = 1/math.sqrt(delta)*r + mu
 			doc_response = np.random.normal(loc=mu,scale=delta)
