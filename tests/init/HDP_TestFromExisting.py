@@ -113,9 +113,23 @@ if __name__ == '__main__':
 
     # Refine this combined model via several coord ascent passes thru TestData
     for aiter in range(10):
+        if aiter > 2:
+            doMergeThisIter = 1
+            # Create list of all unique pairs of "fresh" uids
+            m_UIDPairs = [pair for pair in itertools.combinations(
+                trainSS.uids[Korig:], 2)]
+            m_IDPairs = [(trainSS.uid2k(uidA), trainSS.uid2k(uidB))
+                for (uidA, uidB) in m_UIDPairs]
+        else:
+            doMergeThisIter = 0
+            m_IDPairs = []
+
         testLP = combinedModel.calc_local_params(TestData)
         testSS = combinedModel.get_global_suff_stats(
-            TestData, testLP, doPrecompEntropy=1, doTrackTruncationGrowth=1)
+            TestData, testLP,
+            doPrecompEntropy=1, doTrackTruncationGrowth=1,
+            doPrecompMergeEntropy=doMergeThisIter,
+            mPairIDs=m_IDPairs)
 
         print("VB refinement iter %d" % aiter)
         print("   orig counts: ",
@@ -130,9 +144,7 @@ if __name__ == '__main__':
         if aiter > 2:
             cur_ELBO = combinedModel.calc_evidence(SS=combinedSS)
 
-            # Create list of all unique pairs of "fresh" uids
-            m_UIDPairs = [pair for pair in itertools.combinations(
-                trainSS.uids[Korig:], 2)]
+            # Track which uids were accepted
             acceptedUIDs = set()
 
             # Try merging each possible pair of uids
@@ -149,23 +161,28 @@ if __name__ == '__main__':
                 prop_trainSS = trainSS.copy()
                 prop_trainSS.removeComp(uid=uidB)
 
-                # Update proposed test comp
-                prop_testLP = \
-                    combinedModel.allocModel.applyHardMergePairToLP(
-                        testLP, kA, kB)
-                prop_testSS = combinedModel.get_global_suff_stats(
-                    TestData, prop_testLP,
-                    doPrecompEntropy=1,
-                    doTrackTruncationGrowth=1)
-                prop_testSS.setUIDs(prop_trainSS.uids)
+                # Update proposed statistics the EASY BUT SLOW way
+                # prop_testLP = \
+                #    combinedModel.allocModel.applyHardMergePairToLP(
+                #        testLP, kA, kB)
+                # prop_testSS = combinedModel.get_global_suff_stats(
+                #    TestData, prop_testLP,
+                #    doPrecompEntropy=1,
+                #    doTrackTruncationGrowth=1)
+                # prop_testSS.setUIDs(prop_trainSS.uids)
 
-                prop_combinedSS = prop_trainSS + prop_testSS
+                # Create proposed statistics the FASTER way
+                # Uses precomputed fields within testSS._MergeTerms
+                prop_testSS = testSS.copy()
+                prop_testSS.mergeComps(uidA=uidA, uidB=uidB)
 
                 # Create proposed model
+                # Aggregating from both train and test
+                prop_combinedSS = prop_trainSS + prop_testSS
                 prop_combinedModel = combinedModel.copy()
                 prop_combinedModel.update_global_params(prop_combinedSS)
 
-                # Now, compare the ELBO
+                # If ELBO of proposed model improves, accept!
                 prop_ELBO = prop_combinedModel.calc_evidence(
                     SS=prop_combinedSS)
                 if prop_ELBO > cur_ELBO:
@@ -174,7 +191,7 @@ if __name__ == '__main__':
                     cur_ELBO = prop_ELBO
                     trainSS = prop_trainSS
                     testSS = prop_testSS
-                    testLP = prop_testLP
+                    #testLP = prop_testLP
                     acceptedUIDs.add(uidA)
                     acceptedUIDs.add(uidB)
                     print('pair %2d %2d ACCEPTED!' % (uidA, uidB))
