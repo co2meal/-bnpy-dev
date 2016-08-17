@@ -78,10 +78,11 @@ if __name__ == '__main__':
     Kfresh = Kall - Korig
     testLP = dict(
         nnzPerRow=1,
-        spR=csr_matrix((np.ones(Z.size), Z, np.arange(0, Z.size + 1, 1)),
-                       shape=(TestData.nObs, Kall))
-    )
-    DocTopicCount = np.bincount(Z, minlength=Kall).reshape((1, Kall))
+        spR=csr_matrix(
+            (np.ones(Z.size), Z, np.arange(0, Z.size+1, 1)),
+            shape=(TestData.nObs, Kall))
+        )
+    DocTopicCount = np.asarray(np.bincount(Z, minlength=Kall).reshape((1, Kall)), dtype=np.float64)
     testLP['DocTopicCount'] = DocTopicCount
 
     alphaPi0 = np.hstack([
@@ -112,6 +113,7 @@ if __name__ == '__main__':
     combinedModel.update_global_params(combinedSS)
 
     # Refine this combined model via several coord ascent passes thru TestData
+    testLP = dict(DocTopicCount=DocTopicCount)
     for aiter in range(10):
         if aiter > 2:
             doMergeThisIter = 1
@@ -124,7 +126,13 @@ if __name__ == '__main__':
             doMergeThisIter = 0
             m_IDPairs = []
 
-        testLP = combinedModel.calc_local_params(TestData)
+        # Perform local step with "warm start"
+        # using previous testLP's DocTopicCount attribute as initialization
+        testLP = combinedModel.calc_local_params(
+            TestData, testLP,
+            initDocTopicCountLP='memo',
+            nCoordAscentItersLP=50,
+            convThrLP=0.05)
         testSS = combinedModel.get_global_suff_stats(
             TestData, testLP,
             doPrecompEntropy=1, doTrackTruncationGrowth=1,
