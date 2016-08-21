@@ -58,7 +58,7 @@ The generative model and approximate posterior for :math:`z_n` is determined by 
 Normal Wishart prior
 ====================
 
-Each dimension *d* has a mean :math:`\mu_{kd}` and variance :math:`\lambda_{kd}` which have a joint univariate Normal-Wishart prior with scalar hyperparameters :math:`\bar{\nu}, \bar{\beta}_d, \bar{m}_d, \bar{\kappa}`:
+Each dimension *d* has a mean :math:`\mu_{kd}` and variance :math:`\lambda_{kd}` which have a joint univariate Normal-Wishart prior with scalar hyperparameters :math:`\bar{\nu}, \bar{\beta}_d` for the Wishart prior and then :math:`\bar{m}_d, \bar{\kappa}` for the Normal prior:
 
 .. math ::
     \lambda_{kd} &\sim \mathcal{W}_1(\bar{\nu}, \bar{\beta}_d)
@@ -95,7 +95,7 @@ Several keyword arguments can be used to determine the values of the prior hyper
 * ``--sF`` : float
    These two options set the value of :math:`\bar{\beta}`. TODO.
 
-* TODO how to set m??
+* TODO set m??
 
 Approximate posterior
 =====================
@@ -150,7 +150,7 @@ This approximate posterior is represented by the `Post` attribute of the `DiagGa
     Defines :math:`\hat{\beta}_{kd}` for each cluster and dimension
 * ``m`` : 2D array, size K x D
     Defines :math:`\hat{m}_{kd}` for each cluster and dimension
-* ``kappa`` : 2D array, size K x D
+* ``kappa`` : 2D array, size K
     Defines :math:`\hat{\kappa}_{k}` for each cluster
 
 
@@ -160,12 +160,12 @@ Objective function
 Variational optimization will find the approximate posterior parameters that maximize the following objective function, given a fixed observed dataset :math:`x = \{x_1, \ldots x_N \}` and fixed prior hyparparameters :math:`\bar{\nu}, \bar{\beta}, \bar{m}, \bar{\kappa}`.
 
 .. math::
-    \mathcal{L}^{\mbox{DiagGauss}}(
+    \mathcal{L}^{\smalltext{DiagGauss}}(
         \hat{\nu}, \hat{\beta}, \hat{m}, \hat{\kappa} )
     &= \sum_{k=1}^K \sum_{d=1}^D
-            c^{\mbox{\tiny NIW}}(
+            c^{\smalltext{NW}}{1,1}(
                 \hat{\nu}_k, \hat{\beta}_{kd}, \hat{m}_{kd}, \hat{\kappa})_k
-            - c^{\mbox{\tiny NIW}}(
+            - c^{\smalltext{NW}}{1,1}(
                 \bar{\nu}, \bar{\beta}_d, \bar{m}_d, \bar{\kappa})
       \\
       & \quad + \sum_{k=1}^K (N_k(\hat{r}) +  \bar{\nu} - \hat{\nu}_k)
@@ -182,8 +182,8 @@ Variational optimization will find the approximate posterior parameters that max
              + \bar{\kappa} \bar{m}_d
              - \hat{\kappa}_k \hat{m}_{kd} )
       \\
-      & \quad + \sum_{k=1}^K 
-            (N_{k}(\hat{r}) +  \bar{\kappa}_d - \hat{\kappa}_{kd} )
+      & \quad + \sum_{k=1}^K \sum_{d=1}^D
+            (N_{k}(\hat{r}) +  \bar{\kappa} - \hat{\kappa}_{k} )
 
 This objective function is computed by calling the Python function ``calc_evidence``.
 
@@ -212,16 +212,15 @@ These fields are stored within the sufficient statistics parameter bag ``SS`` as
 Cumulant function
 -----------------
 
-The cumulant function of the Normal-Inverse-Wishart is evaluated for each dimension *d* separately. The function takes 4 scalar input arguments and produces a scalar output.
+The cumulant function of the univariate Normal-Wishart is evaluated for each dimension *d* separately. The function takes 4 scalar input arguments and produces a scalar output.
 
 .. math::
-    c^{\mbox{\tiny NIW}}(\nu, \beta_d, m_d, \kappa) 
+    c^{\smalltext{NW}}_{1,1}(\nu, \beta_d, m_d, \kappa) 
         &=  
         - \frac{1}{2} \log 2\pi
         + \frac{1}{2} \log \kappa
-        - \frac{\nu}{2} \log 2
+        + \frac{\nu}{2} \log \frac{\beta_d}{2}
         - \log \Gamma \left( \frac{\nu}{2} \right)
-        + \frac{\nu}{2} \log \beta_d
 
 
 Coordinate Ascent Updates
@@ -235,17 +234,17 @@ As with all observation models, the local step computes the *expected* log condi
 .. math ::
     \E[ \log p( x_n | \mu_k, \lambda_k ) ] =
         - \frac{D}{2} \log 2 \pi
-        + \frac{1}{2} \sum_{d=1}^D \E[ \log \lambda^{-1}_{kd} ]
-        - \frac{1}{2} \sum_{d=1}^D \E[ \lambda^{-1}_{kd} (x_{nd} - \mu_{kd})^2 ]
+        + \frac{1}{2} \sum_{d=1}^D \E[ \log \lambda_{kd} ]
+        - \frac{1}{2} \sum_{d=1}^D \E[ \lambda_{kd} (x_{nd} - \mu_{kd})^2 ]
 
 where the elementary expectations required are:
 
 .. math ::
     \E[ \log \lambda_{kd} ] &=
-        \log 2 - \log \hat{\beta}_{kd}
-         + \psi \left( \frac{\hat{\nu}_k}{2} \right)
+        \psi \left( \frac{\hat{\nu}_k}{2} \right)
+        - \log \frac{\hat{\beta}_{kd}}{2}
     \\
-    \E[  \lambda_{kd} (x_{nd} - \mu_{kd})^2 ] &= 
+    \E_q \left[  \lambda_{kd} (x_{nd} - \mu_{kd})^2 \right] &= 
         \frac{1}{\hat{\kappa}_{k}} 
         + \frac{ \hat{\nu}_k }{ \hat{\beta}_{kd} } (x_{nd} - \hat{m}_{kd})^2
 
