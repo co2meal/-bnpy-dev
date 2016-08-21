@@ -118,8 +118,9 @@ if __name__ == '__main__':
         if aiter > 2:
             doMergeThisIter = 1
             # Create list of all unique pairs of "fresh" uids
-            m_UIDPairs = [pair for pair in itertools.combinations(
-                trainSS.uids[Korig:], 2)]
+            m_UIDPairs = [(uidA, uidB) for (uidA, uidB)
+                          in itertools.combinations(trainSS.uids, 2)
+                          if trainSS.uid2k(uidB) >= Korig]
             m_IDPairs = [(trainSS.uid2k(uidA), trainSS.uid2k(uidB))
                 for (uidA, uidB) in m_UIDPairs]
         else:
@@ -199,7 +200,7 @@ if __name__ == '__main__':
                     cur_ELBO = prop_ELBO
                     trainSS = prop_trainSS
                     testSS = prop_testSS
-                    #testLP = prop_testLP
+                    testLP = dict(DocTopicCount=testSS.N.reshape((1, testSS.K)))
                     acceptedUIDs.add(uidA)
                     acceptedUIDs.add(uidB)
                     print('pair %2d %2d ACCEPTED!' % (uidA, uidB))
