@@ -3,31 +3,30 @@
    Must contain the root `toctree` directive.
 
 bnpy : Bayesian nonparametric clustering for Python
-===============
+===================================================
 
-Our goal is to make it easy for 
-Python programmers 
-to train state-of-the-art clustering models on large datasets.
-We focus on nonparametric models based on the Dirichlet process, especially extensions that handle hierarchical and sequential datasets.
-Traditional parametric counterparts (like finite mixture models) are also supported. 
+Our goal is to make it easy for Python programmers to train state-of-the-art clustering models on large datasets. We focus on nonparametric models based on the Dirichlet process, especially extensions that handle hierarchical and sequential datasets. Traditional parametric counterparts (like finite mixture models) are also supported. 
 
 
 Training a model with **bnpy** requires the user to specify the dataset, the model, and the algorithm to use. Flexible keyword options allow advanced users lots of control, but smart defaults make it simple for beginners. 
 **bnpy**'s modular implementation makes it possible to try many variants of models and algorithms, to find the best fit for the data at hand.
 
-For example, to train a 25 component Gaussian mixture model via EM on your dataset:
+Examples
+--------
+
+First, train a basic 25 component Gaussian mixture model via EM on your dataset:
 
 .. code-block:: python
 
-  >>> python -m bnpy.Run MyDataset.py FiniteMixtureModel Gauss EM --K 25
+  >>> python -m bnpy.Run MyDataset FiniteMixtureModel Gauss EM --K 25
 
-Alternatively, we can try a **Dirichlet process**-based Gaussian mixture model:
+Next, we can try a **Dirichlet process**-based Gaussian mixture model:
 
 .. code-block:: bash
 
-	$ python -m bnpy.Run MyDataset.py DPMixtureModel Gauss VB --K 25
+	$ python -m bnpy.Run MyDataset DPMixtureModel Gauss VB --K 25
 
-Next, we could take advantage of sequential structure in your data by training a hidden Markov model using memoized variational inference.
+Finally, we could take advantage of sequential structure in your data by training a hidden Markov model using memoized variational inference.
 
 .. code-block:: bash
 
@@ -35,11 +34,13 @@ Next, we could take advantage of sequential structure in your data by training a
 
 .. code-block:: python
 
-  >>> bnpy.run(MyDatasetObject, 'HDPHMM', 'DiagGauss', 'moVB', moves='merge,delete')
+    >>> bnpy.run(MyDatasetObject, 'HDPHMM', 'DiagGauss', 'moVB', moves='merge,delete')
 
 
 Supported clustering models
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------
+
+The following are possible *allocation* models, which is **bnpy**-terminology for a generative model which assigns clusters to structured datasets.
 
 * Mixture models
     * `FiniteMixtureModel` : fixed number of clusters
@@ -58,8 +59,10 @@ Supported clustering models
     * grammar models
 
 
-Supported data-generation models (likelihoods)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Supported observations models
+-----------------------------
+
+Any of the above allocation models can be combined with one of these *observation* models, which describe how to produce data assigned to a specific cluster.
 
 * Real-valued vector observations (1-dim, 2-dim, ... D-dim)
     * `Gauss` : Full-covariance Gaussian
@@ -73,7 +76,7 @@ Supported data-generation models (likelihoods)
 
 
 Supported algorithms
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 * Variational methods
     * `EM` : Expectation-maximization
@@ -84,9 +87,6 @@ Supported algorithms
 * COMING SOON
     * Gibbs sampling
 
-Why bnpy?
-======================================
-TODO
 
 
 
@@ -96,5 +96,6 @@ TODO
     Installation
     UserGuide
     demos/DemoIndex
-    
+    allocmodel/index
+    obsmodel/index
 

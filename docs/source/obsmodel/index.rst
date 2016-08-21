@@ -5,6 +5,8 @@ Obs Model Guide
 What is an ObsModel?
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
 
-   GaussObsModel-EM
+    GaussRegressYFromFixedXObsModel-VB
+    DiagGaussObsModel-VB
+    GaussObsModel-EM
