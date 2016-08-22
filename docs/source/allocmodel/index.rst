@@ -1,28 +1,39 @@
-=========================
-Allocation Model Overview
-=========================
+=================
+Allocation Models
+=================
 
 What is an allocation model?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------
 
-These components are responsible for:
+An allocation model describes how discrete clusters are assigned to a dataset, even if the data has hierarchical/sequential structure.
+For a basic introduction to these concepts, see the Compositional Models documentation.
+
+The core of an allocation model is a *generative* probabilistic model, which produces cluster assignments :math:`z_1, z_2, \ldots z_N` for each observation in the dataset.
+
+.. math::
+    p( z | \pi ) = ???
+
+Each allocation model provides the following essential functionality:
 
 * Objective function
-	computing all terms that do not belong in the observation model. 
+    The function optimized by the training algorithm given observed data.
 
 * Local step
-	updating local variational parameters for a chunk of data. 
+	Updating local parameters for a chunk of data. 
 
 * Summary step
-  computing sufficient statistics from local parameters.
+    computing sufficient statistics from local parameters.
 
 * Global step
-  updating global parameters given sufficient statistics.
+    updating global parameters given sufficient statistics.
+
+
+Supported allocation models
+---------------------------
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
    :titlesonly:
 
    MixtureModels-Overview
    TopicModels-Overview
-   HiddenMarkovModels-Overview

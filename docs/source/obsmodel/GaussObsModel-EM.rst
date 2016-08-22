@@ -1,3 +1,0 @@
-=============
-GaussObsModel with EM
-=============
