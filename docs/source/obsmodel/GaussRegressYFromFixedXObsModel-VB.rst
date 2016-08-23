@@ -19,7 +19,7 @@ Each cluster *k* produces the output values according to the following standard 
 
 Here, the cluster-specific parameters are a weight vector :math:`w_k`, an intercept weight :math:`b_k`, and a precision scalar :math:`\delta_k`.  These are the global random variables of this observation model.
 
-Alternatively, if we define an *expanded* input data vector :math:`\tilde{x}_n = [x_{n1} x_{n2} \ldots x_{nD} 1]`, we can write the generative model more simply as:
+Alternatively, if we define an *expanded* input data vector :math:`\tilde{x}_n = [x_{n1} x_{n2} \ldots x_{nD} ~ 1]`, we can write the generative model more simply as:
 
 .. math::
     y_{n} \sim \mathcal{N} \left(
@@ -75,7 +75,7 @@ Under this prior, here are some useful expectations for the precision random var
 .. math::
     \E_{\mbox{prior}}[ \delta_k ] &= \frac{\bar{\nu}}{\bar{\tau}}
     \\
-    \E_{\mbox{prior}}[ \delta_k^{-1} ] &= \frac{\bar{\tau}}{\bar{\nu} + 1}
+    \E_{\mbox{prior}}[ \delta_k^{-1} ] &= \frac{\bar{\tau}}{\bar{\nu} - 2}
     \\
     \mbox{Var}_{\mbox{prior}}[ \delta_k ] &= 
         \frac{\bar{\nu}}{\bar{\tau}^2}
@@ -83,9 +83,22 @@ Under this prior, here are some useful expectations for the precision random var
 Likewise, here are some useful prior expectations for the weight vector random variable:
 
 .. math::
-    \E_{\mbox{prior}}[w] &= \bar{w}
+    \E_{\mbox{prior}}[w_k] &= \bar{w}
     \\
-    \mbox{Cov}_{\mbox{prior}}[w] &= ???
+    \mbox{Cov}_{\mbox{prior}}[w_k] &=
+        \frac{\bar{\tau}}{\bar{\nu} - 2} 
+        \bar{P}^{-1}
+
+And some useful joint expectations:
+
+.. math::
+    \E_{\mbox{prior}}[\delta_k w_k ] &=  
+        \frac{\bar{\nu}}{\bar{\tau}}\bar{w}
+    \\
+    \E_{\mbox{prior}}[\delta_k w_k w_k^T ] &=
+        \bar{P}^{-1} + 
+        \frac{\bar{\nu}}{\bar{\tau}} \bar{w} \bar{w}^{T}
+
 
 In our Python implementation of the ``GaussRegressYFromFixedXObsModel`` class, these quantities are represented by the following numpy array attributes of the ``Prior`` parameter bag:
 
@@ -182,9 +195,10 @@ Variational optimization will find the approximate posterior parameters that max
 .. math::
     \mathcal{L}^{\smalltext{Gaussian Regression}}(y, x, 
         \hat{\nu}, \hat{\tau}, \hat{w}, \hat{P} )
-    &= \sum_{k=1}^K \sum_{d=1}^D
+    &= -\frac{N}{2} \log 2\pi
+    \\ & \quad + \sum_{k=1}^K \sum_{d=1}^D
         c^{\smalltext{NW}}_{1,E}(
-            \hat{\nu}_k, \hat{\tau}_{k}, \hat{w}_{k}, \hat{P})_k
+            \hat{\nu}_k, \hat{\tau}_{k}, \hat{w}_{k}, \hat{P}_k)
         - c^{\smalltext{NW}}_{1,E}(
             \bar{\nu}, \bar{\tau}, \bar{w}, \bar{P})
       \\
@@ -267,10 +281,10 @@ The cumulant function of the Normal-Wishart produces a scalar output from 4 inpu
 .. math::
     c^{\smalltext{NW}}_{1,E}(\nu, \tau, w, P) 
         &=  
-        - \frac{E}{2} \log 2 \pi
-        + \frac{1}{2} \log |P|
-        + \frac{\nu}{2} \log \frac{\tau}{2}
-        - \log \Gamma \left( \frac{\nu}{2} \right)
+        \frac{E}{2} \log 2 \pi
+        - \frac{1}{2} \log |P|
+        - \frac{\nu}{2} \log \frac{\tau}{2}
+        + \log \Gamma \left( \frac{\nu}{2} \right)
 
 where :math:`\Gamma(\cdot)` is the gamma function, and :math:` \log |P|` is the log determinant of the E x E matrix :math:`P`.
 

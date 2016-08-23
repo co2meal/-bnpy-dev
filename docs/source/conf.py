@@ -347,11 +347,11 @@ man_pages = [
 
 # Relative path within _static/, for offline rendering
 # Uses custom local.js file for bnpy-specific macros
-mathjax_path = "MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML,local/local.js"
+# mathjax_path = "MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML,local/local.js"
 
 # Absolute path, using MathJax's CDN for fast loading
 # And special path to our custom local.js file
-# mathjax_path = "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML,https://cs.brown.edu/people/mhughes/bnpy/_static/MathJax/config/local/local.js"
+mathjax_path = "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML,https://cs.brown.edu/people/mhughes/bnpy/_static/MathJax/config/local/local.js"
 
 # -- Options for Texinfo output -------------------------------------------
 

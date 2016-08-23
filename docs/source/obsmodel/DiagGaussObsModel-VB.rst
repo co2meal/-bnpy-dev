@@ -162,7 +162,8 @@ Variational optimization will find the approximate posterior parameters that max
 .. math::
     \mathcal{L}^{\smalltext{DiagGauss}}(
         \hat{\nu}, \hat{\beta}, \hat{m}, \hat{\kappa} )
-    &= \sum_{k=1}^K \sum_{d=1}^D
+    &= -\frac{ND}{2} \log 2\pi
+    \\ & \quad + \sum_{k=1}^K \sum_{d=1}^D
             c^{\smalltext{NW}}_{1,1}(
                 \hat{\nu}_k, \hat{\beta}_{kd}, \hat{m}_{kd}, \hat{\kappa})_k
             - c^{\smalltext{NW}}_{1,1}(
@@ -224,10 +225,10 @@ The cumulant function of the univariate Normal-Wishart is evaluated for each dim
 .. math::
     c^{\smalltext{NW}}_{1,1}(\nu, \beta_d, m_d, \kappa) 
         &=  
-        - \frac{1}{2} \log 2\pi
-        + \frac{1}{2} \log \kappa
-        + \frac{\nu}{2} \log \frac{\beta_d}{2}
-        - \log \Gamma \left( \frac{\nu}{2} \right)
+        \frac{1}{2} \log 2\pi
+        - \frac{1}{2} \log \kappa
+        - \frac{\nu}{2} \log \frac{\beta_d}{2}
+        + \log \Gamma \left( \frac{\nu}{2} \right)
 
 
 Coordinate Ascent Updates

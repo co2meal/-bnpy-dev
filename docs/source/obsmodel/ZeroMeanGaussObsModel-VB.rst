@@ -1,6 +1,8 @@
 ============================================================================
-Diagonal-covariance Gaussian observation model: Variational Bayesian Methods
+Zero-mean full-covariance Gaussian observation model: Variational Bayesian Methods
 ============================================================================
+
+TODO update this page
 
 Generative model
 ================
