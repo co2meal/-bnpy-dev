@@ -4,11 +4,35 @@ import numpy as np
 import itertools
 import Symbols as S
 import bnpy
+
 from scipy.sparse import csr_matrix
 from bnpy.init.FromExistingBregman import runKMeans_BregmanDiv_existing
 from bnpy.mergemove.MPlanner import selectCandidateMergePairs
 from bnpy.viz.PlotUtil import pylab
 from bnpy.allocmodel.topics.LocalStepManyDocs import updateLPGivenDocTopicCount
+
+np.set_printoptions(precision=4, suppress=1, linewidth=100)
+
+def pprint_ELBO_dict_difference(
+        ELBO_dict_1,
+        ELBO_dict_2=None,
+        keys=['Ldata', 'Lalloc', 'Lentropy', 'LcDtheta', 'Ltotal']):
+    ''' Print easy-to-read info about which ELBO terms change 
+    '''
+    for key in keys:
+        if ELBO_dict_2 is None:
+            msg = '%8s   curL=% 6.3f' % (
+                key,
+                ELBO_dict_1[key],
+                )
+        else:
+            msg = '%8s   curL=% 6.3f   propL=% 6.3f   diff=% 6.3f' % (
+                key,
+                ELBO_dict_1[key],
+                ELBO_dict_2[key],
+                ELBO_dict_2[key] - ELBO_dict_1[key],
+                )
+        print(msg)
 
 if __name__ == '__main__':
     Npersymbol = 1000
@@ -44,7 +68,8 @@ if __name__ == '__main__':
         TrainData, 'HDPTopicModel', 'ZeroMeanGauss', 'memoVB',
         initname='truelabels',
         nLap=50, nBatch=1,
-        moves='merge', m_startLap=5,
+        moves='',
+        #moves='merge', m_startLap=5,
         ECovMat='eye', sF=0.01,
         gamma=10.0,
         alpha=0.5)
@@ -82,17 +107,35 @@ if __name__ == '__main__':
             (np.ones(Z.size), Z, np.arange(0, Z.size+1, 1)),
             shape=(TestData.nObs, Kall))
         )
-    DocTopicCount = np.asarray(np.bincount(Z, minlength=Kall).reshape((1, Kall)), dtype=np.float64)
-    testLP['DocTopicCount'] = DocTopicCount
+    test_DocTopicCount = np.asarray(np.bincount(
+        Z, minlength=Kall).reshape((1, Kall)), dtype=np.float64)
+    testLP['DocTopicCount'] = test_DocTopicCount
 
-    alphaPi0 = np.hstack([
-        trainedModel.allocModel.alpha_E_beta(),
-        trainedModel.allocModel.E_beta_rem() / (Kfresh + 1) * np.ones(Kfresh)
-    ])
-    alphaPi0Rem = trainedModel.allocModel.E_beta_rem() / (Kfresh + 1)
+    prev_pi0_rem = trainedModel.allocModel.E_beta_rem()
+    new_pi0_rem = 0.01
+    new_pi0_Kfresh = (1 - new_pi0_rem) / float(Kfresh) * np.ones(Kfresh)
+    assert np.allclose(new_pi0_rem + new_pi0_Kfresh.sum(), 1.0)
+    
+    combined_pi0_Knew = np.hstack([
+        trainedModel.allocModel.E_beta_active(),
+        prev_pi0_rem * new_pi0_Kfresh,
+        ])
+    combined_pi0_rem = prev_pi0_rem * new_pi0_rem
+    assert np.allclose(
+        combined_pi0_Knew.sum() + combined_pi0_rem,
+        1.0)
+
+    # Now just multiply by alpha
+    alpha = trainedModel.allocModel.alpha
+    alphaPi0 = alpha * combined_pi0_Knew
+    alphaPi0Rem = alpha * combined_pi0_rem
+    assert np.allclose(
+        alpha,
+        alphaPi0.sum() + alphaPi0Rem)
+
     testLP = updateLPGivenDocTopicCount(
         testLP,
-        DocTopicCount,
+        test_DocTopicCount,
         alphaPi0,
         alphaPi0Rem)
     testSS = trainedModel.get_global_suff_stats(
@@ -113,27 +156,42 @@ if __name__ == '__main__':
     combinedModel.update_global_params(combinedSS)
 
     # Refine this combined model via several coord ascent passes thru TestData
-    testLP = dict(DocTopicCount=DocTopicCount)
     for aiter in range(10):
         if aiter > 2:
             doMergeThisIter = 1
-            # Create list of all unique pairs of "fresh" uids
-            m_UIDPairs = [(uidA, uidB) for (uidA, uidB)
-                          in itertools.combinations(trainSS.uids, 2)
-                          if trainSS.uid2k(uidB) >= Korig]
+            # Create list of all pairs of two uids that are both "fresh"
+            m_UIDPairs_ff = [
+                (uidA, uidB) for (uidA, uidB)
+                in itertools.combinations(trainSS.uids[Korig:], 2)]
+            # Create list of all pairs of two uids combining "orig" and "fresh"
+            m_UIDPairs_of = [
+                (uidA, uidB) for (uidA, uidB)
+                in itertools.product(
+                    trainSS.uids[:Korig],
+                    trainSS.uids[Korig:])]
+            # Create combined list
+            # Be sure to try fresh/fresh pairs before orig/fresh pairs
+            # m_UIDPairs = m_UIDPairs_of + m_UIDPairs_ff
+            m_UIDPairs = m_UIDPairs_ff + m_UIDPairs_of
             m_IDPairs = [(trainSS.uid2k(uidA), trainSS.uid2k(uidB))
                 for (uidA, uidB) in m_UIDPairs]
         else:
             doMergeThisIter = 0
             m_IDPairs = []
+            m_UIDPairs = []
+        
+        assert combinedModel.obsModel.K == test_DocTopicCount.shape[1]
+        init_test_LP = dict(DocTopicCount=test_DocTopicCount.copy())
 
         # Perform local step with "warm start"
         # using previous testLP's DocTopicCount attribute as initialization
         testLP = combinedModel.calc_local_params(
-            TestData, testLP,
+            TestData, init_test_LP,
             initDocTopicCountLP='memo',
             nCoordAscentItersLP=50,
             convThrLP=0.05)
+        test_DocTopicCount = testLP['DocTopicCount'].copy()
+
         testSS = combinedModel.get_global_suff_stats(
             TestData, testLP,
             doPrecompEntropy=1, doTrackTruncationGrowth=1,
@@ -147,20 +205,28 @@ if __name__ == '__main__':
               ' '.join(['%9.2f' % x for x in testSS.N[Korig:]]))
 
         testSS.setUIDs(trainSS.uids)
+        if len(m_UIDPairs) > 0:
+            testSS.setMergeUIDPairs(m_UIDPairs)
+
         combinedSS = trainSS + testSS
         combinedModel.update_global_params(combinedSS)
 
-        if aiter > 2:
-            cur_ELBO = combinedModel.calc_evidence(SS=combinedSS)
+        cur_ELBO = combinedModel.calc_evidence(SS=combinedSS)
+        cur_ELBO_dict = combinedModel.calc_evidence(
+            SS=combinedSS, todict=1)
+        print("   ELBO % 8.5f" % cur_ELBO)
+        pprint_ELBO_dict_difference(cur_ELBO_dict)
 
+        if aiter > 2:
             # Track which uids were accepted
             acceptedUIDs = set()
 
             # Try merging each possible pair of uids
             for ii, (uidA, uidB) in enumerate(m_UIDPairs):
                 if uidA in acceptedUIDs or uidB in acceptedUIDs:
-                    print('pair %2d %2d skipped since one already accepted' % (
-                        uidA, uidB))
+                    # print(
+                    #   'pair %2d %2d skipped. Comp accepted previously' % (
+                    #    uidA, uidB))
                     continue
 
                 kA = trainSS.uid2k(uidA)
@@ -184,7 +250,7 @@ if __name__ == '__main__':
                 # Uses precomputed fields within testSS._MergeTerms
                 prop_testSS = testSS.copy()
                 prop_testSS.mergeComps(uidA=uidA, uidB=uidB)
-
+                
                 # Create proposed model
                 # Aggregating from both train and test
                 prop_combinedSS = prop_trainSS + prop_testSS
@@ -192,21 +258,41 @@ if __name__ == '__main__':
                 prop_combinedModel.update_global_params(prop_combinedSS)
 
                 # If ELBO of proposed model improves, accept!
+                prop_ELBO_dict = prop_combinedModel.calc_evidence(
+                    SS=prop_combinedSS, todict=1)
                 prop_ELBO = prop_combinedModel.calc_evidence(
                     SS=prop_combinedSS)
+
                 if prop_ELBO > cur_ELBO:
+                    # print('pair %2d %2d ACCEPTED!' % (uidA, uidB))
+                    # print('cur gammalnTheta')
+                    # print(testSS.getELBOTerm('gammalnTheta'))
+                    # print('prop gammalnTheta')
+                    # print(prop_testSS.getELBOTerm('gammalnTheta'))
+
                     # ACCEPT!
                     combinedModel = prop_combinedModel
-                    cur_ELBO = prop_ELBO
                     trainSS = prop_trainSS
                     testSS = prop_testSS
-                    testLP = dict(DocTopicCount=testSS.N.reshape((1, testSS.K)))
+                    test_DocTopicCount = \
+                        prop_testSS.N[np.newaxis,:].copy()
                     acceptedUIDs.add(uidA)
                     acceptedUIDs.add(uidB)
-                    print('pair %2d %2d ACCEPTED!' % (uidA, uidB))
+                    print("   ELBO % 8.5f after accepted merge" % prop_ELBO)
+                    pprint_ELBO_dict_difference(cur_ELBO_dict, prop_ELBO_dict)
+                    cur_ELBO = prop_ELBO
+                    cur_ELBO_dict = prop_ELBO_dict
+                    
                 else:
-                    print('pair %2d %2d rejected' % (uidA, uidB))
+                    pass
+                    # print('pair %2d %2d rejected' % (uidA, uidB))
+                    # pprint_ELBO_dict_difference(cur_ELBO_dict, prop_ELBO_dict)
+                    # print('cur gammalnTheta')
+                    # print(testSS.getELBOTerm('gammalnTheta'))
+                    # print('prop gammalnTheta')
+                    # print(prop_testSS.getELBOTerm('gammalnTheta'))
 
+    '''
     print()
     print("Plotting final combined model!")
     print("Each plot shows 25 samples of image patches from that cluster")
@@ -235,4 +321,5 @@ if __name__ == '__main__':
                 axList[r, c].set_xticks([])
                 axList[r, c].set_yticks([])
 
-pylab.show()
+    pylab.show()
+    '''
