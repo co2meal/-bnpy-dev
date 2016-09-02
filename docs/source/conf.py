@@ -68,7 +68,7 @@ release = '0.1'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en-us"
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -142,8 +142,8 @@ html_theme_options = {
         ("Demo Gallery", "demos/DemoIndex"),
         ("Installation", "Installation"),
         ("User Guide", "UserGuide"),
-        ("Alloc Model Guide", "allocmodel/index"),
-        ("Obs Model Guide", "obsmodel/index"),
+        ("Allocation Models", "allocmodel/index"),
+        ("Observation Models", "obsmodel/index"),
     ],
 
     # Render the next and previous page links in navbar. (Default: true)
@@ -199,7 +199,7 @@ html_theme_options = {
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = None #"_static/bnpy_logo.png"
+html_logo = None # "_static/bnpy_logo.png"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -218,7 +218,7 @@ html_static_path = ['_static']
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
-html_last_updated_fmt = '%b %d, %Y'
+html_last_updated_fmt = '%Y %b %d'
 
 # If true, SmartyPants will be used to convert quotes and dashes to
 # typographically correct entities.
@@ -283,17 +283,24 @@ htmlhelp_basename = 'bnpydoc'
 
 latex_elements = {
 # The paper size ('letterpaper' or 'a4paper').
-#'papersize': 'letterpaper',
+'papersize': 'letterpaper',
 
 # The font size ('10pt', '11pt' or '12pt').
-#'pointsize': '10pt',
+'pointsize': '11pt',
 
 # Additional stuff for the LaTeX preamble.
-#'preamble': '',
+'preamble': """
+    \usepackage{amsmath}
+    \usepackage{amssymb}
+    \usepackage{bnpy_macros}
+    """
 
 # Latex figure (float) alignment
 #'figure_align': 'htbp',
 }
+
+latex_additional_files = ['_static/bnpy_macros.sty']
+
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
@@ -336,6 +343,15 @@ man_pages = [
 # If true, show URL addresses after external links.
 #man_show_urls = False
 
+# -- Options for MathJax custom install --------------------------------
+
+# Relative path within _static/, for offline rendering
+# Uses custom local.js file for bnpy-specific macros
+# mathjax_path = "MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML,local/local.js"
+
+# Absolute path, using MathJax's CDN for fast loading
+# And special path to our custom local.js file
+mathjax_path = "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML,https://cs.brown.edu/people/mhughes/bnpy/_static/MathJax/config/local/local.js"
 
 # -- Options for Texinfo output -------------------------------------------
 

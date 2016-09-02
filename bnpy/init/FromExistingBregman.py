@@ -14,6 +14,7 @@ def runKMeans_BregmanDiv_existing(
         setOneToPriorMean=0,
         distexp=1.0,
         init='plusplus',
+        noiseSD=0.0,
         **kwargs):
     ''' Run clustering algorithm to add Kfresh new clusters to existing model.
 
@@ -37,12 +38,14 @@ def runKMeans_BregmanDiv_existing(
     Lscores : 1D array, size Niter
     '''
     Korig = obsModel.K
+    obsModel.Prior.B += noiseSD**2 * np.eye(obsModel.D)
     chosenZ, Mu, _, _ = initKMeans_BregmanDiv_existing(
         X, Kfresh, obsModel,
         W=W,
         seed=seed,
         smoothFrac=smoothFracInit,
-        distexp=distexp)
+        distexp=distexp,
+        noiseSD=noiseSD)
     # Make sure we update K to reflect the returned value.
     # initKMeans_BregmanDiv will return fewer than K clusters
     # in some edge cases, like when data matrix X has duplicate rows
@@ -142,6 +145,7 @@ def runKMeans_BregmanDiv_existing(
         Kfreshnonzero = np.unique(Z[Z >= Korig]).size
         assert Kfreshnonzero == Kfresh
         assert len(Mu) == Korig + Kfresh
+    obsModel.Prior.B -= noiseSD**2 * np.eye(obsModel.D)
     return Z, Mu, np.asarray(Lscores)
 
 def initKMeans_BregmanDiv_existing(
@@ -149,7 +153,8 @@ def initKMeans_BregmanDiv_existing(
         W=None,
         seed=0,
         smoothFrac=1.0,
-        distexp=1.0):
+        distexp=1.0,
+        noiseSD=0.0):
     ''' Initialize cluster means Mu with existing clusters and K new clusters.
 
     Returns
@@ -171,7 +176,7 @@ def initKMeans_BregmanDiv_existing(
     # Initialize list Mu to hold all mean vectors
     # First obsModel.K entries go to existing clusters found in the obsModel.
     # Final K entries are placeholders for the new clusters we'll make below.
-    Mu = [obsModel.getSmoothedMuForComp(k) for k in xrange(obsModel.K)]
+    Mu = [obsModel.getSmoothedMuForComp(k) + noiseSD**2*np.eye(obsModel.D) for k in xrange(obsModel.K)]
     Mu.extend([None for k in xrange(K)])
 
     # Compute minDiv between all data and existing clusters

@@ -487,6 +487,9 @@ class SuffStatBag(object):
                 mdims = self._MergeTerms._FieldDims[key]
 
                 if mdims[0] == 'M':
+                    if rowID is None:
+                        raise ValueError("Badness: rowID is None." + 
+                            "Probably forget to call setMergeUIDPairs()")
                     if mArr.ndim == 3 and mArr.shape[1] == 2:
                         arr[kA, :] = mArr[rowID, 0]
                         arr[:, kA] = mArr[rowID, 1]
