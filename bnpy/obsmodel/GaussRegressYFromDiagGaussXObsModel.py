@@ -65,7 +65,10 @@ class GaussRegressYFromDiagGaussXObsModel(AbstractObsModel):
         self.K = 0
         self.inferType = inferType
         self.Cache = dict()
-        self.Prior = DiagGaussX.createParamBagForPrior(Data, **PriorArgs)
+        PriorArgs['D'] = self.D
+        PriorArgs['E'] = self.E
+        self.Prior = DiagGaussX.createParamBagForPrior(
+            Data, **PriorArgs)
         self.Prior = RegressY.createParamBagForPrior(
             Data, Prior=self.Prior, **PriorArgs)
 
