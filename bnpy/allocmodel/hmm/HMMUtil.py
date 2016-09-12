@@ -21,6 +21,7 @@ from lib.LibFwdBwd import FwdAlg_cpp, BwdAlg_cpp, SummaryAlg_cpp
 def calcLocalParams(Data, LP,
                     transTheta=None, startTheta=None,
                     limitMemoryLP=1,
+                    hmm_feature_method_LP='forward+backward',
                     mPairIDs=None,
                     cslice=(0, None),
                     **kwargs):
@@ -65,8 +66,27 @@ def calcLocalParams(Data, LP,
             mPairIDs = as2D(mPairIDs)
             M = mPairIDs.shape[0]
     assert mPairIDs.shape[1] == 2
+    if hmm_feature_method_LP == 'forward':
+        fmsg = np.zeros_like(LP['E_log_soft_ev'])
+        # Run forward backward algorithm on each sequence n
+        for n in xrange(Data.nDoc):
+            start = Data.doc_range[n]
+            stop = Data.doc_range[n + 1]
+            logLik_n = logLik[start:stop]
+            # Adding in start state probs, in log space for stability.
+            logLik_n[0] += logstartPi
 
-    if limitMemoryLP:
+            PiInit, PiMat, K = _parseInput_TransParams(startPi, transPi)
+            logSoftEv = _parseInput_SoftEv(logLik_n, K)
+            T = logSoftEv.shape[0]
+            SoftEv, lognormC = expLogLik(logSoftEv)
+            fmsg_n, margPrObs = FwdAlg(PiInit, PiMat, SoftEv)
+            if not np.all(np.isfinite(margPrObs)):
+                raise ValueError('NaN values found. Numerical badness!')
+            fmsg[start:stop] = fmsg_n
+        LP['fmsg'] = fmsg
+
+    elif limitMemoryLP:
         # Track sufficient statistics directly at each sequence.
         TransCount = np.empty((Data.nDoc, K, K))
         Htable = np.empty((Data.nDoc, K, K))
@@ -115,7 +135,7 @@ def calcLocalParams(Data, LP,
         LP['evidence'] = np.sum(logMargPr)
         LP['resp'] = resp
         LP['respPair'] = respPair
-        # ... end if statement on limitMemoryLP
+    # ... end if statement on limitMemoryLP
 
     return LP
 
