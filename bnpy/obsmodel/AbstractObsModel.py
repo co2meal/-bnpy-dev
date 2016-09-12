@@ -161,8 +161,12 @@ class AbstractObsModel(object):
             PDict['CompDims'] = self.CompDims
 
         if hasattr(self, 'Prior'):
-            PDict['D'] = self.Prior.D
-            for key in self.Prior._FieldDims.keys():
+            all_keys = self.Prior.__dict__.keys()
+            field_names = self.Prior._FieldDims.keys()
+            other_names = [key for key in all_keys if key not in field_names]
+            for key in field_names:
+                PDict[key] = getattr(self.Prior, key)
+            for key in other_names:
                 PDict[key] = getattr(self.Prior, key)
         return PDict
 

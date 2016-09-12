@@ -42,7 +42,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
     V[k] : 2D array, size D x D
     '''
 
-    def __init__(self, inferType='EM', D=0,
+    def __init__(self, inferType='EM', D=None, E=None,
                  min_covar=None,
                  Data=None,
                  **PriorArgs):
@@ -51,28 +51,57 @@ class AutoRegGaussObsModel(AbstractObsModel):
         Resulting object lacks either EstParams or Post,
         which must be created separately (see init_global_params).
         '''
+        # Set dimension D
         if Data is not None:
-            self.D = Data.dim
+            D = Data.X.shape[1]
         else:
-            self.D = int(D)
+            assert D is not None
+            D = int(D)
+        self.D = D
+
+        # Set dimension E
+        if Data is not None:
+            E = Data.Xprev.shape[1]
+        else:
+            assert E is not None
+            E = int(E)
+        self.E = E
+
         self.K = 0
         self.inferType = inferType
         self.min_covar = min_covar
-        self.createPrior(Data, **PriorArgs)
+        self.createPrior(Data, D=D, E=E, **PriorArgs)
         self.Cache = dict()
 
-    def createPrior(self, Data, nu=0, B=None,
-                    M=None, V=None,
-                    ECovMat=None, sF=1.0,
-                    VMat='eye', sV=1.0, MMat='zero', sM=1.0,
-                    **kwargs):
+    def createPrior(
+            self, Data,
+            D=None, E=None,
+            nu=0, B=None,
+            M=None, V=None,
+            ECovMat=None, sF=1.0,
+            VMat='eye', sV=1.0, MMat='zero', sM=1.0,
+            **kwargs):
         ''' Initialize Prior ParamBag attribute.
 
         Post Condition
         ------
         Prior expected covariance matrix set to match provided value.
         '''
-        D = self.D
+        if Data is None:
+            if D is None:
+                raise ValueError("Need to specify dimension D")
+            if E is None:
+                raise ValueError("Need to specify dimension E")
+        if Data is not None:
+            if D is None:
+                D = Data.X.shape[1]
+            else:
+                assert D == Data.X.shape[1]
+            if E is None:
+                E = Data.Xprev.shape[1]
+            else:
+                assert E == Data.Xprev.shape[1]
+
         nu = np.maximum(nu, D + 2)
         if B is None:
             if ECovMat is None or isinstance(ECovMat, str):
@@ -82,8 +111,9 @@ class AutoRegGaussObsModel(AbstractObsModel):
 
         if M is None:
             if MMat == 'zero':
-                M = np.zeros((D, D))
+                M = np.zeros((D, E))
             elif MMat == 'eye':
+                assert D == E
                 M = sM * np.eye(D)
             else:
                 raise ValueError('Unrecognized MMat: %s' % (MMat))
@@ -92,19 +122,20 @@ class AutoRegGaussObsModel(AbstractObsModel):
 
         if V is None:
             if VMat == 'eye':
-                V = sV * np.eye(D)
+                V = sV * np.eye(E)
             elif VMat == 'same':
+                assert D == E
                 V = sV * ECovMat
             else:
                 raise ValueError('Unrecognized VMat: %s' % (VMat))
         else:
             V = as2D(V)
 
-        self.Prior = ParamBag(K=0, D=D)
+        self.Prior = ParamBag(K=0, D=D, E=E)
         self.Prior.setField('nu', nu, dims=None)
         self.Prior.setField('B', B, dims=('D', 'D'))
-        self.Prior.setField('V', V, dims=('D', 'D'))
-        self.Prior.setField('M', M, dims=('D', 'D'))
+        self.Prior.setField('V', V, dims=('E', 'E'))
+        self.Prior.setField('M', M, dims=('D', 'E'))
 
     def get_mean_for_comp(self, k=None):
         if hasattr(self, 'EstParams'):
@@ -201,14 +232,14 @@ class AutoRegGaussObsModel(AbstractObsModel):
             B = as3D(B)
             V = as3D(V)
 
-            K, D, D2 = M.shape
+            K, D, E = M.shape
             assert D == self.D
-            assert D == D2
-            self.Post = ParamBag(K=K, D=self.D)
+            assert E == self.E
+            self.Post = ParamBag(K=K, D=self.D, E=self.E)
             self.Post.setField('nu', as1D(nu), dims=('K'))
             self.Post.setField('B', B, dims=('K', 'D', 'D'))
-            self.Post.setField('M', M, dims=('K', 'D', 'D'))
-            self.Post.setField('V', V, dims=('K', 'D', 'D'))
+            self.Post.setField('M', M, dims=('K', 'D', 'E'))
+            self.Post.setField('V', V, dims=('K', 'E', 'E'))
         self.K = self.Post.K
 
     def setPostFromEstParams(self, EstParams, Data=None, N=None):
@@ -269,8 +300,13 @@ class AutoRegGaussObsModel(AbstractObsModel):
     def calcSummaryStatsForContigBlock(self, Data, SS=None, a=0, b=0):
         ''' Calculate sufficient stats for a single contiguous block of data
         '''
+        D = Data.X.shape[1]
+        E = Data.Xprev.shape[1]
+
         if SS is None:
-            SS = SuffStatBag(K=1, D=Data.dim)
+            SS = SuffStatBag(K=1, D=D, E=E)
+        elif not hasattr(SS, 'E'):
+            SS._Fields.E = E
 
         ppT = dotATA(Data.Xprev[a:b])[np.newaxis, :, :]
         xxT = dotATA(Data.X[a:b])[np.newaxis, :, :]
@@ -278,8 +314,8 @@ class AutoRegGaussObsModel(AbstractObsModel):
 
         SS.setField('N', (b - a) * np.ones(1), dims='K')
         SS.setField('xxT', xxT, dims=('K', 'D', 'D'))
-        SS.setField('ppT', ppT, dims=('K', 'D', 'D'))
-        SS.setField('pxT', pxT, dims=('K', 'D', 'D'))
+        SS.setField('ppT', ppT, dims=('K', 'E', 'E'))
+        SS.setField('pxT', pxT, dims=('K', 'E', 'D'))
         return SS
 
     def calcLogSoftEvMatrix_FromEstParams(self, Data, **kwargs):
@@ -390,13 +426,15 @@ class AutoRegGaussObsModel(AbstractObsModel):
         '''
         self.ClearCache()
         if not hasattr(self, 'Post') or self.Post.K != SS.K:
-            self.Post = ParamBag(K=SS.K, D=SS.D)
+            self.Post = ParamBag(K=SS.K, D=SS.D, E=SS.E)
+        elif not hasattr(self.Post, 'E'):
+            self.Post.E = SS.E
 
         nu, B, M, V = self.calcPostParams(SS)
         self.Post.setField('nu', nu, dims=('K'))
         self.Post.setField('B', B, dims=('K', 'D', 'D'))
-        self.Post.setField('M', M, dims=('K', 'D', 'D'))
-        self.Post.setField('V', V, dims=('K', 'D', 'D'))
+        self.Post.setField('M', M, dims=('K', 'D', 'E'))
+        self.Post.setField('V', V, dims=('K', 'E', 'E'))
         self.K = SS.K
 
     def calcPostParams(self, SS):
@@ -410,8 +448,8 @@ class AutoRegGaussObsModel(AbstractObsModel):
         nu : 1D array, size K
         B : 3D array, size K x D x D
             each B[k] symmetric and positive definite
-        M : 3D array, size K x D x D
-        V : 3D array, size K x D x D
+        M : 3D array, size K x D x E
+        V : 3D array, size K x E x E
         '''
         Prior = self.Prior
         nu = Prior.nu + SS.N
@@ -419,7 +457,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
         B_MVM = Prior.B + np.dot(Prior.M, np.dot(Prior.V, Prior.M.T))
         B = SS.xxT + B_MVM[np.newaxis, :]
         V = SS.ppT + Prior.V[np.newaxis, :]
-        M = np.zeros((SS.K, self.D, self.D))
+        M = np.zeros((SS.K, SS.D, SS.E))
         for k in xrange(B.shape[0]):
             M[k] = np.linalg.solve(
                 V[k], SS.pxT[k] + np.dot(Prior.V, Prior.M.T)).T
@@ -943,14 +981,14 @@ def c_Func(nu, logdetB, M, logdetV):
         logdetB = np.log(np.linalg.det(logdetB))
     if logdetV.ndim >= 2:
         logdetV = np.log(np.linalg.det(logdetV))
-    D = M.shape[-1]
+    D, E = M.shape
     dvec = np.arange(1, D + 1, dtype=np.float)
     return - 0.25 * D * (D - 1) * LOGPI \
         - 0.5 * D * LOGTWO * nu \
         - np.sum(gammaln(0.5 * (nu + 1 - dvec))) \
         + 0.5 * nu * logdetB \
-        - 0.5 * D * D * LOGTWOPI \
-        + 0.5 * D * logdetV
+        - 0.5 * D * E * LOGTWOPI \
+        + 0.5 * E * logdetV
 
 
 def c_Diff(nu, logdetB, M, logdetV,
@@ -971,9 +1009,13 @@ def calcSummaryStats(Data, SS, LP,
     Xprev = Data.Xprev
     resp = LP['resp']
     K = resp.shape[1]
-    D = Data.dim
+    D = Data.X.shape[1]
+    E = Data.Xprev.shape[1]
+
     if SS is None:
-        SS = SuffStatBag(K=K, D=D)
+        SS = SuffStatBag(K=K, D=D, E=E)
+    elif not hasattr(SS, 'E'):
+        SS._Fields.E = E
 
     # Expected count for each k
     #  Usually computed by allocmodel. But just in case...
@@ -983,16 +1025,16 @@ def calcSummaryStats(Data, SS, LP,
     # Expected outer products
     sqrtResp = np.sqrt(resp)
     xxT = np.empty((K, D, D))
-    ppT = np.empty((K, D, D))
-    pxT = np.empty((K, D, D))
+    ppT = np.empty((K, E, E))
+    pxT = np.empty((K, E, D))
     for k in xrange(K):
         sqrtResp_k = sqrtResp[:, k][:, np.newaxis]
         xxT[k] = dotATA(sqrtResp_k * Data.X)
         ppT[k] = dotATA(sqrtResp_k * Data.Xprev)
         pxT[k] = np.dot(Data.Xprev.T, resp[:, k][:, np.newaxis] * Data.X)
     SS.setField('xxT', xxT, dims=('K', 'D', 'D'))
-    SS.setField('ppT', ppT, dims=('K', 'D', 'D'))
-    SS.setField('pxT', pxT, dims=('K', 'D', 'D'))
+    SS.setField('ppT', ppT, dims=('K', 'E', 'E'))
+    SS.setField('pxT', pxT, dims=('K', 'E', 'D'))
     return SS
 
 
