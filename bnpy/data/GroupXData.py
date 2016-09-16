@@ -171,7 +171,7 @@ class GroupXData(XData):
         assert self.doc_range.size == self.nDoc + 1
         assert self.doc_range[0] == 0
         assert self.doc_range[-1] == self.nObs
-        assert np.all(self.doc_range[1:] - self.doc_range[:-1] >= 1)
+        assert np.all(self.doc_range[1:] - self.doc_range[:-1] >= 0)
 
     def get_size(self):
         return self.nDoc
